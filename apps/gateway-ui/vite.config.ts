@@ -35,12 +35,20 @@ export default defineConfig({
     chunkSizeWarningLimit: 500,
   },
   server: {
-    port: 3000,
+    port: 5173,
     proxy: {
-      // Local development proxy to backend (Team 1 gateway on :8080)
-      '/v1/local': {
-        target: 'http://localhost:8080',
-        changeOrigin: false,
+      '/v1': {
+        target: 'http://localhost:8787',
+        changeOrigin: true,
+      },
+    },
+  },
+  preview: {
+    port: 5173,
+    proxy: {
+      '/v1': {
+        target: 'http://localhost:8787',
+        changeOrigin: true,
       },
     },
   },

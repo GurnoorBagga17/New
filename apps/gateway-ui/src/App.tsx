@@ -215,7 +215,7 @@ export default function App() {
   // Aembit / Clutch Security Signature Cybernetic Theme Support (defaults to dark)
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("axiom-theme");
+      const saved = localStorage.getItem("axiom-theme-v2");
       if (saved === "light" || saved === "dark") return saved;
     }
     return "dark";
@@ -223,7 +223,7 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("axiom-theme", theme);
+    localStorage.setItem("axiom-theme-v2", theme);
   }, [theme]);
 
   // Keyboard shortcut (Cmd+K or Ctrl+K) to open Quick Search

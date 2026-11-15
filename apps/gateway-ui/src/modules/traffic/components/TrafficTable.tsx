@@ -128,17 +128,17 @@ export function TrafficTable({
           const latencyUs = info.getValue();
           const latencyMs = (latencyUs / 1000).toFixed(2);
           
-          // Color code based on latency thresholds
-          let colorClass = 'text-text-primary';
-          colorClass = 'text-text-primary';
+          let colorClass = 'text-state-enforce';
+          if (latencyUs > 5000) colorClass = 'text-state-deny font-bold';
+          else if (latencyUs > 3000) colorClass = 'text-brand-orange';
           
           return (
-            <span className={`text-sm font-mono ${colorClass}`}>
+            <span className={`text-xs font-mono font-semibold ${colorClass}`}>
               {latencyMs} ms
             </span>
           );
         },
-        size: 100,
+        size: 110,
       }),
       
       columnHelper.accessor('decision', {

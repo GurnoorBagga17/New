@@ -338,3 +338,11 @@ function createAdminServer(customState) {
 }
 
 module.exports = { createAdminServer, createAdminServerState, scrubSecrets };
+
+if (require.main === module) {
+  const PORT = process.env.PORT || 8787;
+  const { server } = createAdminServer();
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`[Axiom Local Admin API] Server listening on http://0.0.0.0:${PORT}`);
+  });
+}

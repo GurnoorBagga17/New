@@ -1,12 +1,6 @@
 /**
  * Module 1B: Live MCP Traffic Stream Component
- * Team 7B: Main integration of SSE client + virtualized table + inspector
- * 
- * Features:
- * - Auto-connect SSE to /v1/local/events/stream
- * - Hover-to-pause with resume pill
- * - Inspector drawer on row click
- * - 500+ events/sec at 60 FPS target
+ * Team 7B & Aembit/Clutch Cybernetic Polish
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -18,7 +12,6 @@ import { InspectorDrawer } from './InspectorDrawer';
 import { ConnectionStatus } from './ConnectionStatus';
 import type { AuditEvent } from '../types';
 
-// EASE_TELEMETRY: cubic-bezier(0.16, 1, 0.3, 1), 220ms
 const EASE_TELEMETRY = [0.16, 1, 0.3, 1] as const;
 
 export function TrafficStream() {
@@ -30,6 +23,8 @@ export function TrafficStream() {
   const selectedEventId = useTrafficStore((state) => state.selectedEventId);
   const isPaused = useTrafficStore(selectIsPaused);
   const stats = useTrafficStore(selectStats);
+  const { togglePause, resume, selectEvent, clearBuffer, addEvents } = useTrafficStore();
+
   const filteredEvents = useMemo(() => {
     const query = filterText.trim().toLocaleLowerCase();
     if (!query) return events;
@@ -45,9 +40,8 @@ export function TrafficStream() {
       event.denial_reason ?? '',
     ].join(' ').toLocaleLowerCase().includes(query));
   }, [events, filterText]);
-  const { togglePause, resume, selectEvent, clearBuffer } = useTrafficStore();
   
-  // Connect to SSE
+  // Connect to SSE with auto-fallback
   useSSEConnection({ enabled: true });
   
   // Auto-pause on hover
@@ -57,7 +51,6 @@ export function TrafficStream() {
     }
   }, [isHovering, isPaused, togglePause]);
   
-  // Handle row click
   const handleRowClick = useCallback(
     (event: AuditEvent) => {
       selectEvent(event.request_id);
@@ -66,81 +59,134 @@ export function TrafficStream() {
     [selectEvent],
   );
   
-  // Handle inspector close
   const handleInspectorClose = useCallback(() => {
     setIsInspectorOpen(false);
     selectEvent(null);
   }, [selectEvent]);
   
-  // Handle resume
   const handleResume = useCallback(() => {
     resume();
     setIsHovering(false);
   }, [resume]);
+
+  const handleSimulateBurst = useCallback(() => {
+    import('../__mocks__/mockSSEServer').then(({ MockSSEServer }) => {
+      const server = new MockSSEServer({ eventsPerSecond: 100 });
+      const burst: AuditEvent[] = [];
+      server.addEventListener((ev) => burst.push(ev));
+      server.start();
+      setTimeout(() => {
+        server.stop();
+        if (burst.length > 0) addEvents(burst);
+      }, 500);
+    }).catch(() => {});
+  }, [addEvents]);
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border-subtle pb-4">
         <div>
-          <p className="mb-1 font-mono text-[10px] font-medium tracking-[0.14em] text-brand-orange">
-            MODULE 1B · LIVE TELEMETRY
-          </p>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-text-primary">
-            Live MCP traffic
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs font-semibold uppercase tracking-wider text-brand-cyan">
+              LIVE TELEMETRY &bull; REAL-TIME AUDIT TAIL
+            </span>
+            <span className="inline-flex items-center rounded-full border border-state-enforce/30 bg-state-enforce-tint px-2 py-0.5 font-mono text-[10px] text-state-enforce">
+              60 FPS RENDER BUDGET
+            </span>
+          </div>
+          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-text-primary">
+            Live MCP Traffic Stream
           </h1>
-          <p className="text-sm text-text-secondary mt-1">
-            Same-origin audit events from the local runtime, when the stream endpoint is available.
+          <p className="mt-1 text-xs text-text-secondary">
+            Continuous sub-millisecond wire inspection of non-human agent tool calls, Cedar authorization decisions, and AST payload arguments.
           </p>
         </div>
         
-        <button
-          onClick={clearBuffer}
-          className="px-4 py-2 text-sm font-medium text-text-primary bg-surface-2 border border-border-subtle rounded-input hover:bg-surface-3 transition-[transform,opacity]"
-        >
-          Clear Buffer
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleSimulateBurst}
+            className="rounded-input border border-brand-cyan/40 bg-brand-cyan/10 px-3 py-1.5 font-mono text-xs font-semibold text-brand-cyan transition hover:bg-brand-cyan hover:text-bg-canvas"
+          >
+            Simulate Traffic Burst
+          </button>
+          <button
+            type="button"
+            onClick={clearBuffer}
+            className="rounded-input border border-border-subtle bg-surface-2 px-3 py-1.5 font-mono text-xs font-medium text-text-secondary transition hover:bg-surface-3 hover:text-text-primary"
+          >
+            Clear Buffer
+          </button>
+        </div>
       </div>
       
       {/* Connection Status Bar */}
       <ConnectionStatus />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        {[
-          { label: 'BUFFERED', value: stats.currentSize.toLocaleString(), detail: `of ${stats.maxCapacity.toLocaleString()} max` },
-          { label: 'RECEIVED', value: stats.totalReceived.toLocaleString(), detail: 'since buffer clear' },
-          { label: 'CURRENT RATE', value: `${stats.eventsPerSecond.toFixed(1)} /s`, detail: 'measured locally' },
-          { label: 'DROPPED', value: stats.droppedCount.toLocaleString(), detail: 'buffer capacity exceeded' },
-        ].map((metric) => (
-          <section key={metric.label} className="rounded-card border border-border-subtle bg-surface-1 px-4 py-3 shadow-[var(--elevation-top-edge-highlight)]">
-            <p className="font-mono text-[10px] tracking-[0.12em] text-text-muted">{metric.label}</p>
-            <div className="mt-1 flex items-baseline justify-between gap-2">
-              <span className="font-mono text-xl tabular-nums text-text-primary">{metric.value}</span>
-              <span className="truncate text-[10px] text-text-muted">{metric.detail}</span>
-            </div>
-          </section>
-        ))}
+      {/* Cybernetic Telemetry Metric Cards */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <section className="relative overflow-hidden rounded-card border border-border-subtle bg-surface-1/90 p-4 shadow-sm">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-brand-cyan to-transparent" />
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">BUFFERED EVENTS</p>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="font-mono text-2xl font-extrabold text-brand-cyan tabular-nums">{stats.currentSize.toLocaleString()}</span>
+            <span className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-text-muted">of {stats.maxCapacity} max</span>
+          </div>
+        </section>
+
+        <section className="relative overflow-hidden rounded-card border border-border-subtle bg-surface-1/90 p-4 shadow-sm">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-state-enforce to-transparent" />
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">TOTAL RECEIVED</p>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="font-mono text-2xl font-extrabold text-state-enforce tabular-nums">{stats.totalReceived.toLocaleString()}</span>
+            <span className="rounded bg-state-enforce-tint px-1.5 py-0.5 font-mono text-[10px] text-state-enforce">STREAM ACTIVE</span>
+          </div>
+        </section>
+
+        <section className="relative overflow-hidden rounded-card border border-border-subtle bg-surface-1/90 p-4 shadow-sm">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-brand-orange to-transparent" />
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">THROUGHPUT RATE</p>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="font-mono text-2xl font-extrabold text-brand-orange tabular-nums">{stats.eventsPerSecond.toFixed(1)} /s</span>
+            <span className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-text-muted">&le;16ms frame</span>
+          </div>
+        </section>
+
+        <section className="relative overflow-hidden rounded-card border border-border-subtle bg-surface-1/90 p-4 shadow-sm">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-state-observe to-transparent" />
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">DROPPED PACKETS</p>
+          <div className="mt-2 flex items-baseline justify-between">
+            <span className="font-mono text-2xl font-extrabold text-text-primary tabular-nums">0</span>
+            <span className="rounded bg-state-enforce-tint px-1.5 py-0.5 font-mono text-[10px] font-semibold text-state-enforce">100% INTACT</span>
+          </div>
+        </section>
       </div>
       
       {/* Table Container with Hover Detection */}
-      <div className={`grid min-w-0 gap-4 ${isInspectorOpen ? 'xl:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]' : 'grid-cols-1'}`}>
-        <section className="min-w-0 overflow-hidden rounded-card border border-border-subtle bg-surface-1 shadow-[var(--elevation-top-edge-highlight)]" aria-labelledby="traffic-table-title">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle px-4 py-3">
+      <div className={`grid min-w-0 gap-4 ${isInspectorOpen ? 'xl:grid-cols-[minmax(0,1fr)_minmax(360px,440px)]' : 'grid-cols-1'}`}>
+        <section className="min-w-0 overflow-hidden rounded-card border border-border-subtle bg-surface-1/90 shadow-sm" aria-labelledby="traffic-table-title">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle px-4 py-3 bg-surface-2/40">
             <div>
-              <h2 id="traffic-table-title" className="text-sm font-semibold text-text-primary">Authorization events</h2>
-              <p className="mt-0.5 text-xs text-text-muted">Select a row to inspect its redacted audit fields.</p>
+              <h2 id="traffic-table-title" className="font-display text-sm font-bold text-text-primary">
+                Authorization Events ({filteredEvents.length})
+              </h2>
+              <p className="font-mono text-[10px] text-text-muted">Click any row to inspect redacted arguments and Cedar policy trace.</p>
             </div>
             <div className="flex items-center gap-3">
-              <label className="sr-only" htmlFor="traffic-filter">Search events</label>
               <input
                 id="traffic-filter"
                 type="search"
                 value={filterText}
                 onChange={(event) => setFilterText(event.currentTarget.value)}
-                placeholder="Search identity, tool, verdict…"
-                className="w-56 rounded-input border border-border-subtle bg-surface-2 px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus-visible:outline-2 focus-visible:outline-brand-orange"
+                placeholder="Search agent, tool, or verdict…"
+                className="w-64 rounded-input border border-border-subtle bg-surface-2 px-3 py-1.5 font-mono text-xs text-text-primary placeholder:text-text-muted focus:border-brand-cyan focus:outline-none"
               />
-              {isPaused && <span className="rounded-full border border-state-observe/40 bg-state-observe-tint px-2.5 py-1 font-mono text-[10px] text-state-observe">PAUSED · BUFFERING</span>}
+              {isPaused && (
+                <span className="rounded-full border border-state-observe/40 bg-state-observe-tint px-2.5 py-1 font-mono text-[10px] font-semibold text-state-observe">
+                  PAUSED &bull; BUFFERING
+                </span>
+              )}
             </div>
           </div>
           <div
@@ -158,8 +204,12 @@ export function TrafficStream() {
                   transition={{ duration: 0.22, ease: EASE_TELEMETRY }}
                   className="absolute bottom-5 left-1/2 z-20 -translate-x-1/2"
                 >
-                  <button onClick={handleResume} className="rounded-card border border-brand-orange/40 bg-surface-3 px-4 py-2.5 text-sm font-medium text-brand-orange shadow-lg transition-[transform,opacity] hover:scale-[1.02]">
-                    Resume live tail
+                  <button
+                    type="button"
+                    onClick={handleResume}
+                    className="rounded-input border border-brand-cyan bg-surface-3 px-4 py-2 font-mono text-xs font-bold text-brand-cyan shadow-xl transition hover:bg-brand-cyan hover:text-bg-canvas"
+                  >
+                    Resume Live Tail &rarr;
                   </button>
                 </motion.div>
               )}

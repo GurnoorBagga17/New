@@ -6,7 +6,32 @@
 @import "../../../../docs/architecture/generated/tailwind-theme.css";
 @import "@axiom/cedar-editor/styles.css";
 
+/* Aembit & Clutch Security inspired Cybernetic Dark Theme as Default */
 :root {
+  color-scheme: dark !important;
+  --bg-canvas: #07090E !important;
+  --bg-surface-1: #0C1018 !important;
+  --bg-surface-2: #121722 !important;
+  --bg-surface-3: #1A2232 !important;
+  --border-subtle: #1E2738 !important;
+  --border-strong: #334155 !important;
+  --text-primary: #F8FAFC !important;
+  --text-secondary: #94A3B8 !important;
+  --text-muted: #64748B !important;
+  --brand-cyan: #00E5FF !important;
+  --brand-cyan-glow: rgba(0, 229, 255, 0.2) !important;
+  --brand-orange: #FF7B00 !important;
+  --brand-orange-glow: rgba(255, 123, 0, 0.2) !important;
+  --state-enforce: #10B981 !important;
+  --state-enforce-tint: rgba(16, 185, 129, 0.15) !important;
+  --state-observe: #38BDF8 !important;
+  --state-observe-tint: rgba(56, 189, 248, 0.15) !important;
+  --state-pending: #F59E0B !important;
+  --state-pending-tint: rgba(245, 158, 11, 0.15) !important;
+  --state-deny: #F43F5E !important;
+  --state-deny-tint: rgba(244, 63, 94, 0.15) !important;
+  --state-revoked: #EF4444 !important;
+  --state-revoked-tint: rgba(239, 68, 68, 0.2) !important;
   --radius-input: var(--radii-input, 6px);
   --radius-card: var(--radii-card, 10px);
   --radius-modal: var(--radii-modal, 14px);
@@ -15,44 +40,51 @@
   --font-display: var(--typography-font-family-display, "Space Grotesk Variable", sans-serif);
 }
 
-@source "../**/*.{js,ts,jsx,tsx}";
-
-.verdict-badge { display: inline-flex; align-items: center; gap: 6px; width: fit-content; border: 1px solid currentColor; border-radius: 999px; padding: 5px 9px; font: 600 10px/1 var(--typography-font-family-mono); letter-spacing: .06em; }
-.verdict-badge__icon { width: 15px; height: 15px; }
-.verdict-badge__label { color: currentColor; }
-.verdict-badge--enforce { color: var(--state-enforce); background: var(--state-enforce-tint); }
-.verdict-badge--observe { color: var(--state-observe); background: var(--state-observe-tint); }
-.verdict-badge--pending { color: var(--state-pending); background: var(--state-pending-tint); }
-.verdict-badge--deny { color: var(--state-deny); background: var(--state-deny-tint); }
-.verdict-badge--revoked { color: var(--state-revoked); background: var(--state-revoked-tint); }
-
-@layer base {
-  :root {
-    color-scheme: dark;
-  }
-
-  :root[data-theme="dark"] {
-    color-scheme: dark;
-  }
-
-  :root[data-theme="light"] {
-    color-scheme: light;
-  }
-
-  body {
-    @apply bg-canvas text-text-primary font-sans antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  }
-
-  button,
-  input,
-  select,
-  textarea {
-    font: inherit;
-  }
+:root[data-theme="light"] {
+  color-scheme: light !important;
+  --bg-canvas: #F8FAFC !important;
+  --bg-surface-1: #FFFFFF !important;
+  --bg-surface-2: #F1F5F9 !important;
+  --bg-surface-3: #E2E8F0 !important;
+  --border-subtle: #CBD5E1 !important;
+  --border-strong: #64748B !important;
+  --text-primary: #0F172A !important;
+  --text-secondary: #334155 !important;
+  --text-muted: #64748B !important;
+  --brand-cyan: #0284C7 !important;
+  --brand-orange: #EA580C !important;
+  --state-enforce: #059669 !important;
+  --state-enforce-tint: rgba(5, 150, 105, 0.12) !important;
+  --state-observe: #0284C7 !important;
+  --state-observe-tint: rgba(2, 132, 199, 0.12) !important;
+  --state-pending: #D97706 !important;
+  --state-pending-tint: rgba(217, 119, 6, 0.12) !important;
+  --state-deny: #DC2626 !important;
+  --state-deny-tint: rgba(220, 38, 38, 0.12) !important;
+  --state-revoked: #B91C1C !important;
+  --state-revoked-tint: rgba(185, 28, 28, 0.12) !important;
 }
 
-/* Aembit & Clutch Security inspired Cybernetic Glass & Glow styling */
+@source "../**/*.{js,ts,jsx,tsx}";
+
+html,
+body {
+  background-color: var(--bg-canvas) !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-sans);
+  min-height: 100vh;
+}
+
+.verdict-badge { display: inline-flex; align-items: center; gap: 6px; width: fit-content; border: 1px solid currentColor; border-radius: 999px; padding: 4px 8px; font: 600 10px/1 var(--typography-font-family-mono); letter-spacing: .06em; }
+.verdict-badge__icon { width: 14px; height: 14px; }
+.verdict-badge__label { color: currentColor; }
+.verdict-badge--enforce { color: var(--state-enforce); background: var(--state-enforce-tint); border-color: rgba(16, 185, 129, 0.3); }
+.verdict-badge--observe { color: var(--state-observe); background: var(--state-observe-tint); border-color: rgba(56, 189, 248, 0.3); }
+.verdict-badge--pending { color: var(--state-pending); background: var(--state-pending-tint); border-color: rgba(245, 158, 11, 0.3); }
+.verdict-badge--deny { color: var(--state-deny); background: var(--state-deny-tint); border-color: rgba(244, 63, 94, 0.3); }
+.verdict-badge--revoked { color: var(--state-revoked); background: var(--state-revoked-tint); border-color: rgba(239, 68, 68, 0.3); }
+
+/* Custom Sleek Dark Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -68,13 +100,6 @@
   background: var(--border-strong);
 }
 
-.cyber-glass-panel {
-  background: rgba(14, 18, 27, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
 .cyber-card {
   background: var(--bg-surface-1);
   border: 1px solid var(--border-subtle);
@@ -84,7 +109,7 @@
 
 .cyber-card:hover {
   border-color: rgba(0, 229, 255, 0.3);
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.6), 0 0 15px -3px rgba(0, 229, 255, 0.1);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.7), 0 0 15px -3px rgba(0, 229, 255, 0.12);
 }
 
 .laser-cyan-top {
@@ -97,57 +122,15 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.7), transparent);
-}
-
-.laser-orange-top {
-  position: relative;
-}
-.laser-orange-top::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(251, 146, 60, 0.7), transparent);
-}
-
-.laser-deny-top {
-  position: relative;
-}
-.laser-deny-top::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(244, 63, 94, 0.8), transparent);
+  background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.8), transparent);
 }
 
 @keyframes cyberRadarPulse {
   0% { transform: scale(0.95); opacity: 0.9; }
-  50% { transform: scale(1.2); opacity: 0.2; }
+  50% { transform: scale(1.25); opacity: 0.2; }
   100% { transform: scale(0.95); opacity: 0.9; }
 }
 
 .cyber-radar-pulse {
   animation: cyberRadarPulse 2.4s infinite ease-in-out;
-}
-
-@keyframes cyberLaserScan {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(1000%); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
 }
