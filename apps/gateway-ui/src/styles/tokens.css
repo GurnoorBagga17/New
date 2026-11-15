@@ -28,7 +28,11 @@
 
 @layer base {
   :root {
-  color-scheme: light;
+    color-scheme: dark;
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
   }
 
   :root[data-theme="light"] {
@@ -46,6 +50,95 @@
   textarea {
     font: inherit;
   }
+}
+
+/* Aembit & Clutch Security inspired Cybernetic Glass & Glow styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-surface-1);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+.cyber-glass-panel {
+  background: rgba(14, 18, 27, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cyber-card {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cyber-card:hover {
+  border-color: rgba(0, 229, 255, 0.3);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.6), 0 0 15px -3px rgba(0, 229, 255, 0.1);
+}
+
+.laser-cyan-top {
+  position: relative;
+}
+.laser-cyan-top::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.7), transparent);
+}
+
+.laser-orange-top {
+  position: relative;
+}
+.laser-orange-top::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(251, 146, 60, 0.7), transparent);
+}
+
+.laser-deny-top {
+  position: relative;
+}
+.laser-deny-top::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(244, 63, 94, 0.8), transparent);
+}
+
+@keyframes cyberRadarPulse {
+  0% { transform: scale(0.95); opacity: 0.9; }
+  50% { transform: scale(1.2); opacity: 0.2; }
+  100% { transform: scale(0.95); opacity: 0.9; }
+}
+
+.cyber-radar-pulse {
+  animation: cyberRadarPulse 2.4s infinite ease-in-out;
+}
+
+@keyframes cyberLaserScan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(1000%); }
 }
 
 @media (prefers-reduced-motion: reduce) {
