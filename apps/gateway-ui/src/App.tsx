@@ -510,7 +510,7 @@ export default function App() {
                   {view === "traffic" && <TrafficStream />}
                   {view === "policies" && (
                     <Suspense fallback={<SectionFallback label="Cedar Policy Studio" />}>
-                      <PolicyStudioPage />
+                      <PolicyStudioPage themeMode={theme} />
                     </Suspense>
                   )}
                   {view === "kill-switch" && (

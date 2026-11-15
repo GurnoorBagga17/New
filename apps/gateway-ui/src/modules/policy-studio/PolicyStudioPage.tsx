@@ -226,13 +226,13 @@ export function PolicyStudioPage({
   return (
     <MotionConfig reducedMotion="user">
       <div className="ax-studio">
-        <header className="ax-row" style={{ alignItems: "flex-start" }}>
+        <header className="ax-row" style={{ gridColumn: "1 / -1", alignItems: "flex-start", width: "100%", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "1rem", marginBottom: "0.25rem" }}>
           <div>
-            <p className="ax-overline" style={{ marginBottom: "0.25rem" }}>
+            <p className="ax-overline" style={{ marginBottom: "0.25rem", color: "var(--brand-cyan, #00E5FF)" }}>
               Axiom NHI · Module 1C · Policy Studio
             </p>
-            <h1 className="ax-title">Cedar policy authoring &amp; simulation</h1>
-            <p className="ax-secondary" style={{ maxWidth: "54rem" }}>
+            <h1 className="ax-title" style={{ fontSize: "1.5rem", letterSpacing: "-0.02em" }}>Cedar policy authoring &amp; simulation</h1>
+            <p className="ax-secondary" style={{ maxWidth: "56rem", marginTop: "0.25rem" }}>
               Policies are simulated against one MCP tools/call envelope, then
               promoted per route. Monaco and its worker are served from the local
               bundle; this page makes no outbound requests.
@@ -259,7 +259,7 @@ export function PolicyStudioPage({
         </header>
 
         {managedAdapters ? (
-          <div className="ax-alert ax-alert--info" role="note">
+          <div className="ax-alert ax-alert--info" style={{ gridColumn: "1 / -1" }} role="note">
             <BeakerIcon width={16} height={16} />
             <div>
               <strong>SIMULATED FIXTURE ADAPTER</strong>
@@ -272,7 +272,7 @@ export function PolicyStudioPage({
         ) : null}
 
         {cancelledNotice !== null ? (
-          <div className="ax-alert ax-alert--info" role="status">
+          <div className="ax-alert ax-alert--info" style={{ gridColumn: "1 / -1" }} role="status">
             <AlertIcon width={16} height={16} />
             <div>
               <strong>OPERATOR NOTICE</strong>
@@ -281,15 +281,8 @@ export function PolicyStudioPage({
           </div>
         ) : null}
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
-            gap: "1rem",
-            alignItems: "start",
-          }}
-        >
-          <div className="ax-stack">
+        {/* Left Column: Cedar Editor, Guided Policy Form, Route Mode Panel */}
+        <div className="ax-stack">
             <section className="ax-card" aria-labelledby="ax-candidate-title">
               <div className="ax-card__header">
                 <div>
@@ -502,7 +495,6 @@ export function PolicyStudioPage({
               {simulated ? " · SIMULATED FIXTURE" : ""}
             </p>
           </div>
-        </div>
       </div>
     </MotionConfig>
   );

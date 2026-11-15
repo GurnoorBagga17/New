@@ -7,7 +7,7 @@
  */
 
 .ax-studio {
-  --ax-gap: 1rem;
+  --ax-gap: 1.25rem;
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
   gap: var(--ax-gap);
@@ -17,6 +17,14 @@
   font-size: 0.875rem;
   line-height: 1.5;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  width: 100%;
+}
+
+.ax-studio > header,
+.ax-studio__header,
+.ax-studio > .ax-alert {
+  grid-column: 1 / -1;
+  width: 100%;
 }
 
 @media (max-width: 1100px) {
