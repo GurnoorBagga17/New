@@ -2,10 +2,26 @@ import type { SVGProps } from "react";
 
 type IconProps = Omit<SVGProps<SVGSVGElement>, "children">;
 
-function Icon({ children, ...props }: IconProps & { children: React.ReactNode }) {
+function Icon({
+  children,
+  width = 16,
+  height = 16,
+  style,
+  ...props
+}: IconProps & { children: React.ReactNode }) {
   return (
     <svg
       viewBox="0 0 16 16"
+      width={width}
+      height={height}
+      style={{
+        maxWidth: typeof width === "number" ? `${width}px` : width,
+        maxHeight: typeof height === "number" ? `${height}px` : height,
+        display: "inline-block",
+        verticalAlign: "middle",
+        flexShrink: 0,
+        ...style,
+      }}
       fill="none"
       stroke="currentColor"
       strokeWidth={1.5}

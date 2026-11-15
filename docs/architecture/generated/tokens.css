@@ -58,11 +58,16 @@
 }
 :root {
   --radii-input: 6px;
+  --radius-input: 6px;
   --radii-card: 10px;
+  --radius-card: 10px;
   --radii-modal: 14px;
+  --radius-modal: 14px;
   --typography-font-family-display: Space Grotesk Variable, Plus Jakarta Sans, sans-serif;
   --typography-font-family-sans: Inter Variable, Geist Sans, system-ui, sans-serif;
+  --font-sans: Inter Variable, Geist Sans, system-ui, sans-serif;
   --typography-font-family-mono: JetBrains Mono Variable, Geist Mono, monospace;
+  --font-mono: JetBrains Mono Variable, Geist Mono, monospace;
   --typography-role-hero-display-font-family: Space Grotesk Variable, Plus Jakarta Sans, sans-serif;
   --typography-role-hero-display-font-size: 56px;
   --typography-role-hero-display-font-weight: 700;

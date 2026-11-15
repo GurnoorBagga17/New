@@ -4,6 +4,16 @@
 @import "tailwindcss";
 @import "../../../../docs/architecture/generated/tokens.css";
 @import "../../../../docs/architecture/generated/tailwind-theme.css";
+@import "@axiom/cedar-editor/styles.css";
+
+:root {
+  --radius-input: var(--radii-input, 6px);
+  --radius-card: var(--radii-card, 10px);
+  --radius-modal: var(--radii-modal, 14px);
+  --font-mono: var(--typography-font-family-mono, "JetBrains Mono Variable", monospace);
+  --font-sans: var(--typography-font-family-sans, "Inter Variable", system-ui, sans-serif);
+  --font-display: var(--typography-font-family-display, "Space Grotesk Variable", sans-serif);
+}
 
 @source "../**/*.{js,ts,jsx,tsx}";
 

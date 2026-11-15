@@ -179,6 +179,13 @@ export function installDesignTokens(
   return map;
 }
 
+const TOKEN_FALLBACK_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  "--font-mono": ["--typography-font-family-mono"],
+  "--font-sans": ["--typography-font-family-sans"],
+  "--radius-input": ["--radii-input"],
+  "--radius-card": ["--radii-card"],
+};
+
 /** Read installed variables. Throws if the token build did not run. */
 export function readDesignTokensFromDocument(
   documentRef: Document,
@@ -192,7 +199,19 @@ export function readDesignTokensFromDocument(
   const output: Record<string, string> = {};
   const missing: string[] = [];
   for (const name of REQUIRED_CSS_VARIABLES) {
-    const value = styles.getPropertyValue(name).trim();
+    let value = styles.getPropertyValue(name).trim();
+    if (value.length === 0) {
+      const aliases = TOKEN_FALLBACK_ALIASES[name];
+      if (aliases !== undefined) {
+        for (const alias of aliases) {
+          const aliasVal = styles.getPropertyValue(alias).trim();
+          if (aliasVal.length > 0) {
+            value = aliasVal;
+            break;
+          }
+        }
+      }
+    }
     if (value.length === 0) {
       missing.push(name);
     } else {
