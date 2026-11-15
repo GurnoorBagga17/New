@@ -1,0 +1,15 @@
+apiVersion: v2
+name: axiom-nhi
+description: Axiom NHI Customer-VPC Self-Hosted & Air-Gapped Helm Chart (Agentgateway + ExtMCP + Dual-Graph Control Plane + OpenBao + SpiceDB)
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - non-human-identity
+  - mcp-security
+  - cedar-policy
+  - spicedb
+  - openbao
+maintainers:
+  - name: Axiom NHI Engineering
+    email: engineering@axiomnhi.io

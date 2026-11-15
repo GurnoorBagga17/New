@@ -25,7 +25,7 @@ export default function DocsPage() {
         <header className="docs-header">
           <div className="docs-badge">
             <span className="live-dot" />
-            <span>DRAFT REFERENCE â€¢ VERIFY AGAINST IMPLEMENTED RUNTIME</span>
+            <span>DRAFT REFERENCE &bull; VERIFY AGAINST IMPLEMENTED RUNTIME</span>
           </div>
           <h1>Axiom NHI Documentation &amp; Architecture Reference</h1>
           <p className="docs-subtitle">
@@ -121,7 +121,7 @@ export default function DocsPage() {
               </div>
             </div>
             <p className="section-prose">
-              Traditional API keys grant ambient authority. If an autonomous agentâ€™s session token leaks, an attacker can
+              Traditional API keys grant ambient authority. If an autonomous agent&apos;s session token leaks, an attacker can
               pivot laterally across databases and services. Axiom enforces RFC 8707 token exchange on every single tool call.
             </p>
             <div className="feature-bullets-grid">
@@ -198,7 +198,7 @@ export default function DocsPage() {
               </div>
             </div>
             <p className="section-prose">
-              Axiom leverages AWS Cedarâ€”a mathematically proven, formally verified policy engine. Policies evaluate in
+              Axiom leverages AWS Cedar &mdash; a mathematically proven, formally verified policy engine. Policies evaluate in
               microseconds with deterministic, auditable decisions.
             </p>
 

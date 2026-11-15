@@ -89,7 +89,7 @@ export function MeteringCalculator() {
                 onChange={(e) => setIdentities(Number(e.target.value))}
                 className="cyan-slider"
                 style={{
-                  background: `linear-gradient(to right, #00E5FF 0%, #00E5FF ${identityPercent}%, #1E273A ${identityPercent}%, #1E273A 100%)`,
+                  background: `linear-gradient(to right, rgb(0, 229, 255) 0%, rgb(0, 229, 255) ${identityPercent}%, rgb(30, 39, 58) ${identityPercent}%, rgb(30, 39, 58) 100%)`,
                 }}
                 aria-valuemin={0}
                 aria-valuemax={5000}
@@ -120,7 +120,7 @@ export function MeteringCalculator() {
                 onChange={(e) => setEvents(Number(e.target.value))}
                 className="cyan-slider"
                 style={{
-                  background: `linear-gradient(to right, #00E5FF 0%, #00E5FF ${eventPercent}%, #1E273A ${eventPercent}%, #1E273A 100%)`,
+                  background: `linear-gradient(to right, rgb(0, 229, 255) 0%, rgb(0, 229, 255) ${eventPercent}%, rgb(30, 39, 58) ${eventPercent}%, rgb(30, 39, 58) 100%)`,
                 }}
                 aria-valuemin={0}
                 aria-valuemax={250000}

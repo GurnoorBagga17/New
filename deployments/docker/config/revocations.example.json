@@ -1,0 +1,9 @@
+{
+  "state": "available",
+  "version": 1,
+  "freshness_ttl_seconds": 300,
+  "global": false,
+  "servers": [],
+  "tools": [],
+  "agents": []
+}

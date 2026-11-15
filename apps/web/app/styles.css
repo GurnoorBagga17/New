@@ -1,5 +1,5 @@
 /* ==========================================================================
-   AXIOM NHI â€” Tactical Cybernetic Design System & Global Enterprise Landing
+   AXIOM NHI — Tactical Cybernetic Design System & Global Enterprise Landing
    ========================================================================== */
 
 :root,
@@ -5326,4 +5326,174 @@ body {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+/* ==========================================================================
+   ENTERPRISE BESPOKE ICONOGRAPHY & VISUAL ACCENTS
+   ========================================================================== */
+
+.bento-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: grid;
+  place-items: center;
+  margin-right: 12px;
+  transition: all 0.25s ease;
+}
+
+.bento-card:hover .bento-icon-wrap {
+  transform: scale(1.08);
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.3);
+}
+
+.marquee-logo-badge {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.pillar-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.pillar-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: grid;
+  place-items: center;
+  transition: all 0.25s ease;
+}
+
+.pillar-card:hover .pillar-icon-box {
+  transform: scale(1.06);
+  border-color: var(--brand-cyan);
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.25);
+}
+
+.box-active {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.icon-wrap-check {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+.icon-wrap-cross {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(244, 63, 94, 0.15);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+
+/* ==========================================================================
+   Bespoke Enterprise SVG Icon Wrappers & Perks
+   ========================================================================== */
+
+.perk-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md, 10px);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.perk-threat {
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.15);
+}
+
+.perk-cedar {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.15);
+}
+
+.perk-poc {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.15);
+}
+
+.eng-perk-item:hover .perk-icon-wrap {
+  transform: scale(1.08) translateY(-1px);
+}
+
+.eng-perk-item:hover .perk-threat {
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.35);
+  border-color: rgba(0, 229, 255, 0.6);
+}
+
+.eng-perk-item:hover .perk-cedar {
+  box-shadow: 0 0 24px rgba(16, 185, 129, 0.35);
+  border-color: rgba(16, 185, 129, 0.6);
+}
+
+.eng-perk-item:hover .perk-poc {
+  box-shadow: 0 0 24px rgba(245, 158, 11, 0.35);
+  border-color: rgba(245, 158, 11, 0.6);
+}
+
+.btn-flex-inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.form-privacy-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--text-tertiary, #94A3B8);
+  margin-top: 14px;
+}
+
+.pipeline-connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+}
+
+.verdict-banner .verdict-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
 }

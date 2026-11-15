@@ -84,6 +84,26 @@ where
 
     #[allow(clippy::result_large_err)] // Required by the generated Tonic service trait.
     async fn check(&self, request: McpRequest) -> Result<McpRequestResult, Status> {
+        if let Some(metadata) = request.metadata_context.as_ref() {
+            if let Some(runtime_mode) = metadata.fields.get("runtime_mode") {
+                let supplied = match &runtime_mode.kind {
+                    Some(Kind::StringValue(value)) => value.as_str(),
+                    _ => return Ok(denied("runtime mode metadata is invalid")),
+                };
+                let supplied = normalize_runtime_mode(supplied);
+                let configured = match &self.mode {
+                    RuntimeMode::Enforce => "enforce",
+                    RuntimeMode::Observe => "observe",
+                };
+                let matches = supplied.eq_ignore_ascii_case(configured)
+                    || (self.mode == RuntimeMode::Observe
+                        && supplied.eq_ignore_ascii_case("observe_only"));
+                if !matches {
+                    return Ok(denied("gateway and ExtMCP runtime modes do not match"));
+                }
+            }
+        }
+
         let service_name = match request.service_names.as_slice() {
             [name] => name,
             _ => {
@@ -199,6 +219,15 @@ where
             });
         }
         Ok(denied("authorization denied"))
+    }
+}
+
+fn normalize_runtime_mode(value: &str) -> &str {
+    let value = value.trim();
+    if value.starts_with("\\\"") && value.ends_with("\\\"") && value.len() >= 4 {
+        &value[2..value.len() - 2]
+    } else {
+        value.trim_matches('"')
     }
 }
 

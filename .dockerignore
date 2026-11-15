@@ -1,0 +1,13 @@
+.git
+.next
+.turbo
+node_modules
+**/node_modules
+**/dist
+**/build
+**/target
+**/storybook-static
+**/.cache
+*.zip
+*.pdf
+*.png

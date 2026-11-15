@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package axiom.nhi.context_sync.v1;
+
+// ContextSync pushes precomputed Postgres Lineage & OWASP Risk snapshots into
+// axiom-extmcp's in-memory ArcSwap cache so synchronous CheckRequest calls
+// never query Postgres on the <5ms hot path.
+service ContextSync {
+  rpc PushEntitySnapshots(PushEntitySnapshotsRequest) returns (PushEntitySnapshotsResponse);
+}
+
+message EntityContextSnapshotProto {
+  string entity_uid = 1;
+  bool has_owner = 2;
+  string owner_team = 3;
+  uint32 blast_radius_score = 4;
+  uint32 exposure_score = 5;
+  bool is_shadow_nhi = 6;
+  repeated string owasp_flags = 7;
+}
+
+message PushEntitySnapshotsRequest {
+  string snapshot_generation_id = 1;
+  int64 generated_at_unix = 2;
+  repeated EntityContextSnapshotProto entities = 3;
+}
+
+message PushEntitySnapshotsResponse {
+  bool applied = 1;
+  uint32 cached_entity_count = 2;
+}

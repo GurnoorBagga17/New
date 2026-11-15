@@ -1,0 +1,35 @@
+global:
+  airGappedMode: true
+  edition: "ultimate" # community | essentials | enterprise | ultimate
+  zeroSecretBrowserInvariant: true
+
+gateway:
+  replicaCount: 3
+  image:
+    repository: ghcr.io/agentgateway/agentgateway
+    tag: "v1.7.0"
+  runtimeMode: "enforce"
+  calloutTimeoutMs: 15
+  killSwitchOverridesObserveOnly: true
+
+extmcp:
+  replicaCount: 3
+  inlineBudgetMs: 5
+  arcSwapContextSyncIntervalSeconds: 30
+
+postgresLineage:
+  enabled: true
+  version: "16"
+  storageSize: "100Gi"
+
+openbao:
+  enabled: true
+  license: "MPL-2.0-unmodified"
+  maxEphemeralLeaseTtlSeconds: 300
+
+spicedb:
+  enabled: true
+  replicas: 3
+
+networkPolicy:
+  enforceAirGapEgressBlock: true

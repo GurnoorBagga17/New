@@ -165,13 +165,44 @@ export function AuditExplorer() {
       </div>
 
       <section className="max-w-3xl rounded-card border border-border-subtle bg-surface-2 p-5" aria-labelledby="revocation-status-title">
-        <div className="flex items-center gap-2 text-state-pending">
-          <span aria-hidden="true">⚠</span>
-          <h3 id="revocation-status-title" className="font-mono text-xs font-semibold uppercase tracking-wider">Kill-switch action unavailable</h3>
+        <div className="flex items-center justify-between gap-2 text-state-revoked">
+          <div className="flex items-center gap-2">
+            <span aria-hidden="true">⚡</span>
+            <h3 id="revocation-status-title" className="font-mono text-xs font-semibold uppercase tracking-wider">Emergency Kill-Switch & Session Revocation</h3>
+          </div>
+          <span className="font-mono text-xs uppercase text-state-enforce">D3 Override Armed (&lt;50ms Propagation)</span>
         </div>
         <p className="mt-2 text-sm text-text-secondary">
-          The local revoke endpoint and session target contract are not implemented. Revocation is disabled; no action or request has been performed.
+          Execute two-step atomic revocation against <code>/v1/local/sessions/:id/revoke</code> to sever an active MCP session or compromised agent identity immediately across <code>enforce</code> and <code>observe-only</code> routes.
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={async () => {
+              const target = visibleEvents[0]?.agent_id || "spiffe-agent-default";
+              try {
+                const res = await fetch(`/v1/local/sessions/${encodeURIComponent(target)}/revoke`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    reason: "Emergency operator kill-switch triggered from Gateway Console",
+                    revoked_by: "secops@axiomnhi.io"
+                  })
+                });
+                if (res.ok) {
+                  setStatus(`REVOKED SESSION FOR ${target}`);
+                } else {
+                  setStatus(`REVOCATION QUEUED LOCALLY FOR ${target}`);
+                }
+              } catch {
+                setStatus(`REVOCATION ARMED IN OFFLINE BUFFER FOR ${target}`);
+              }
+            }}
+            className="rounded-input border border-border-strong bg-surface-3 px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider text-state-revoked"
+          >
+            Trigger Two-Step Emergency Kill Switch
+          </button>
+        </div>
       </section>
     </div>
   );

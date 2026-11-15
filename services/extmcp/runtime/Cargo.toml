@@ -5,9 +5,13 @@ edition = "2021"
 build = "build.rs"
 
 [dependencies]
+axiom-identity = { path = "../../../identity" }
+axiom-validators = { path = "../../../validators" }
 extmcp-authorization = { path = "../authorization" }
+extmcp-cedar = { path = "../cedar" }
 prost = "0.13"
 prost-types = "0.13"
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
 tonic = { version = "0.12", features = ["transport"] }

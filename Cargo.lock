@@ -126,8 +126,37 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
+name = "axiom-alerts"
+version = "1.0.0"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
+name = "axiom-approvals"
+version = "1.0.0"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "axiom-attribution"
+version = "1.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "axiom-audit"
-version = "0.1.0-draft"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "crossbeam-channel",
@@ -136,6 +165,28 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "tracing",
+]
+
+[[package]]
+name = "axiom-connectors"
+version = "1.0.0"
+dependencies = [
+ "hex",
+ "ring",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "axiom-fleet-control"
+version = "1.0.0"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]
@@ -160,7 +211,7 @@ dependencies = [
 
 [[package]]
 name = "axiom-kill-switch"
-version = "0.1.0-draft"
+version = "1.0.0"
 dependencies = [
  "arc-swap",
  "axiom-audit",
@@ -172,8 +223,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "axiom-lineage-graph"
+version = "1.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "axiom-risk-engine"
+version = "1.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "axiom-secretless"
+version = "1.0.0"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "axiom-siem-soar"
+version = "1.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "axiom-telemetry"
-version = "0.1.0-draft"
+version = "1.0.0"
 dependencies = [
  "getrandom 0.2.17",
 ]
@@ -698,10 +784,14 @@ dependencies = [
 name = "extmcp-runtime"
 version = "0.1.0"
 dependencies = [
+ "axiom-identity",
+ "axiom-validators",
  "extmcp-authorization",
+ "extmcp-cedar",
  "prost",
  "prost-types",
  "protoc-bin-vendored",
+ "serde",
  "serde_json",
  "tokio",
  "tonic",

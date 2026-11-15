@@ -31,30 +31,30 @@ export function EnclaveVisual() {
     s += `
     <defs>
       <radialGradient id="enc-bg" cx="50%" cy="45%" r="55%">
-        <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.25"/>
-        <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+        <stop offset="0%" stop-color="rgb(34, 211, 238)" stop-opacity="0.25"/>
+        <stop offset="100%" stop-color="rgb(34, 211, 238)" stop-opacity="0"/>
       </radialGradient>
       <linearGradient id="enc-glass" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#7dd3fc" stop-opacity="0.24"/>
-        <stop offset="100%" stop-color="#0f172a" stop-opacity="0.18"/>
+        <stop offset="0%" stop-color="rgb(125, 211, 252)" stop-opacity="0.24"/>
+        <stop offset="100%" stop-color="rgb(15, 23, 42)" stop-opacity="0.18"/>
       </linearGradient>
       <linearGradient id="enc-glass-v" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#a78bfa" stop-opacity="0.24"/>
-        <stop offset="100%" stop-color="#0f172a" stop-opacity="0.25"/>
+        <stop offset="0%" stop-color="rgb(167, 139, 250)" stop-opacity="0.24"/>
+        <stop offset="100%" stop-color="rgb(15, 23, 42)" stop-opacity="0.25"/>
       </linearGradient>
       <linearGradient id="enc-ped-top" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#24334a"/><stop offset="100%" stop-color="#121b29"/>
+        <stop offset="0%" stop-color="rgb(241, 245, 249)"/><stop offset="100%" stop-color="rgb(226, 232, 240)"/>
       </linearGradient>
       <linearGradient id="enc-shield" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#fb7185"/>
-        <stop offset="55%" stop-color="#e11d48"/>
-        <stop offset="100%" stop-color="#9f1239"/>
+        <stop offset="0%" stop-color="rgb(251, 113, 133)"/>
+        <stop offset="55%" stop-color="rgb(225, 29, 72)"/>
+        <stop offset="100%" stop-color="rgb(159, 18, 57)"/>
       </linearGradient>
       <filter id="enc-blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter>
       <filter id="enc-blur-s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter>
       <marker id="enc-arrow" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse"
               markerWidth="26" markerHeight="26" orient="auto">
-        <path d="M0,0 L10,5 L0,10 z" fill="#67e8f9"/>
+        <path d="M0,0 L10,5 L0,10 z" fill="rgb(103, 232, 249)"/>
       </marker>
     </defs>
     <ellipse cx="470" cy="330" rx="420" ry="250" fill="url(#enc-bg)"/>`;
@@ -80,7 +80,7 @@ export function EnclaveVisual() {
         const baseOpacity = Math.max(0.12, Math.min(0.5, 1 - distFromCenter / 580));
         const dotRadius = ringIdx % 3 === 0 ? "1.6" : "1.2";
 
-        s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${dotRadius}" fill="#22d3ee" opacity="${baseOpacity.toFixed(2)}" />`;
+        s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${dotRadius}" fill="rgb(34, 211, 238)" opacity="${baseOpacity.toFixed(2)}" />`;
       }
       s += `</g>`;
     });
@@ -94,11 +94,11 @@ export function EnclaveVisual() {
     // ---- pedestal ----
     s += poly(
       [P(A, C, 0), P(A, D, 0), P(A, D, -T), P(A, C, -T)],
-      'fill="#111827" stroke="rgba(56,189,248,0.35)" stroke-width="1.2"'
+      'fill="rgb(203, 213, 225)" stroke="rgba(56,189,248,0.35)" stroke-width="1.2"'
     );
     s += poly(
       [P(A, D, 0), P(B, D, 0), P(B, D, -T), P(A, D, -T)],
-      'fill="#0e1726" stroke="rgba(56,189,248,0.35)" stroke-width="1.2"'
+      'fill="rgb(148, 163, 184)" stroke="rgba(56,189,248,0.35)" stroke-width="1.2"'
     );
     s += poly(
       [P(A, C, 0), P(B, C, 0), P(B, D, 0), P(A, D, 0)],
@@ -108,7 +108,7 @@ export function EnclaveVisual() {
     // ---- glass box: floor + back walls ----
     s += poly(
       [P(0, 0, 0), P(BU, 0, 0), P(BU, BV, 0), P(0, BV, 0)],
-      'fill="rgba(8,47,73,0.45)" stroke="rgba(125,211,252,0.25)"'
+      'fill="rgba(224, 242, 254, 0.65)" stroke="rgba(125,211,252,0.25)"'
     );
     s += poly(
       [P(BU, 0, 0), P(BU, BV, 0), P(BU, BV, BH), P(BU, 0, BH)],
@@ -129,15 +129,15 @@ export function EnclaveVisual() {
     beamU.forEach((u) => {
       const a = P(u, v0, beamZ),
         b = P(u, v1, beamZ);
-      s += `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#22d3ee" stroke-width="22" stroke-linecap="round"/>`;
+      s += `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="rgb(34, 211, 238)" stroke-width="22" stroke-linecap="round"/>`;
     });
     s += `</g>`;
 
     beamU.forEach((u) => {
       const a = P(u, v0, beamZ),
         b = P(u, v1, beamZ);
-      s += `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#22d3ee" stroke-width="10" stroke-linecap="round" opacity=".85" marker-end="url(#enc-arrow)"/>`;
-      s += `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#cffafe" stroke-width="3" stroke-linecap="round" opacity=".9"/>`;
+      s += `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="rgb(34, 211, 238)" stroke-width="10" stroke-linecap="round" opacity=".85" marker-end="url(#enc-arrow)"/>`;
+      s += `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="rgb(207, 250, 254)" stroke-width="3" stroke-linecap="round" opacity=".9"/>`;
     });
 
     // ---- three glass gates ----
@@ -173,7 +173,7 @@ export function EnclaveVisual() {
       p.lines.forEach((t, i) => {
         s += `<text x="16" y="${
           26 + i * 19
-        }" fill="#e0f2fe" font-size="14.5" font-weight="600" font-family="'Space Grotesk',sans-serif">${t}</text>`;
+        }" fill="rgb(15, 23, 42)" font-size="14.5" font-weight="600" font-family="'Space Grotesk',sans-serif">${t}</text>`;
       });
       [60, 120].forEach((x) => {
         const y = ztop - beamZ; // = 90
@@ -197,7 +197,7 @@ export function EnclaveVisual() {
       const a = P(u, v0, beamZ),
         b = P(u, v1, beamZ);
       ["", "b2"].forEach((c) => {
-        s += `<line class="enc-packet ${c}" pathLength="100" x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#ffffff" stroke-width="8" stroke-linecap="round" style="filter:drop-shadow(0 0 8px #22d3ee)"/>`;
+        s += `<line class="enc-packet ${c}" pathLength="100" x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="rgb(255, 255, 255)" stroke-width="8" stroke-linecap="round" style="filter:drop-shadow(0 0 8px rgb(34, 211, 238))"/>`;
       });
     });
 
@@ -209,22 +209,22 @@ export function EnclaveVisual() {
       294,
       150,
       "u"
-    )}"><path d="${shieldPath}" fill="#fb2c55"/></g>`;
+    )}"><path d="${shieldPath}" fill="rgb(251, 44, 85)"/></g>`;
     s += `<g transform="${mat(
       60,
       283,
       150,
       "u"
-    )}"><path d="${shieldPath}" fill="#7f1230" stroke="#be123c"/></g>`;
+    )}"><path d="${shieldPath}" fill="rgb(127, 18, 48)" stroke="rgb(190, 18, 60)"/></g>`;
     s += `<g transform="${mat(60, 294, 150, "u")}">
-            <path d="${shieldPath}" fill="url(#enc-shield)" stroke="#fda4af" stroke-width="1.5"/>
+            <path d="${shieldPath}" fill="url(#enc-shield)" stroke="rgb(253, 164, 175)" stroke-width="1.5"/>
             <path d="M55 12 C70 22 88 26 98 26 L98 60 C98 86 78 104 55 112 Z" fill="rgba(255,255,255,0.18)"/>
           </g>`;
 
     // ---- SQL DROP TABLE attack bar ----
     s += `<g transform="${mat(125, 292, 52, "v")}"><g class="enc-sql">
-            <rect x="0" y="0" width="150" height="24" rx="3" fill="rgba(76,5,25,0.95)" stroke="#fb7185" stroke-width="1.2" style="filter:drop-shadow(0 0 10px rgba(251,113,133,0.5))"/>
-            <text x="75" y="17" text-anchor="middle" fill="#fecdd3" font-size="13" font-weight="700" letter-spacing="1" font-family="ui-monospace,Menlo,monospace">SQL DROP TABLE</text>
+            <rect x="0" y="0" width="150" height="24" rx="3" fill="rgba(76,5,25,0.95)" stroke="rgb(251, 113, 133)" stroke-width="1.2" style="filter:drop-shadow(0 0 10px rgba(251,113,133,0.5))"/>
+            <text x="75" y="17" text-anchor="middle" fill="rgb(254, 205, 211)" font-size="13" font-weight="700" letter-spacing="1" font-family="ui-monospace,Menlo,monospace">SQL DROP TABLE</text>
           </g></g>`;
 
     // ---- front glass faces + top ----
@@ -244,21 +244,21 @@ export function EnclaveVisual() {
     // ---- labels ----
     const [mx, my] = P(0, 60, 28);
     s += `<g transform="translate(${mx + 6},${my + 65})">
-            <rect width="158" height="34" rx="6" fill="rgba(6,16,28,0.92)" stroke="#22d3ee" stroke-width="1.2" style="filter:drop-shadow(0 0 12px rgba(34,211,238,0.3))"/>
-            <text x="79" y="22" text-anchor="middle" fill="#67e8f9" font-size="15" font-weight="600" font-family="'Space Grotesk',sans-serif">MCP data packets</text>
+            <rect width="158" height="34" rx="6" fill="rgba(6,16,28,0.92)" stroke="rgb(34, 211, 238)" stroke-width="1.2" style="filter:drop-shadow(0 0 12px rgba(34,211,238,0.3))"/>
+            <text x="79" y="22" text-anchor="middle" fill="rgb(103, 232, 249)" font-size="15" font-weight="600" font-family="'Space Grotesk',sans-serif">MCP data packets</text>
           </g>`;
 
     // BLOCKED • 3.1ms glowing status badge
     s += `<g class="enc-blocked" transform="translate(680,340)">
-            <rect width="176" height="38" rx="19" fill="rgba(24,4,12,0.94)" stroke="#fb7185" stroke-width="1.5" style="filter:drop-shadow(0 0 16px rgba(251,44,85,0.6))"/>
-            <circle cx="22" cy="19" r="4.5" fill="#f43f5e" style="filter:drop-shadow(0 0 6px #fb2c55)"/>
-            <text x="100" y="24" text-anchor="middle" fill="#ffe4e6" font-size="13.5" font-weight="700" letter-spacing="0.5px" font-family="'JetBrains Mono',ui-monospace,Menlo,monospace">BLOCKED • 3.1ms</text>
+            <rect width="176" height="38" rx="19" fill="rgba(24,4,12,0.94)" stroke="rgb(251, 113, 133)" stroke-width="1.5" style="filter:drop-shadow(0 0 16px rgba(251,44,85,0.6))"/>
+            <circle cx="22" cy="19" r="4.5" fill="rgb(244, 63, 94)" style="filter:drop-shadow(0 0 6px rgb(251, 44, 85))"/>
+            <text x="100" y="24" text-anchor="middle" fill="rgb(255, 228, 230)" font-size="13.5" font-weight="700" letter-spacing="0.5px" font-family="'JetBrains Mono',ui-monospace,Menlo,monospace">BLOCKED • 3.1ms</text>
           </g>`;
 
     // Pedestal brand label
     s += `<g transform="${mat(-34, 95, 10, "v")}">
             <rect width="270" height="34" rx="6" fill="rgba(9,15,24,0.94)" stroke="rgba(148,163,184,0.35)"/>
-            <text x="135" y="23" text-anchor="middle" fill="#e2e8f0" font-size="17" font-weight="600" font-family="'Space Grotesk',sans-serif">The Inline Agent Enclave</text>
+            <text x="135" y="23" text-anchor="middle" fill="rgb(226, 232, 240)" font-size="17" font-weight="600" font-family="'Space Grotesk',sans-serif">The Inline Agent Enclave</text>
           </g>`;
 
     s += `</g>`;

@@ -1,3 +1,4 @@
+// Copyright 2026 Axiom NHI — Licensed under Apache-2.0
 import Link from "next/link";
 import { SiteShell } from "./components/SiteShell";
 import { QuickCopyCommand } from "./components/QuickCopyCommand";
@@ -8,6 +9,7 @@ import { MarqueeLogos } from "./components/MarqueeLogos";
 import { SaaSEcosystemPillars } from "./components/SaaSEcosystemPillars";
 import { FaqAccordion } from "./components/FaqAccordion";
 import { TalkToEngineerSection } from "./components/TalkToEngineerSection";
+import { IconFingerprint, IconCodeTree, IconShield, IconMerkle, IconCheck } from "./components/Icons";
 
 const capabilities = [
   {
@@ -15,6 +17,8 @@ const capabilities = [
     badge: "RFC 8707 & SPIFFE",
     title: "Cryptographic Identity Binding",
     body: "Bind every autonomous tool call to a verified non-human identity (NHI). Eliminate static bearer tokens and prevent lateral privilege escalation across agent runtimes.",
+    icon: IconFingerprint,
+    color: "#00E5FF",
     gradient: "from-cyan-500/10 to-transparent",
   },
   {
@@ -22,6 +26,8 @@ const capabilities = [
     badge: "AST Syntax Guard",
     title: "Deep AST Argument Inspection",
     body: "Parse and sanitize tool invocation arguments pre-execution. Block destructive DDL, SQL injections, SSRF vectors, and prompt injections before they reach backend APIs.",
+    icon: IconCodeTree,
+    color: "#6366F1",
     gradient: "from-indigo-500/10 to-transparent",
   },
   {
@@ -29,6 +35,8 @@ const capabilities = [
     badge: "Sub-ms Cedar Engine",
     title: "Deterministic Cedar Policy Gate",
     body: "Evaluate fine-grained, mathematically verifiable Cedar policies fail-closed in under 3.5ms. Every parameter is checked against least-privilege boundary rules.",
+    icon: IconShield,
+    color: "#10B981",
     gradient: "from-violet-500/10 to-transparent",
   },
   {
@@ -36,6 +44,8 @@ const capabilities = [
     badge: "Merkle-Tree Audit",
     title: "Zero-Knowledge Forensic Trail",
     body: "Generate immutable, tamper-evident cryptographic audit logs with automatic PII masking. Prove regulatory and compliance posture with zero data leakage.",
+    icon: IconMerkle,
+    color: "#F59E0B",
     gradient: "from-emerald-500/10 to-transparent",
   },
 ];
@@ -78,21 +88,15 @@ export default function HomePage() {
 
             <div className="hero-meta-strip">
               <span className="meta-item">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
+                <IconCheck size={14} color="#10B981" />
                 Zero Code Changes
               </span>
               <span className="meta-item">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
+                <IconCheck size={14} color="#10B981" />
                 P99 &lt; 3.5ms Overhead
               </span>
               <span className="meta-item">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
+                <IconCheck size={14} color="#10B981" />
                 100% Fail-Closed
               </span>
             </div>
@@ -119,8 +123,8 @@ export default function HomePage() {
         </div>
       </section>
 
-        {/* ================= THE NHI PROBLEM & GOVERNANCE PILLARS ================= */}
-        <SaaSEcosystemPillars />
+      {/* ================= THE NHI PROBLEM & GOVERNANCE PILLARS ================= */}
+      <SaaSEcosystemPillars />
 
       {/* ================= KPI PERFORMANCE BENCHMARK STRIP ================= */}
       <section className="kpi-section">
@@ -147,29 +151,35 @@ export default function HomePage() {
         </div>
 
         <div className="bento-grid">
-          {capabilities.map((item) => (
-            <article className="bento-card" key={item.number}>
-              <div className="bento-header">
-                <span className="bento-badge">{item.badge}</span>
-                <span className="bento-number">{item.number}</span>
-              </div>
-              <h3>{item.title}</h3>
-              <p>{item.body}</p>
-              <div className="bento-footer">
-                <Link href="/docs#ast-guard" className="bento-link">
-                  Explore Architecture <span aria-hidden="true">↗</span>
-                </Link>
-              </div>
-            </article>
-          ))}
+          {capabilities.map((item) => {
+            const IconComponent = item.icon;
+            return (
+              <article className="bento-card" key={item.number}>
+                <div className="bento-header">
+                  <div className="bento-icon-wrap" style={{ borderColor: `${item.color}40`, backgroundColor: `${item.color}15` }}>
+                    <IconComponent size={22} color={item.color} />
+                  </div>
+                  <span className="bento-badge">{item.badge}</span>
+                  <span className="bento-number">{item.number}</span>
+                </div>
+                <h3>{item.title}</h3>
+                <p>{item.body}</p>
+                <div className="bento-footer">
+                  <Link href="/docs#ast-guard" className="bento-link">
+                    Explore Architecture <span aria-hidden="true">&rarr;</span>
+                  </Link>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
 
-        {/* ================= FREQUENTLY ASKED QUESTIONS ================= */}
-        <FaqAccordion />
+      {/* ================= FREQUENTLY ASKED QUESTIONS ================= */}
+      <FaqAccordion />
 
-        {/* ================= TALK DIRECTLY TO AN ENGINEER ================= */}
-        <TalkToEngineerSection />
+      {/* ================= TALK DIRECTLY TO AN ENGINEER ================= */}
+      <TalkToEngineerSection />
 
       {/* ================= ENTERPRISE CLOSING CTA ================= */}
       <section className="closing-section">
@@ -188,7 +198,7 @@ export default function HomePage() {
                 Deploy in 5 Min
               </Link>
               <Link className="text-link-button" href="/playground">
-                Explore Playground <span aria-hidden="true">→</span>
+                Explore Playground <span aria-hidden="true">&rarr;</span>
               </Link>
             </div>
           </div>

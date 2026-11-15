@@ -35,6 +35,7 @@ build/
 .env.local
 
 # Editor and OS files
+*.zip
 .idea/
 .vscode/
 .DS_Store

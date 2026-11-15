@@ -1,13 +1,17 @@
-"""Run the Axiom Python verification suite through pytest."""
+"""Run the Axiom Python verification suite through pytest (or offline stdlib shim)."""
 
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
-try:
-    import pytest
-except ImportError as exc:  # pragma: no cover - environment setup guidance
-    raise SystemExit("pytest is required; install the project test dependencies with `pip install -r requirements-dev.txt`") from exc
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import pytest  # noqa: E402
 
 
 if __name__ == "__main__":

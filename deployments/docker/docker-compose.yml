@@ -1,13 +1,9 @@
-# ==============================================================================
-# Axiom NHI — Phase 1 Local Prototyping Environment (Gate G1 Slice)
-# ==============================================================================
-# Owner: Team 1 (Gateway & Runtime Infrastructure)
-# Note: Draft mock slice for local testing. Full multi-service deployment
-# will integrate production ExtMCP (T2), Identity (T3), and OTel/Audit (T5).
-# ==============================================================================
+name: axiom-nhi-g1
 
+# Local G1 integration harness. This is not the enterprise production
+# deployment: the MCP backend is a side-effect-free test fixture, while
+# identity, validator, resource-map, and revocation config must be supplied.
 services:
-  # Interception and enforcement proxy
   axiom-gateway:
     build:
       context: ../..
@@ -15,27 +11,37 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - RUST_LOG=info
+      RUST_LOG: info
+      AXIOM_RUNTIME_MODE: ${AXIOM_RUNTIME_MODE:-enforce}
     depends_on:
-      - extmcp-service
-      - mcp-backend
+      extmcp-service:
+        condition: service_started
+      mcp-backend:
+        condition: service_started
 
-  # ExtMCP policy callout service (currently mock boundary for T2)
   extmcp-service:
-    image: node:24-alpine
-    working_dir: /app
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.extmcp
+    environment:
+      AXIOM_EXTMCP_ADDR: 0.0.0.0:9001
+      AXIOM_RUNTIME_MODE: ${AXIOM_RUNTIME_MODE:-enforce}
+      AXIOM_IDENTITY_CONFIG: /etc/axiom/identity.json
+      AXIOM_VALIDATION_CONFIG: /etc/axiom/validation-profiles.json
+      AXIOM_RESOURCE_MAP_CONFIG: /etc/axiom/resources.json
+      AXIOM_REVOCATION_CONFIG: /etc/axiom/revocations.json
     volumes:
-      - ../../gateway/mcp-interceptor:/app
-    command: ["node", "-e", "console.log('ExtMCP mock service placeholder on port 9001'); setInterval(()=>{}, 1000)"]
-    ports:
-      - "9001:9001"
+      - ./config:/etc/axiom:ro
+    expose:
+      - "9001"
+    restart: unless-stopped
 
-  # Sample MCP backend tool server
   mcp-backend:
     image: node:24-alpine
     working_dir: /app
     volumes:
-      - ../../gateway/mcp-interceptor:/app
-    command: ["node", "-e", "console.log('Mock MCP backend placeholder on port 8000'); setInterval(()=>{}, 1000)"]
-    ports:
-      - "8000:8000"
+      - ../..:/app:ro
+    command: ["node", "gateway/mcp-interceptor/mock_mcp_http_server.cjs"]
+    expose:
+      - "8000"
+    restart: unless-stopped

@@ -40,21 +40,21 @@ export function SiteShell({ children }: { children: ReactNode }) {
               >
                 <polygon
                   points="16,3 29,26 3,26"
-                  stroke="#00E5FF"
+                  stroke="rgb(0, 229, 255)"
                   strokeWidth="2"
                   strokeLinejoin="round"
                   fill="rgba(0, 229, 255, 0.08)"
                 />
                 <polygon
                   points="16,11 23,23 9,23"
-                  stroke="#00E5FF"
+                  stroke="rgb(0, 229, 255)"
                   strokeWidth="1.5"
                   strokeLinejoin="round"
                   fill="rgba(9, 13, 20, 0.9)"
                 />
-                <line x1="16" y1="3" x2="16" y2="11" stroke="#00E5FF" strokeWidth="1.5" />
-                <line x1="29" y1="26" x2="23" y2="23" stroke="#00E5FF" strokeWidth="1.5" />
-                <line x1="3" y1="26" x2="9" y2="23" stroke="#00E5FF" strokeWidth="1.5" />
+                <line x1="16" y1="3" x2="16" y2="11" stroke="rgb(0, 229, 255)" strokeWidth="1.5" />
+                <line x1="29" y1="26" x2="23" y2="23" stroke="rgb(0, 229, 255)" strokeWidth="1.5" />
+                <line x1="3" y1="26" x2="9" y2="23" stroke="rgb(0, 229, 255)" strokeWidth="1.5" />
               </svg>
               <span className="wordmark-text">
                 <span className="wordmark-axiom">AXIOM</span>

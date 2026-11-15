@@ -1,0 +1,30 @@
+# ==============================================================================
+# Axiom NHI — ExtMCP Authorization Runtime
+# ==============================================================================
+FROM rust:1.85-bookworm AS builder
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends protobuf-compiler \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+COPY . .
+
+RUN cargo build --locked --release -p extmcp-runtime
+
+# Runtime container
+FROM debian:bookworm-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system axiom \
+    && useradd --system --gid axiom --home-dir /nonexistent --shell /usr/sbin/nologin axiom
+
+WORKDIR /app
+COPY --from=builder /workspace/target/release/extmcp-runtime /app/extmcp-runtime
+USER axiom:axiom
+
+EXPOSE 9001
+
+ENTRYPOINT ["/app/extmcp-runtime"]

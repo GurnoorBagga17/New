@@ -1,0 +1,6 @@
+{
+  "name": "@axiom/console",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Axiom NHI Multi-Tenant Enterprise Control Plane Console (Phases 2-4)"
+}
