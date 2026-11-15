@@ -203,6 +203,132 @@ function createAdminServer(customState) {
         return;
       }
 
+      // 5. GET /v1/lineage/graph
+      if (req.method === 'GET' && (url.pathname === '/v1/lineage/graph' || url.pathname === '/lineage/graph')) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            nodes: [
+              { id: 'node-agent-1', name: 'autonomous-finops-agent', kind: 'ai_agent', blastScore: 14, owner: 'FinOps Core (@sec-finops)' },
+              { id: 'node-mcp-1', name: 'aws-iam-mcp', kind: 'mcp_server', blastScore: 32, owner: 'Infra Platform' },
+              { id: 'node-db-1', name: 'production-snowflake-cluster', kind: 'database', blastScore: 78, owner: 'Data Governance' },
+              { id: 'node-agent-2', name: 'github-pr-review-bot', kind: 'ai_agent', blastScore: 8, owner: 'DevEx' },
+            ],
+            edges: [
+              { id: 'edge-1', source: 'node-agent-1', target: 'node-mcp-1', relation: 'invokes_mcp_tool', calls24h: 18420 },
+              { id: 'edge-2', source: 'node-mcp-1', target: 'node-db-1', relation: 'reads_secret', calls24h: 9140 },
+              { id: 'edge-3', source: 'node-agent-2', target: 'node-mcp-1', relation: 'invokes_mcp_tool', calls24h: 3120 },
+            ],
+          })
+        );
+        return;
+      }
+
+      // 6. POST /v1/lineage/simulate-revoke
+      if (req.method === 'POST' && (url.pathname === '/v1/lineage/simulate-revoke' || url.pathname === '/lineage/simulate-revoke')) {
+        const targetNode = parsed.target_node_id || 'node-agent-1';
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            target: targetNode,
+            simulation: 'SAFE_FOR_REVOCATION',
+            impacted_workloads: ['subagent-sql-executor'],
+            blast_radius_reduction_points: 24,
+            cascading_dependencies_broken: 1,
+            estimated_recovery_time_seconds: 0,
+          })
+        );
+        return;
+      }
+
+      // 7. GET /v1/owasp/scorecard
+      if (req.method === 'GET' && (url.pathname === '/v1/owasp/scorecard' || url.pathname === '/owasp/scorecard')) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            fleet_posture_score: 96,
+            evaluated_at: new Date().toISOString(),
+            owasp_nhi_status: { compliant: 9, flagged: 1, total: 10 },
+            owasp_mcp_status: { compliant: 10, flagged: 0, total: 10 },
+            findings: [
+              { code: 'NHI3:2025', title: 'Vulnerable Third-Party NHI', severity: 'HIGH', status: 'FLAGGED', workload: 'temp-scrape-runner-x9' },
+            ],
+          })
+        );
+        return;
+      }
+
+      // 8. GET /v1/secretless/leases
+      if (req.method === 'GET' && (url.pathname === '/v1/secretless/leases' || url.pathname === '/secretless/leases')) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            zero_secret_browser_enforced: true,
+            active_leases_count: 4,
+            leases: [
+              {
+                lease_id: 'openbao/lease/mysql/creds/finops-agent/0196d1f0',
+                vault_uri: 'vault://openbao.internal/v1/database/creds/finops_role',
+                workload_uid: 'spiffe://axiom.internal/ns/prod/sa/autonomous-finops-agent',
+                ttl_seconds: 248,
+                renewable: true,
+                status: 'ACTIVE',
+              },
+            ],
+          })
+        );
+        return;
+      }
+
+      // 9. POST /v1/approvals/:id/decide
+      const approvalMatch = url.pathname.match(/^(?:\/v1)?\/approvals\/([^/]+)\/decide$/);
+      if (req.method === 'POST' && approvalMatch) {
+        const approvalId = approvalMatch[1];
+        const decision = parsed.decision === 'APPROVE' ? 'APPROVED' : 'DENIED';
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            approval_id: approvalId,
+            decision,
+            decision_timestamp: new Date().toISOString(),
+            cryptographic_token: 'ed25519-sig-bound-decision-' + crypto.randomBytes(16).toString('hex'),
+          })
+        );
+        return;
+      }
+
+      // 10. GET /v1/fleet/clusters
+      if (req.method === 'GET' && (url.pathname === '/v1/fleet/clusters' || url.pathname === '/fleet/clusters')) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            clusters: [
+              { name: 'aws-us-east-1-prod-eks', region: 'us-east-1', replicas: 8, canary_split: 10, p99_latency_ms: 3.4 },
+              { name: 'gcp-europe-west1-prod-gke', region: 'europe-west1', replicas: 6, canary_split: 0, p99_latency_ms: 2.8 },
+              { name: 'onprem-chicago-colo-01', region: 'chicago-dc2', replicas: 4, canary_split: 0, air_gapped: true, p99_latency_ms: 1.1 },
+            ],
+          })
+        );
+        return;
+      }
+
+      // 11. GET /v1/aibom/signed
+      if (req.method === 'GET' && (url.pathname === '/v1/aibom/signed' || url.pathname === '/aibom/signed')) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            bomFormat: 'CycloneDX',
+            specVersion: '1.6',
+            serialNumber: 'urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79',
+            signature: {
+              algorithm: 'Ed25519',
+              digest: 'sha256:8f4c2810a0e9981882d92bbef8e3318b8c8d8f99e',
+            },
+          })
+        );
+        return;
+      }
+
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Not found' }));
     });
