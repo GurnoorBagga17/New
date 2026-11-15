@@ -1,0 +1,6 @@
+# Axiom NHI Phase 1 TypeScript Workspace
+# Co-owned by Team 0 (architecture) and Teams 7-8 (frontend)
+
+packages:
+  - "packages/*"
+  - "apps/*"

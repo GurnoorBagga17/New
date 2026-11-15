@@ -1,0 +1,50 @@
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+@import "tailwindcss";
+@import "../../../../docs/architecture/generated/tokens.css";
+@import "../../../../docs/architecture/generated/tailwind-theme.css";
+
+@source "../**/*.{js,ts,jsx,tsx}";
+
+.verdict-badge { display: inline-flex; align-items: center; gap: 6px; width: fit-content; border: 1px solid currentColor; border-radius: 999px; padding: 5px 9px; font: 600 10px/1 var(--typography-font-family-mono); letter-spacing: .06em; }
+.verdict-badge__icon { width: 15px; height: 15px; }
+.verdict-badge__label { color: currentColor; }
+.verdict-badge--enforce { color: var(--state-enforce); background: var(--state-enforce-tint); }
+.verdict-badge--observe { color: var(--state-observe); background: var(--state-observe-tint); }
+.verdict-badge--pending { color: var(--state-pending); background: var(--state-pending-tint); }
+.verdict-badge--deny { color: var(--state-deny); background: var(--state-deny-tint); }
+.verdict-badge--revoked { color: var(--state-revoked); background: var(--state-revoked-tint); }
+
+@layer base {
+  :root {
+  color-scheme: light;
+  }
+
+  :root[data-theme="light"] {
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-canvas text-text-primary font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

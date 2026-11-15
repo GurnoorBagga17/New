@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axiom.invalid/schemas/0.1.0-draft/draft-dry-run-request.json",
+  "title": "Draft Dry-Run Request (not implemented)",
+  "description": "Proposed JSON mapping for current in-process source/schema validation. It does not evaluate a sample MCP call.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sources", "schema"],
+  "properties": {
+    "sources": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "schema": { "type": "string" }
+  }
+}

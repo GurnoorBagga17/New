@@ -1,0 +1,15 @@
+# Initial ownership map from the Phase 1 team playbooks.
+# Replace these aliases if the GitHub organization uses different team slugs.
+
+/docs/architecture/           @axiom-nhi/team-0-arch
+/docs/api-contracts/           @axiom-nhi/team-0-arch
+/docs/security/                @axiom-nhi/team-0-arch @axiom-nhi/team-6-qa
+/proto/                        @axiom-nhi/team-0-arch
+
+/gateway/                      @axiom-nhi/team-1-gateway
+/deployments/docker/           @axiom-nhi/team-1-gateway @axiom-nhi/team-0-arch
+/services/extmcp/              @axiom-nhi/team-2-policy
+/identity/                     @axiom-nhi/team-3-identity
+/validators/                   @axiom-nhi/team-4-validators
+/observability/                @axiom-nhi/team-5-observability
+/tests/                        @axiom-nhi/team-6-qa

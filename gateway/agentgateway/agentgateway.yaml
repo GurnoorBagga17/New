@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=https://agentgateway.dev/schema/config
+# Axiom Phase 1 enforce-mode configuration. Schema/source pin: agentgateway v1.7.0.
+gateways:
+  axiom-gateway:
+    port: 8080
+
+routes:
+  - name: axiom-mcp
+    gateways:
+      - axiom-gateway
+    matches:
+      - path:
+          pathPrefix: /mcp
+    policies:
+      mcpGuardrails:
+        processors:
+          - kind: remote
+            host: extmcp-service:9001
+            failureMode: failClosed
+            requestHeaders:
+              allowed:
+                - authorization
+                - mcp-session-id
+                - traceparent
+                - baggage
+            metadata:
+              runtime_mode: '"enforce"'
+              gateway_version: '"v1.7.0"'
+              intercepted_at: request.time
+            methods:
+              tools/call: request
+              tools/list: request
+              prompts/get: request
+              resources/read: request
+    backends:
+      - mcp:
+          targets:
+            - name: mcp-backend-default
+              mcp:
+                host: http://mcp-backend:8000/mcp

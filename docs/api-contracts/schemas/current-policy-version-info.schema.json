@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axiom.invalid/schemas/0.1.0-draft/policy-version-info.json",
+  "title": "Current PolicyVersionInfo DTO",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "loaded_at_unix", "policy_count"],
+  "properties": {
+    "version": { "type": "string" },
+    "loaded_at_unix": { "type": "integer" },
+    "policy_count": { "type": "integer", "minimum": 0 }
+  }
+}

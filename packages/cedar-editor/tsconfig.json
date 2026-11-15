@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "useUnknownInCatchVariables": true,
+    "exactOptionalPropertyTypes": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "types": ["vite/client", "vitest/globals"],
+    "baseUrl": ".",
+    "paths": {
+      "@axiom/cedar-editor": ["./src/index.ts"],
+      "@axiom/cedar-editor/studio": ["./src/studio.ts"],
+      "@axiom/cedar-editor/styles.css": ["./src/styles.css"],
+      "@axiom/cedar-editor/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "src",
+    "stories",
+    ".storybook",
+    "demo",
+    "vite.config.ts",
+    "vite.lib.config.ts",
+    "vitest.config.ts",
+    "../../apps/gateway-ui/src/modules/policy-studio"
+  ],
+  "exclude": ["node_modules", "dist", "storybook-static", "demo/dist"]
+}

@@ -1,0 +1,4 @@
+{
+  "sources": ["permit();"],
+  "schema": "not-a-cedar-schema"
+}

@@ -1,0 +1,10 @@
+[package]
+name = "axiom-telemetry"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "W3C trace-context propagation and measurement helpers for Axiom NHI Phase 1"
+
+[dependencies]
+getrandom.workspace = true

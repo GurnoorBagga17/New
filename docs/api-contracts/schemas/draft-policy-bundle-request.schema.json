@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axiom.invalid/schemas/0.1.0-draft/draft-policy-bundle-request.json",
+  "title": "Draft Policy Bundle Request (not implemented)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sources", "schema", "route_modes"],
+  "properties": {
+    "sources": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "schema": { "type": "string" },
+    "route_modes": { "type": "object", "additionalProperties": { "type": "string", "enum": ["observe-only", "enforce"] } }
+  }
+}

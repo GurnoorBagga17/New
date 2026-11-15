@@ -1,0 +1,30 @@
+[workspace]
+resolver = "2"
+members = [
+    "identity",
+    "observability/audit",
+    "observability/kill-switch",
+    "observability/opentelemetry",
+    "services/extmcp/authorization",
+    "services/extmcp/cedar",
+    "services/extmcp/policy-api",
+    "services/extmcp/runtime",
+    "validators",
+]
+
+[workspace.package]
+version = "0.1.0-draft"
+edition = "2021"
+license = "Apache-2.0"
+authors = ["Axiom NHI Team"]
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+tracing = "0.1"
+chrono = { version = "0.4", features = ["clock"] }
+crossbeam-channel = "0.5"
+arc-swap = "1"
+regex = "1"
+getrandom = "0.2"

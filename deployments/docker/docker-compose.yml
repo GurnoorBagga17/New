@@ -1,0 +1,41 @@
+# ==============================================================================
+# Axiom NHI — Phase 1 Local Prototyping Environment (Gate G1 Slice)
+# ==============================================================================
+# Owner: Team 1 (Gateway & Runtime Infrastructure)
+# Note: Draft mock slice for local testing. Full multi-service deployment
+# will integrate production ExtMCP (T2), Identity (T3), and OTel/Audit (T5).
+# ==============================================================================
+
+services:
+  # Interception and enforcement proxy
+  axiom-gateway:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.agentgateway
+    ports:
+      - "8080:8080"
+    environment:
+      - RUST_LOG=info
+    depends_on:
+      - extmcp-service
+      - mcp-backend
+
+  # ExtMCP policy callout service (currently mock boundary for T2)
+  extmcp-service:
+    image: node:24-alpine
+    working_dir: /app
+    volumes:
+      - ../../gateway/mcp-interceptor:/app
+    command: ["node", "-e", "console.log('ExtMCP mock service placeholder on port 9001'); setInterval(()=>{}, 1000)"]
+    ports:
+      - "9001:9001"
+
+  # Sample MCP backend tool server
+  mcp-backend:
+    image: node:24-alpine
+    working_dir: /app
+    volumes:
+      - ../../gateway/mcp-interceptor:/app
+    command: ["node", "-e", "console.log('Mock MCP backend placeholder on port 8000'); setInterval(()=>{}, 1000)"]
+    ports:
+      - "8000:8000"

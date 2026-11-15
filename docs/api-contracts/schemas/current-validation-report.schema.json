@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axiom.invalid/schemas/0.1.0-draft/validation-report.json",
+  "title": "Current ValidationReport DTO",
+  "description": "Exact syntax/schema candidate validation response; not an MCP policy simulation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["valid", "errors", "version_would_be"],
+  "properties": {
+    "valid": { "type": "boolean" },
+    "errors": { "type": "array", "items": { "type": "string" } },
+    "version_would_be": { "type": "string" }
+  }
+}

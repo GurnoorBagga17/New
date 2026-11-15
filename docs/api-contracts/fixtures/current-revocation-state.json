@@ -1,0 +1,8 @@
+{
+  "target_kind": "agent",
+  "target_id": "agent-fixture",
+  "revoked": true,
+  "state_version": 5,
+  "effective_unix_ms": 1794700800000,
+  "reason": "fixture-only reason"
+}

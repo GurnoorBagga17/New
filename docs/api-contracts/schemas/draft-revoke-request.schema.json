@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axiom.invalid/schemas/0.1.0-draft/draft-revoke-request.json",
+  "title": "Draft Revoke Request (not implemented)",
+  "description": "session_id requires a backend target-kind extension and review.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["target_kind", "reason"],
+  "properties": {
+    "target_kind": { "type": "string", "enum": ["agent_id", "session_id", "tool_id"] },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 2048 },
+    "actor": { "type": "string" }
+  }
+}

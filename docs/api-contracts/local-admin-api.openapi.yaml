@@ -1,0 +1,222 @@
+openapi: 3.1.0
+info:
+  title: Axiom Local Admin API (Draft Proposal)
+  version: 0.1.0-draft
+  description: >-
+    Proposal only. Repository inspection found no HTTP/SSE handlers for these
+    routes. Do not use this document as evidence of backend availability.
+servers:
+  - url: http://127.0.0.1:8080/v1/local
+    description: Proposed loopback-only server; not implemented.
+paths:
+  /events/stream:
+    get:
+      operationId: streamAuditEvents
+      summary: Proposed redacted audit event stream
+      x-axiom-implementation-status: proposal-not-implemented
+      description: >-
+        Current Rust AuditEvent and KillSwitchAuditEvent are separate shapes.
+        SSE event names, IDs, replay, heartbeats and reconnect semantics need
+        Team 1/5 approval.
+      responses:
+        '200':
+          description: Proposed stream of redacted audit events.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |-
+                event: audit
+                id: req-canary-001
+                data: {"timestamp_rfc3339":"2026-11-15T00:00:00.000Z","request_id":"req-canary-001","trace_id":"00000000000000000000000000000001","agent_id":"agent-fixture","target_server":"mcp://fixture","tool_name":"read_fixture","runtime_mode":"observe-only","decision":"WOULD_DENY","policy_version":"fixture-sha256","denial_reason":"fixture-only","validator_summary":[],"kill_switch_active":false,"latency_us":800}
+  /policies/dry-run:
+    post:
+      operationId: dryRunPolicyBundle
+      summary: Proposed policy-candidate validation endpoint
+      x-axiom-implementation-status: proposal-not-implemented
+      description: >-
+        Mirrors the current in-process syntax/schema validation method. The
+        current backend does not evaluate a sample MCP request and does not
+        return ValidatorResult or PolicyResponse from this method.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DraftDryRunRequest'
+      responses:
+        '200':
+          description: Candidate Cedar syntax/schema validation report.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentValidationReport'
+        '400':
+          $ref: '#/components/responses/DraftError'
+  /policies/bundle:
+    put:
+      operationId: putPolicyBundle
+      summary: Proposed policy bundle and route-mode update
+      x-axiom-implementation-status: proposal-not-implemented
+      description: >-
+        Current PolicyApiServer only reloads server-side .cedar files. It does
+        not accept a bundle body or update per-route runtime modes. Payload and
+        atomicity/version preconditions require Team 1/2 approval.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DraftPolicyBundleRequest'
+      responses:
+        '200':
+          description: Proposed installed policy version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentPolicyVersionInfo'
+        '400':
+          $ref: '#/components/responses/DraftError'
+  /sessions/{id}/revoke:
+    post:
+      operationId: revokeSessionTarget
+      summary: Proposed revocation action
+      x-axiom-implementation-status: proposal-not-implemented
+      description: >-
+        No HTTP handler exists. Current Rust target kinds are global,
+        mcp_server, agent, and tool; session_id is unsupported. Actor identity,
+        target mapping, D3 behavior and result payload need Team 1/2/5 review.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 256
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DraftRevokeRequest'
+      responses:
+        '200':
+          description: Proposed action result after state update and audit enqueue.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DraftRevokeResponse'
+        '400':
+          $ref: '#/components/responses/DraftError'
+components:
+  responses:
+    DraftError:
+      description: Error envelope proposal; no current HTTP error DTO exists.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DraftErrorResponse'
+  schemas:
+    CurrentAuditEvent:
+      type: object
+      additionalProperties: false
+      required: [timestamp_rfc3339, request_id, trace_id, agent_id, target_server, tool_name, runtime_mode, decision, policy_version, validator_summary, kill_switch_active, latency_us]
+      properties:
+        timestamp_rfc3339: { type: string, format: date-time }
+        request_id: { type: string }
+        trace_id: { type: string }
+        agent_id: { type: string }
+        target_server: { type: string }
+        tool_name: { type: string }
+        runtime_mode: { type: string, enum: [enforce, observe-only] }
+        decision: { type: string, enum: [ALLOW, DENY, WOULD_DENY] }
+        policy_version: { type: string }
+        denial_reason: { type: [string, 'null'] }
+        validator_summary: { type: array, items: { type: string } }
+        kill_switch_active: { type: boolean }
+        latency_us: { type: integer, minimum: 0 }
+    CurrentKillSwitchAuditEvent:
+      type: object
+      additionalProperties: false
+      required: [event_type, timestamp_rfc3339, action, target_kind, target_id, actor, reason, previous_state_version, state_version, outcome, source]
+      properties:
+        event_type: { const: kill_switch_action }
+        timestamp_rfc3339: { type: string, format: date-time }
+        action: { type: string, enum: [revoke, clear] }
+        target_kind: { type: string, enum: [agent, tool, mcp_server, global] }
+        target_id: { type: string }
+        actor: { type: string }
+        reason: { type: string }
+        previous_state_version: { type: integer, minimum: 0 }
+        state_version: { type: integer, minimum: 0 }
+        outcome: { type: string }
+        source: { type: string, enum: [cli, unix_socket, loopback_http, test] }
+        request_id: { type: [string, 'null'] }
+    CurrentValidationReport:
+      type: object
+      additionalProperties: false
+      required: [valid, errors, version_would_be]
+      properties:
+        valid: { type: boolean }
+        errors: { type: array, items: { type: string } }
+        version_would_be: { type: string }
+    CurrentPolicyVersionInfo:
+      type: object
+      additionalProperties: false
+      required: [version, loaded_at_unix, policy_count]
+      properties:
+        version: { type: string }
+        loaded_at_unix: { type: integer }
+        policy_count: { type: integer, minimum: 0 }
+    CurrentRevocationState:
+      type: object
+      additionalProperties: false
+      required: [target_kind, target_id, revoked, state_version, effective_unix_ms, reason]
+      properties:
+        target_kind: { type: string, enum: [global, mcp_server, agent, tool] }
+        target_id: { type: string }
+        revoked: { type: boolean }
+        state_version: { type: integer, minimum: 0 }
+        effective_unix_ms: { type: integer }
+        reason: { type: string }
+    DraftDryRunRequest:
+      type: object
+      additionalProperties: false
+      required: [sources, schema]
+      properties:
+        sources: { type: array, minItems: 1, items: { type: string } }
+        schema: { type: string }
+    DraftPolicyBundleRequest:
+      type: object
+      additionalProperties: false
+      required: [sources, schema, route_modes]
+      properties:
+        sources: { type: array, minItems: 1, items: { type: string } }
+        schema: { type: string }
+        route_modes:
+          type: object
+          additionalProperties: { type: string, enum: [observe-only, enforce] }
+    DraftRevokeRequest:
+      type: object
+      additionalProperties: false
+      required: [target_kind, reason]
+      properties:
+        target_kind: { type: string, enum: [agent_id, session_id, tool_id] }
+        reason: { type: string, minLength: 1, maxLength: 2048 }
+        actor: { type: string, description: Requires a reviewed local-operator identity contract. }
+    DraftRevokeResponse:
+      type: object
+      additionalProperties: false
+      required: [status, state_version, audit_enqueued]
+      properties:
+        status: { type: string, enum: [applied, already_in_desired_state] }
+        state_version: { type: integer, minimum: 0 }
+        audit_enqueued: { type: boolean }
+    DraftErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }

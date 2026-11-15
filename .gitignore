@@ -1,0 +1,41 @@
+# Rust
+**/target/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+!identity/tests/fixtures/identity_test_private.pem
+
+# Logs and local state
+*.log
+*.jsonl
+/var/
+/data/
+
+# Python test and virtual environment artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# JavaScript dependencies and generated output
+node_modules/
+coverage/
+dist/
+.next/
+.storybook-static/
+storybook-static/
+.turbo/
+build/
+*.tsbuildinfo
+.env.local
+
+# Editor and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,14 @@
+{
+  "event_type": "kill_switch_action",
+  "timestamp_rfc3339": "2026-11-15T00:00:01.000Z",
+  "action": "revoke",
+  "target_kind": "agent",
+  "target_id": "agent-fixture",
+  "actor": "operator-fixture",
+  "reason": "fixture-only reason",
+  "previous_state_version": 4,
+  "state_version": 5,
+  "outcome": "applied",
+  "source": "test",
+  "request_id": "req-canary-002"
+}

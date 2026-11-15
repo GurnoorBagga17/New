@@ -1,0 +1,21 @@
+# ==============================================================================
+# Axiom NHI — Phase 1 Agentgateway Container Packaging
+# ==============================================================================
+# Upstream Pin: agentgateway v1.7.0 (refs/tags/v1.7.0)
+# Owner: Team 1 (Gateway & Runtime Infrastructure)
+# ==============================================================================
+
+FROM ghcr.io/agentgateway/agentgateway:v1.7.0
+
+LABEL org.opencontainers.image.title="Axiom NHI Security Gateway" \
+      org.opencontainers.image.description="MCP Runtime Security Interceptor & Policy Enforcement Proxy" \
+      org.opencontainers.image.version="0.1.0-draft" \
+      org.opencontainers.image.licenses="Apache-2.0"
+
+# Copy local standalone gateway configuration
+COPY gateway/agentgateway/agentgateway.yaml /etc/agentgateway/config.yaml
+
+# Gateway ingress on port 8080
+EXPOSE 8080
+
+ENTRYPOINT ["agentgateway", "-f", "/etc/agentgateway/config.yaml"]

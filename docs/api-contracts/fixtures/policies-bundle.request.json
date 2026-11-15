@@ -1,0 +1,7 @@
+{
+  "sources": ["permit();"],
+  "schema": "draft Cedar schema fixture",
+  "route_modes": {
+    "mcp://fixture-db": "observe-only"
+  }
+}

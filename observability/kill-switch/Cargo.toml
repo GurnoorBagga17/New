@@ -1,0 +1,18 @@
+[package]
+name = "axiom-kill-switch"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "In-memory revocation state, key precedence, and kill-switch service for Axiom NHI Phase 1"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+arc-swap.workspace = true
+axiom-audit = { path = "../audit" }
+
+[dev-dependencies]
+axiom-telemetry = { path = "../opentelemetry" }

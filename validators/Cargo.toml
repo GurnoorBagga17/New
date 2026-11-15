@@ -1,0 +1,23 @@
+[package]
+name = "axiom-validators"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Argument and tool-definition validators for Axiom NHI"
+
+[dependencies]
+async-trait = "0.1"
+extmcp-authorization = { path = "../services/extmcp/authorization" }
+hex = "0.4"
+percent-encoding = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_jcs = "0.2"
+sha2 = "0.10"
+sqlparser = { version = "0.63", features = ["visitor"] }
+thiserror = "2"
+tokio = { version = "1", features = ["net"] }
+url = "2"
+
+[dev-dependencies]
+tempfile = "3"

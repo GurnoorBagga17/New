@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axiom.invalid/schemas/0.1.0-draft/kill-switch-audit-event.json",
+  "title": "Current KillSwitchAuditEvent DTO",
+  "description": "Separate Team 5 audit shape; no union with AuditEvent is currently implemented.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_type", "timestamp_rfc3339", "action", "target_kind", "target_id", "actor", "reason", "previous_state_version", "state_version", "outcome", "source", "request_id"],
+  "properties": {
+    "event_type": { "const": "kill_switch_action" },
+    "timestamp_rfc3339": { "type": "string", "format": "date-time" },
+    "action": { "type": "string", "enum": ["revoke", "clear"] },
+    "target_kind": { "type": "string", "enum": ["agent", "tool", "mcp_server", "global"] },
+    "target_id": { "type": "string" },
+    "actor": { "type": "string" },
+    "reason": { "type": "string" },
+    "previous_state_version": { "type": "integer", "minimum": 0 },
+    "state_version": { "type": "integer", "minimum": 0 },
+    "outcome": { "type": "string" },
+    "source": { "type": "string", "enum": ["cli", "unix_socket", "loopback_http", "test"] },
+    "request_id": { "type": ["string", "null"] }
+  }
+}

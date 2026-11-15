@@ -1,0 +1,5 @@
+{
+  "target_kind": "agent_id",
+  "reason": "fixture-only operator test",
+  "actor": "operator-fixture"
+}

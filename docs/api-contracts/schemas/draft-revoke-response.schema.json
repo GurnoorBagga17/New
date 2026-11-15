@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axiom.invalid/schemas/0.1.0-draft/draft-revoke-response.json",
+  "title": "Draft Revoke Response (not implemented)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "state_version", "audit_enqueued"],
+  "properties": {
+    "status": { "type": "string", "enum": ["applied", "already_in_desired_state"] },
+    "state_version": { "type": "integer", "minimum": 0 },
+    "audit_enqueued": { "type": "boolean" }
+  }
+}

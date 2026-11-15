@@ -1,0 +1,45 @@
+[package]
+name = "axiom-identity"
+version = "0.1.0-draft"
+edition = "2021"
+authors = ["Axiom NHI Team 3 <team3@axiom-nhi.dev>"]
+description = "Identity verification and authentication for Axiom NHI Phase 1 MCP runtime security gateway"
+license = "Apache-2.0"
+
+[dependencies]
+# JWT verification
+jsonwebtoken = "9.3"
+base64 = "0.22"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Async trait support
+async-trait = "0.1"
+
+# HTTP client for JWKS/CIMD fetching with TLS verification
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "stream"], default-features = false }
+
+# Time handling for exp/nbf validation
+chrono = { version = "0.4", features = ["serde"] }
+
+# Caching
+moka = { version = "0.12", features = ["future"] }
+
+# URL parsing and validation
+url = "2.5"
+
+# IP address validation for SSRF protection
+ipnetwork = "0.20"
+
+# Error handling
+thiserror = "1.0"
+
+# Async runtime (matches ExtMCP service)
+tokio = { version = "1.35", features = ["rt", "time", "net"] }
+
+# Tracing for observability
+tracing = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1.35", features = ["rt", "macros", "test-util"] }
+mockito = "1.2"

@@ -1,0 +1,8 @@
+event: audit
+id: req-canary-001
+data: {"timestamp_rfc3339":"2026-11-15T00:00:00.000Z","request_id":"req-canary-001","trace_id":"00000000000000000000000000000001","agent_id":"agent-fixture","target_server":"mcp://fixture-db","tool_name":"read_fixture","runtime_mode":"observe-only","decision":"WOULD_DENY","policy_version":"fixture-sha256","denial_reason":"fixture-only shadow decision","validator_summary":["tool-pinning:fixture-pass"],"kill_switch_active":false,"latency_us":800}
+
+event: kill_switch_action
+id: req-canary-002
+data: {"event_type":"kill_switch_action","timestamp_rfc3339":"2026-11-15T00:00:01.000Z","action":"revoke","target_kind":"agent","target_id":"agent-fixture","actor":"operator-fixture","reason":"fixture-only reason","previous_state_version":4,"state_version":5,"outcome":"applied","source":"test","request_id":"req-canary-002"}
+

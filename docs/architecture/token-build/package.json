@@ -1,0 +1,12 @@
+{
+  "name": "@axiom/team0-token-build",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "style-dictionary build --config style-dictionary.config.mjs",
+    "check:contrast": "python ../../architecture/scripts/check_design_tokens.py"
+  },
+  "devDependencies": {
+    "style-dictionary": "5.8.0"
+  }
+}

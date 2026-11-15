@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axiom.invalid/schemas/0.1.0-draft/audit-event.json",
+  "title": "Current AuditEvent DTO",
+  "description": "Exact serde shape from observability/audit/src/event.rs. This is not an SSE envelope.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["timestamp_rfc3339", "request_id", "trace_id", "agent_id", "target_server", "tool_name", "runtime_mode", "decision", "policy_version", "denial_reason", "validator_summary", "kill_switch_active", "latency_us"],
+  "properties": {
+    "timestamp_rfc3339": { "type": "string", "format": "date-time" },
+    "request_id": { "type": "string" },
+    "trace_id": { "type": "string" },
+    "agent_id": { "type": "string" },
+    "target_server": { "type": "string" },
+    "tool_name": { "type": "string" },
+    "runtime_mode": { "type": "string", "enum": ["enforce", "observe-only"] },
+    "decision": { "type": "string", "enum": ["ALLOW", "DENY", "WOULD_DENY"] },
+    "policy_version": { "type": "string" },
+    "denial_reason": { "type": ["string", "null"] },
+    "validator_summary": { "type": "array", "items": { "type": "string" } },
+    "kill_switch_active": { "type": "boolean" },
+    "latency_us": { "type": "integer", "minimum": 0 }
+  }
+}
