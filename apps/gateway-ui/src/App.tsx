@@ -14,11 +14,50 @@ const AuditExplorer = lazy(() =>
     default: module.AuditExplorer,
   })),
 );
+const FleetWorkloadsPage = lazy(() =>
+  import("./modules/fleet/FleetWorkloadsPage").then((module) => ({
+    default: module.FleetWorkloadsPage,
+  })),
+);
+const LineageGraphPage = lazy(() =>
+  import("./modules/lineage/LineageGraphPage").then((module) => ({
+    default: module.LineageGraphPage,
+  })),
+);
+const ApprovalsPage = lazy(() =>
+  import("./modules/approvals/ApprovalsPage").then((module) => ({
+    default: module.ApprovalsPage,
+  })),
+);
+const AlertsCenterPage = lazy(() =>
+  import("./modules/alerts/AlertsCenterPage").then((module) => ({
+    default: module.AlertsCenterPage,
+  })),
+);
+const ConnectorsPage = lazy(() =>
+  import("./modules/connectors/ConnectorsPage").then((module) => ({
+    default: module.ConnectorsPage,
+  })),
+);
 
-type ConsoleView = "traffic" | "policies" | "audit" | "kill-switch";
+type ConsoleView =
+  | "traffic"
+  | "fleet"
+  | "lineage"
+  | "approvals"
+  | "alerts"
+  | "connectors"
+  | "policies"
+  | "audit"
+  | "kill-switch";
 
 const NAV_ITEMS: readonly { id: ConsoleView; label: string; icon: string }[] = [
   { id: "traffic", label: "Live MCP Stream", icon: "⌁" },
+  { id: "fleet", label: "Fleet Workloads", icon: "🤖" },
+  { id: "lineage", label: "Lineage Graph", icon: "☊" },
+  { id: "approvals", label: "Human Approvals", icon: "✓" },
+  { id: "alerts", label: "Security Alerts", icon: "⚠" },
+  { id: "connectors", label: "Connectors Hub", icon: "⬡" },
   { id: "policies", label: "Cedar Studio", icon: "◇" },
   { id: "audit", label: "Audit Logs", icon: "▤" },
   { id: "kill-switch", label: "Kill Switch", icon: "⏻" },
@@ -118,6 +157,31 @@ export default function App() {
           <main className="min-w-0 p-3 md:p-5 xl:p-6">
             <div className="mx-auto w-full max-w-[1800px]">
               {view === "traffic" && <TrafficStream />}
+              {view === "fleet" && (
+                <Suspense fallback={<SectionFallback label="Fleet Workloads" />}>
+                  <FleetWorkloadsPage />
+                </Suspense>
+              )}
+              {view === "lineage" && (
+                <Suspense fallback={<SectionFallback label="Lineage Graph" />}>
+                  <LineageGraphPage />
+                </Suspense>
+              )}
+              {view === "approvals" && (
+                <Suspense fallback={<SectionFallback label="Human Approvals" />}>
+                  <ApprovalsPage />
+                </Suspense>
+              )}
+              {view === "alerts" && (
+                <Suspense fallback={<SectionFallback label="Security Alerts" />}>
+                  <AlertsCenterPage />
+                </Suspense>
+              )}
+              {view === "connectors" && (
+                <Suspense fallback={<SectionFallback label="Discovery Connectors" />}>
+                  <ConnectorsPage />
+                </Suspense>
+              )}
               {view === "policies" && <Suspense fallback={<SectionFallback label="Cedar Studio" />}><PolicyStudioPage /></Suspense>}
               {view === "audit" && <Suspense fallback={<SectionFallback label="Audit Logs" />}><AuditExplorer /></Suspense>}
               {view === "kill-switch" && (
