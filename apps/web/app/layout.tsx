@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "@axiom/ui/theme.css";
 import "./styles.css";
+import { CookieConsent } from "./components/CookieConsent";
 
 export const metadata: Metadata = {
   title: { default: "Axiom NHI — Security for AI tool calls", template: "%s · Axiom NHI" },
@@ -18,7 +19,10 @@ export const viewport: Viewport = { colorScheme: "dark" };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" data-theme="dark" className="dark" style={{ colorScheme: "dark" }}>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {children}
+        <CookieConsent />
+      </body>
     </html>
   );
 }

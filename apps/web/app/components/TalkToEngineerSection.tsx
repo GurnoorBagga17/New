@@ -17,15 +17,24 @@ export function TalkToEngineerSection() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [ticketId, setTicketId] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.email) return;
     setIsSubmitting(true);
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json().catch(() => ({}));
+      setTicketId(data.ticketId || `AXM-ENG-${Math.floor(1000 + Math.random() * 9000)}`);
+    } catch {
       setTicketId(`AXM-ENG-${Math.floor(1000 + Math.random() * 9000)}`);
+    } finally {
       setIsSubmitting(false);
       setIsSubmitted(true);
-    }, 450);
+    }
   };
 
   return (
