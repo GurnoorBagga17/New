@@ -1,0 +1,10 @@
+{
+  "name": "axiom-nhi",
+  "displayName": "Axiom NHI Architecture & Guardrails",
+  "description": "Axiom Non-Human Identity (NHI) governance: Cedar policy guardrails, ExtMCP validators, sub-millisecond latency benchmark gates, and MCP security tooling.",
+  "suggestedPrompts": [
+    "Scaffold an ExtMCP Cedar policy validator for SQL/path/egress arguments",
+    "Run the p50/p95/p99 latency benchmark harness",
+    "Verify fail-closed enforcement and audit trail integrity"
+  ]
+}

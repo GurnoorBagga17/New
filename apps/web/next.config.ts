@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   ...(process.env.NEXT_STANDALONE === "true" ? { output: "standalone" as const } : {}),
   poweredByHeader: false,
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   experimental: {
     cpus: 1,

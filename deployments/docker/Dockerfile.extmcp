@@ -23,6 +23,7 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY --from=builder /workspace/target/release/extmcp-runtime /app/extmcp-runtime
+RUN mkdir -p /var/lib/axiom && chown -R axiom:axiom /var/lib/axiom
 USER axiom:axiom
 
 EXPOSE 9001

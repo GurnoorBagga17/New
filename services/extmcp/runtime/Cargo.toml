@@ -7,14 +7,24 @@ build = "build.rs"
 [dependencies]
 axiom-identity = { path = "../../../identity" }
 axiom-validators = { path = "../../../validators" }
+axiom-audit = { path = "../../../observability/audit" }
+axiom-kill-switch = { path = "../../../observability/kill-switch" }
+axiom-lineage-graph = { path = "../../../lineage-graph" }
+axiom-secretless = { path = "../../../secretless" }
+chrono = "0.4"
 extmcp-authorization = { path = "../authorization" }
 extmcp-cedar = { path = "../cedar" }
+extmcp-policy-api = { path = "../policy-api" }
+axum = "0.7"
+tower-http = { version = "0.6", features = ["cors"] }
+futures-util = "0.3"
 prost = "0.13"
 prost-types = "0.13"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "sync", "time"] }
 tonic = { version = "0.12", features = ["transport"] }
+tracing = { workspace = true }
 
 [build-dependencies]
 protoc-bin-vendored = "3"

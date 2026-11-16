@@ -634,7 +634,11 @@ where
         // DRAFT: depends on Team 0 contract freeze for UID format conventions.
         let principal_uid = format!("Axiom::Agent::\"{}\"", identity.agent_id);
         let action_uid = format!("Axiom::Action::\"{}\"", req.mcp_method);
-        let resource_uid = format!("Axiom::Tool::\"{}/{}\"", req.target_server, req.tool_name);
+        let resource_uid = if req.mcp_method == "tools/call" {
+            format!("Axiom::Tool::\"{}/{}\"", req.target_server, req.tool_name)
+        } else {
+            format!("Axiom::McpServer::\"{}\"", req.target_server)
+        };
 
         // DRAFT: runtime_mode_str is passed to context builder so that future
         // audit-only policies can key on it; Cedar evaluation itself remains

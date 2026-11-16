@@ -11,3 +11,32 @@ thiserror.workspace = true
 sha2.workspace = true
 hmac.workspace = true
 hex.workspace = true
+tokio.workspace = true
+reqwest = { version = "0.12", features = ["json"] }
+
+[features]
+default = []
+aws = ["dep:aws-sdk-iam", "dep:aws-config"]
+k8s = ["dep:kube", "dep:k8s-openapi"]
+github = ["dep:octocrab"]
+full = ["aws", "k8s", "github"]
+
+[dependencies.aws-sdk-iam]
+workspace = true
+optional = true
+
+[dependencies.aws-config]
+workspace = true
+optional = true
+
+[dependencies.kube]
+workspace = true
+optional = true
+
+[dependencies.k8s-openapi]
+workspace = true
+optional = true
+
+[dependencies.octocrab]
+workspace = true
+optional = true

@@ -188,7 +188,7 @@ export function SaaSEcosystemPillars() {
                   <div className="persona-bullets">
                     <div className="bullet-col">
                       <h4>Continuous Compliance Ready</h4>
-                      <p>Satisfy SOC 2, HIPAA, ISO 27001, and NIST AI RMF with immutable Merkle audit trails.</p>
+                      <p>Align with SOC 2, HIPAA, ISO 27001, and NIST AI RMF controls with tamper-evident OpenTelemetry and RFC 8785 audit streams.</p>
                     </div>
                     <div className="bullet-col">
                       <h4>Deterministic Kill-Switch</h4>

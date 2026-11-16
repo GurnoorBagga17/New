@@ -74,11 +74,14 @@ export type SSEConnectionState =
   | 'paused'
   | 'error';
 
+export type TelemetrySource = 'live' | 'replay' | 'synthetic' | 'offline';
+
 /**
  * SSE connection status for UI display
  */
 export interface SSEStatus {
   state: SSEConnectionState;
+  source?: TelemetrySource;
   /** Human-readable failure reason */
   error?: string;
   /** Reconnect attempt count */

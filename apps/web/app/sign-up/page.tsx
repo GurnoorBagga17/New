@@ -13,8 +13,38 @@ export default function SignUpPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email || !name) return;
-    setStatus("Workspace provisioning is a design preview. Identity and workspace services are not connected.");
+    if (!email || !name || !password) return;
+    setStatus(null);
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        window.location.href = "/console";
+      } else {
+        setStatus(data.error || "Workspace creation failed.");
+      }
+    } catch {
+      setStatus("Failed to connect to authentication service.");
+    }
+  }
+
+  async function handleEnterpriseSSO() {
+    setStatus(null);
+    try {
+      const res = await fetch("/api/auth/oidc", { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.authorizationUrl) {
+        window.location.href = data.authorizationUrl;
+      } else {
+        setStatus(data.error || "Enterprise SSO / OIDC is not configured in this environment.");
+      }
+    } catch {
+      setStatus("Failed to initiate Enterprise SSO federation.");
+    }
   }
 
   return (
@@ -62,12 +92,12 @@ export default function SignUpPage() {
           </div>
 
           <div className="auth-field">
-            <label htmlFor="sign-up-password">Password (8+ characters)</label>
+            <label htmlFor="sign-up-password">Password (12+ characters)</label>
             <input
               id="sign-up-password"
               type="password"
               required
-              minLength={8}
+              minLength={12}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••••••"
@@ -92,10 +122,10 @@ export default function SignUpPage() {
           <button
             type="button"
             className="auth-sso-btn"
-            disabled
+            onClick={handleEnterpriseSSO}
           >
             <LogoOkta size={18} />
-            <span>Enterprise SSO · not connected</span>
+            <span>Continue with Enterprise OIDC (PKCE)</span>
           </button>
         </div>
 
@@ -108,7 +138,7 @@ export default function SignUpPage() {
           </p>
           <div className="auth-security-note">
             <IconLock size={12} color="var(--text-muted)" />
-            <span>Preview state · workspace provisioning is not connected.</span>
+            <span>Fail-closed authentication · PBKDF2/scrypt hashed & SameSite=Strict cookies.</span>
           </div>
         </div>
       </div>

@@ -36,15 +36,15 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-export const viewport: Viewport = { colorScheme: "dark" };
+export const viewport: Viewport = { colorScheme: "light" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
       lang="en"
-      data-theme="dark"
-      className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} ${inter.variable} dark`}
-      style={{ colorScheme: "dark" }}
+      data-theme="light"
+      className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} ${inter.variable} light`}
+      style={{ colorScheme: "light" }}
     >
       <body className="antialiased">
         {children}

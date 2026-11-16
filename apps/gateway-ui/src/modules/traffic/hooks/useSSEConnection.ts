@@ -14,8 +14,6 @@ import { containsSecret } from '../utils/secretScrubber';
 
 const SSE_ENDPOINT = '/v1/local/events/stream';
 const HEARTBEAT_TIMEOUT_MS = 30000; // 30 seconds
-const INITIAL_RETRY_DELAY_MS = 1000;
-const MAX_RETRY_DELAY_MS = 30000;
 const BATCH_INTERVAL_MS = 16; // ~60 FPS frame budget
 
 function isAuditEvent(value: unknown): value is AuditEvent {
@@ -50,18 +48,16 @@ export function useSSEConnection(options: SSEConnectionOptions = {}) {
   
   const eventSourceRef = useRef<EventSource | null>(null);
   const heartbeatTimerRef = useRef<number | null>(null);
-  const reconnectTimerRef = useRef<number | null>(null);
   const batchTimerRef = useRef<number | null>(null);
   const pendingEventsRef = useRef<AuditEvent[]>([]);
   const retryCountRef = useRef(0);
-  const retryDelayRef = useRef(INITIAL_RETRY_DELAY_MS);
   
   const { addEvents, updateSSEStatus } = useTrafficStore();
   
   // Flush pending events in batches (frame budget optimization)
   const flushBatch = useCallback(() => {
     if (pendingEventsRef.current.length > 0) {
-      addEvents(pendingEventsRef.current);
+      addEvents(pendingEventsRef.current, 'live');
       pendingEventsRef.current = [];
     }
   }, [addEvents]);
@@ -82,18 +78,6 @@ export function useSSEConnection(options: SSEConnectionOptions = {}) {
     updateSSEStatus({ lastMessageAt: Date.now() });
   }, [updateSSEStatus]);
   
-  // Calculate next retry delay with exponential backoff + jitter
-  const calculateNextRetryDelay = useCallback(() => {
-    const baseDelay = Math.min(
-      INITIAL_RETRY_DELAY_MS * Math.pow(2, retryCountRef.current),
-      MAX_RETRY_DELAY_MS,
-    );
-    
-    // Add jitter: ±25%
-    const jitter = baseDelay * 0.25 * (Math.random() * 2 - 1);
-    return Math.floor(baseDelay + jitter);
-  }, []);
-  
   // Connect to SSE endpoint
   const connect = useCallback(() => {
     // Clean up existing connection
@@ -104,6 +88,7 @@ export function useSSEConnection(options: SSEConnectionOptions = {}) {
     
     updateSSEStatus({
       state: 'connecting',
+      source: 'offline',
       retryCount: retryCountRef.current,
     });
     
@@ -113,14 +98,15 @@ export function useSSEConnection(options: SSEConnectionOptions = {}) {
       
       // Connection opened
       eventSource.onopen = () => {
+        retryCountRef.current = 0;
         updateSSEStatus({
           state: 'connected',
+          source: 'live',
           error: undefined,
           retryCount: 0,
         });
         
         retryCountRef.current = 0;
-        retryDelayRef.current = INITIAL_RETRY_DELAY_MS;
         resetHeartbeat();
       };
       
@@ -170,65 +156,40 @@ export function useSSEConnection(options: SSEConnectionOptions = {}) {
       eventSource.addEventListener('ping', () => {
         resetHeartbeat();
       });
+
+      // Admin actions have a separate contract from MCP decision events.
+      // Do not coerce them into rows with invented decision fields.
+      eventSource.addEventListener('kill_switch_action', () => {
+        resetHeartbeat();
+      });
       
       // Connection error
       eventSource.onerror = () => {
-        // Clean up real EventSource
-        eventSource.close();
-        eventSourceRef.current = null;
-        
         if (heartbeatTimerRef.current !== null) {
           window.clearTimeout(heartbeatTimerRef.current);
           heartbeatTimerRef.current = null;
         }
-
-        // Seamless fallback to Live Telemetry Replay Simulator so UI is always interactive & live
         updateSSEStatus({
-          state: 'connected',
-          error: undefined,
-          retryCount: 0,
+          state: 'disconnected',
+          source: 'offline',
+          error: 'The local backend event stream is unavailable. The browser will retry automatically.',
+          retryCount: retryCountRef.current + 1,
         });
-
-        // Initialize with live enterprise events
-        import('../__mocks__/mockSSEServer').then(({ MockSSEServer }) => {
-          const mockServer = new MockSSEServer({ eventsPerSecond: 15 });
-          mockServer.addEventListener((auditEvent) => {
-            pendingEventsRef.current.push(auditEvent);
-            if (batchTimerRef.current === null) {
-              batchTimerRef.current = window.setTimeout(() => {
-                flushBatch();
-                batchTimerRef.current = null;
-              }, BATCH_INTERVAL_MS);
-            }
-          });
-          mockServer.start();
-        }).catch(() => {
-          // Fallback if dynamic import fails
-        });
+        retryCountRef.current += 1;
+        onError?.(new Error('Local admin event stream disconnected.'));
       };
     } catch (err) {
       updateSSEStatus({
-        state: 'connected',
-        error: undefined,
+        state: 'disconnected',
+        source: 'offline',
+        error: 'The local backend event stream could not be opened.',
+        retryCount: retryCountRef.current,
       });
-      import('../__mocks__/mockSSEServer').then(({ MockSSEServer }) => {
-        const mockServer = new MockSSEServer({ eventsPerSecond: 15 });
-        mockServer.addEventListener((auditEvent) => {
-          pendingEventsRef.current.push(auditEvent);
-          if (batchTimerRef.current === null) {
-            batchTimerRef.current = window.setTimeout(() => {
-              flushBatch();
-              batchTimerRef.current = null;
-            }, BATCH_INTERVAL_MS);
-          }
-        });
-        mockServer.start();
-      }).catch(() => {});
+      onError?.(err instanceof Error ? err : new Error('Local admin event stream could not be opened.'));
     }
   }, [
     updateSSEStatus,
     resetHeartbeat,
-    calculateNextRetryDelay,
     flushBatch,
     onError,
   ]);
@@ -243,11 +204,6 @@ export function useSSEConnection(options: SSEConnectionOptions = {}) {
     if (heartbeatTimerRef.current !== null) {
       window.clearTimeout(heartbeatTimerRef.current);
       heartbeatTimerRef.current = null;
-    }
-    
-    if (reconnectTimerRef.current !== null) {
-      window.clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = null;
     }
     
     if (batchTimerRef.current !== null) {

@@ -186,7 +186,27 @@ where
             runtime_mode: self.mode.clone(),
             raw_auth_header: auth,
         };
-        let result = self.pipeline.execute(&runtime_request).await;
+        let eval_span = tracing::info_span!(
+            "extmcp.authorization.evaluate",
+            request_id = %runtime_request.request_id,
+            trace_id = %runtime_request.trace_id,
+            mcp_method = %runtime_request.mcp_method,
+            target_server = %runtime_request.target_server,
+            tool_name = %runtime_request.tool_name,
+            runtime_mode = ?self.mode,
+        );
+        let result = {
+            let _guard = eval_span.enter();
+            self.pipeline.execute(&runtime_request).await
+        };
+        tracing::info!(
+            decision = ?result.policy_response.decision,
+            pipeline_latency_us = result.pipeline_latency_us,
+            evaluation_latency_us = result.policy_response.evaluation_latency_us,
+            policy_version = %result.policy_response.policy_version,
+            reason = %result.policy_response.reason,
+            "extmcp authorization decision evaluated"
+        );
         if result.policy_response.decision == Decision::Permit {
             return Ok(pass());
         }

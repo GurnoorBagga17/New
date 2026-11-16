@@ -10,3 +10,7 @@ serde_json.workspace = true
 sha2.workspace = true
 hex.workspace = true
 thiserror.workspace = true
+ring.workspace = true
+jsonwebtoken = "9"
+reqwest = { version = "0.12", features = ["json"] }
+tokio.workspace = true

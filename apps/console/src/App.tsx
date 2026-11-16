@@ -184,7 +184,7 @@ const INITIAL_TRAFFIC_EVENTS = [
   "messages": [
     {
       "role": "user",
-      "content": "Summarize billing for SSN 412-88-9012 using key sk-proj-99a8b7c6d5e4f3 and AWS AKIAIOSFODNN7EXAMPLE"
+      "content": "Summarize billing for SSN [SIMULATED_SSN] using key [SIMULATED_KEY] and AWS [SIMULATED_KEY]"
     }
   ]
 }`,
@@ -284,8 +284,8 @@ const INITIAL_TRAFFIC_EVENTS = [
     policyMatched: 'pol-cicd-jit-03',
     auditHash: 'sha256:5e2a8c1f9d4b60317c8e2a4f6b9d1e3c5a',
     rawPayload: `{
-  "statement": "SELECT email, api_token FROM users WHERE token='ghp_8921739812739812739812a'",
-  "runner_token": "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  "statement": "SELECT email, api_token FROM users WHERE token='[RAW_GITHUB_PAT]'",
+  "runner_token": "AWS_SECRET_ACCESS_KEY=[RAW_AWS_SECRET]"
 }`,
     scrubbedPayload: `{
   "statement": "SELECT email, api_token FROM users WHERE token='[AXIOM_REDACTED:GITHUB_PAT]'",
@@ -455,6 +455,82 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
+  // Live Backend Data Fetching & SSE Stream Sync
+  useEffect(() => {
+    let sseSource: EventSource | null = null;
+    const adminUrl =
+      typeof window !== 'undefined' && window.location.port === '8080'
+        ? ''
+        : 'http://localhost:8080';
+
+    async function loadLiveBackendData() {
+      try {
+        const resp = await fetch(`${adminUrl}/v1/lineage/graph`, {
+          signal: AbortSignal.timeout(1000)
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.nodes && Array.isArray(data.nodes) && data.nodes.length > 0) {
+            setWorkloads(
+              data.nodes.map((n: any, idx: number) => ({
+                id: n.id || `nhi-live-${idx}`,
+                name: n.label || n.id,
+                type: n.type || 'AI Agent',
+                icon: n.type && n.type.includes('Agent') ? 'Bot' : 'Server',
+                spiffeId: n.spiffe_id || `spiffe://axiom.internal/ns/prod/sa/${n.id}`,
+                attestation: n.attestation || 'Verified Ephemeral Attestation',
+                owner: n.owner || 'Axiom Platform (@axiom-sec)',
+                ttlSeconds: n.ttl_seconds || 300,
+                blastRadius: n.blast_radius || 12,
+                status: n.status || 'ACTIVE',
+                scrubberRules: ['AWS_KEY', 'JWT', 'STRIPE_KEY'],
+                connectedBroker: 'axiom-enclave-us-east-1a',
+                targets: n.targets || ['res-postgres', 'res-aws'],
+                requestsPerMin: n.requests_per_min || 320,
+                policyId: n.policy_id || 'pol-live-guardrail'
+              }))
+            );
+          }
+        }
+      } catch {
+        // Backend offline; retains INITIAL_WORKLOADS
+      }
+
+      try {
+        sseSource = new EventSource(`${adminUrl}/v1/local/events/stream`);
+        sseSource.onmessage = (event) => {
+          try {
+            const parsed = JSON.parse(event.data);
+            if (parsed.type === 'audit' || parsed.audit_entry) {
+              const entry = parsed.audit_entry || parsed;
+              setAuditLogs((prev: any[]) => [
+                {
+                  id: entry.id || `aud-${Date.now()}`,
+                  timestamp: entry.timestamp || new Date().toISOString(),
+                  actor: entry.actor || 'extmcp-runtime',
+                  action: entry.action || 'POLICY_EVAL',
+                  resource: entry.resource || 'mcp-tool',
+                  hash: entry.merkle_hash || entry.hash || 'sha256:live',
+                  status: entry.verdict || 'VERIFIED'
+                },
+                ...prev.slice(0, 49)
+              ]);
+            }
+          } catch {
+            // Ignore parse errors on heartbeats
+          }
+        };
+      } catch {
+        // SSE unavailable in this environment
+      }
+    }
+
+    loadLiveBackendData();
+    return () => {
+      if (sseSource) sseSource.close();
+    };
+  }, []);
+
   // Simulated SSE Traffic Generator
   useEffect(() => {
     if (!isStreaming || globalKillSwitchActive) return;
@@ -469,7 +545,7 @@ export default function App() {
           latencyMs: +(0.31 + Math.random() * 0.15).toFixed(2),
           redactedCount: 2,
           policyMatched: 'pol-ai-guardrail-01',
-          rawPayload: `{\n  "model": "gpt-4o",\n  "prompt": "Analyze AWS bill for key AKIAIOSFODNN7EXAMPLE and Bearer eyJhbGciOiJIUzI1NiJ9"\n}`,
+          rawPayload: `{\n  "model": "gpt-4o",\n  "prompt": "Analyze AWS bill for key [SIMULATED_AWS_KEY] and Bearer [SIMULATED_BEARER_JWT]"\n}`,
           scrubbedPayload: `{\n  "model": "gpt-4o",\n  "prompt": "Analyze AWS bill for key [AXIOM_REDACTED:AWS_AKIA] and Bearer [AXIOM_REDACTED:JWT]"\n}`,
           redactedTypes: ['AWS_AKIA', 'JWT']
         },
@@ -539,7 +615,7 @@ export default function App() {
       redactedCount: 3,
       policyMatched: 'pol-ai-guardrail-01',
       auditHash: `sha256:burst${Math.random().toString(16).substring(2, 16)}`,
-      rawPayload: `{\n  "model": "claude-3-7-sonnet",\n  "messages": [{"role": "user", "content": "Leak check: sk-proj-881273981273, AKIA9988776655, SSN 991-00-1122"}]\n}`,
+      rawPayload: `{\n  "model": "claude-3-7-sonnet",\n  "messages": [{"role": "user", "content": "Leak check: [SIMULATED_KEY], [SIMULATED_AWS_KEY], SSN [SIMULATED_SSN]"}]\n}`,
       scrubbedPayload: `{\n  "model": "claude-3-7-sonnet",\n  "messages": [{"role": "user", "content": "Leak check: [AXIOM_REDACTED:OPENAI_KEY], [AXIOM_REDACTED:AWS_AKIA], SSN [AXIOM_REDACTED:SSN_PII]"}]\n}`,
       redactedTypes: ['OPENAI_KEY', 'AWS_AKIA', 'SSN_PII']
     };
@@ -744,7 +820,7 @@ unless {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] flex flex-col font-sans selection:bg-blue-600 selection:text-white">
       {/* ===================================================================
           GLOBAL TOP ARCHITECTURE BAR (Switches between gateway-ui & apps/web)
          =================================================================== */}
@@ -1060,7 +1136,7 @@ unless {
                   </div>
 
                   {/* 3-Column Visual Topology Canvas */}
-                  <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-6 relative bg-[radial-gradient(#CBD5E1_1px,transparent_1px)] [background-size:16px_16px]">
+                  <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-6 relative bg-[radial-gradient(var(--border-subtle)_1px,transparent_1px)] [background-size:16px_16px]">
                     {/* Column 1: Non-Human Identities */}
                     <div className="space-y-3">
                       <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-500 bg-white/90 px-2.5 py-1 rounded border border-slate-200 inline-block">
@@ -1713,7 +1789,7 @@ unless {
                       value={cedarCode}
                       onChange={(e) => setCedarCode(e.target.value)}
                       rows={16}
-                      className="w-full p-4 bg-[#FFFFFF] text-slate-900 font-mono text-xs leading-relaxed focus:outline-none"
+                      className="w-full p-4 bg-[var(--bg-surface-1)] text-slate-900 font-mono text-xs leading-relaxed focus:outline-none"
                     />
                   </div>
                 </div>
@@ -1963,7 +2039,7 @@ unless {
               </div>
 
               {/* Interactive Enclave Intercept Simulator (EnclaveVisual.tsx) */}
-              <div className="lg:col-span-6 bg-[#F8FAFC] rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+              <div className="lg:col-span-6 bg-[var(--bg-canvas)] rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-mono font-bold uppercase text-blue-600">
                     Interactive Enclave Intercept Simulator
@@ -2003,7 +2079,7 @@ unless {
 
                   <pre className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 font-mono text-xs text-slate-800 overflow-x-auto">
                     {interceptStage === 'RAW' &&
-                      `POST https://api.openai.com/v1/chat/completions\nAuthorization: [STATIC_KEY_EXPOSED_IN_ENV]\n{\n  "prompt": "Customer SSN 412-88-9012 AWS Key AKIAIOSFODNN7EXAMPLE"\n}`}
+                      `POST https://api.openai.com/v1/chat/completions\nAuthorization: [STATIC_KEY_EXPOSED_IN_ENV]\n{\n  "prompt": "Customer SSN [PII_EXPOSED] AWS Key [KEY_EXPOSED]"\n}`}
                     {interceptStage === 'SCRUBBED' &&
                       `POST https://api.openai.com/v1/chat/completions\nAuthorization: Bearer [AXIOM_JIT_EPHEMERAL_SVID_TTL_240S]\n{\n  "prompt": "Customer SSN [REDACTED:PII] AWS Key [REDACTED:AWS_AKIA]"\n}`}
                     {interceptStage === 'BLOCKED' &&

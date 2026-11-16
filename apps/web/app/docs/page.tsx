@@ -14,7 +14,7 @@ const DOC_TOPICS = [
   { id: "ast-guard", title: "Deep AST Argument Inspection", tag: "Runtime", desc: "Pre-execution sanitization of SQL, Bash, and API inputs." },
   { id: "cedar-engine", title: "Deterministic Cedar Policies", tag: "Policy", desc: "Sub-millisecond fail-closed rule authoring." },
   { id: "vault-leasing", title: "OpenBao Dynamic Credential Vault", tag: "Secrets", desc: "Single-use ephemeral credentials with bounded TTLs." },
-  { id: "audit-trail", title: "Zero-Knowledge Merkle Auditing", tag: "Forensics", desc: "Tamper-evident logs with automated PII masking." },
+  { id: "audit-trail", title: "Tamper-Evident Audit Streaming", tag: "Forensics", desc: "Cryptographic OTel audit events with automated PII masking." },
 ];
 
 export default function DocsPage() {
@@ -244,19 +244,19 @@ export default function DocsPage() {
             </p>
           </article>
 
-          {/* Section 6: Zero-Knowledge Forensics */}
+          {/* Section 6: Tamper-Evident Audit */}
           <article className="docs-section" id="audit-trail">
             <div className="section-title-wrap">
               <span className="section-num">06</span>
               <div>
                 <p className="eyebrow">COMPLIANCE &amp; TRUST</p>
-                <h2>Zero-Knowledge Merkle Tree Audit Trail</h2>
+                <h2>Tamper-Evident OpenTelemetry Audit Stream</h2>
               </div>
             </div>
             <p className="section-prose">
-              Every request, verdict, and identity linkage is hashed into a tamper-evident cryptographic Merkle tree.
-              Customer data and PII are masked at the proxy edge before hashes are committed to disk, enabling complete
-              SOC 2 and HIPAA compliance with zero data leakage risk.
+              Every request, verdict, and identity linkage is cryptographically hashed with RFC 8785 canonical digest formats into structured OpenTelemetry audit events.
+              Customer data and PII are masked at the proxy edge before records are emitted, enabling comprehensive
+              compliance audit controls with zero data leakage risk.
             </p>
           </article>
         </div>

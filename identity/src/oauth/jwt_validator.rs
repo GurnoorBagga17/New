@@ -36,6 +36,7 @@ struct Claims {
 pub struct JwtValidator {
     jwks: Arc<JwksCache>,
     clock_skew_seconds: u64,
+    cimd: Option<Arc<crate::cimd::CimdValidator>>,
 }
 
 impl JwtValidator {
@@ -43,7 +44,13 @@ impl JwtValidator {
         Self {
             jwks,
             clock_skew_seconds: CLOCK_SKEW_SECONDS,
+            cimd: None,
         }
+    }
+
+    pub fn with_cimd(mut self, cimd: Arc<crate::cimd::CimdValidator>) -> Self {
+        self.cimd = Some(cimd);
+        self
     }
 
     pub async fn validate(
@@ -66,17 +73,34 @@ impl JwtValidator {
         }
 
         let mut keys = self.jwks.get(&issuer).await.map_err(map_jwks_error)?;
-        let Some(jwk) = header.kid.as_deref().and_then(|kid| keys.find(kid)) else {
-            keys = self.jwks.refresh(&issuer).await.map_err(map_jwks_error)?;
-            let Some(jwk) = header.kid.as_deref().and_then(|kid| keys.find(kid)) else {
-                return Err(failure(
-                    FailureReason::InvalidSignature,
-                    "Token signing key is not trusted",
-                ));
-            };
-            return self.decode_with_key(token, target_resource, &issuer, &header.alg, jwk);
+        let context = match header.kid.as_deref().and_then(|kid| keys.find(kid)) {
+            Some(jwk) => self.decode_with_key(token, target_resource, &issuer, &header.alg, jwk)?,
+            None => {
+                keys = self.jwks.refresh(&issuer).await.map_err(map_jwks_error)?;
+                let Some(jwk) = header.kid.as_deref().and_then(|kid| keys.find(kid)) else {
+                    return Err(failure(
+                        FailureReason::InvalidSignature,
+                        "Token signing key is not trusted",
+                    ));
+                };
+                self.decode_with_key(token, target_resource, &issuer, &header.alg, jwk)?
+            }
         };
-        self.decode_with_key(token, target_resource, &issuer, &header.alg, jwk)
+
+        if let Some(ref cimd) = self.cimd {
+            if context.client_id.starts_with("https://") {
+                cimd.resolve_or_fetch(&context.client_id)
+                    .await
+                    .map_err(|_| {
+                        failure(
+                            FailureReason::InvalidToken,
+                            "CIMD metadata document verification failed",
+                        )
+                    })?;
+            }
+        }
+
+        Ok(context)
     }
 
     fn decode_with_key(

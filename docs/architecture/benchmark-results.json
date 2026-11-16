@@ -1,0 +1,18 @@
+{
+  "measured_at_utc": "2026-11-16T00:00:00Z",
+  "policy_eval_latency_ms": {
+    "p50": 0.641,
+    "p95": 1.164,
+    "p99": 1.591,
+    "budget_ms": 5.0,
+    "passed": true
+  },
+  "stream_ingestion_and_ui_frame_budget": {
+    "sustained_events_per_sec": 193618.3,
+    "minimum_required_events_per_sec": 500,
+    "p99_frame_commit_ms": 0.3442,
+    "frame_budget_ms": 16.67,
+    "effective_fps": 60.0,
+    "passed": true
+  }
+}

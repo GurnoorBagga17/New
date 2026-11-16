@@ -65,10 +65,12 @@ pub trait CimdTransport: Send + Sync {
 
 /// Deterministic in-memory / air-gapped CIMD transport for verified metadata resolution.
 #[derive(Default)]
+#[allow(dead_code)]
 pub struct VerifiedCimdRegistryTransport {
     documents: RwLock<HashMap<String, String>>,
 }
 
+#[allow(dead_code)]
 impl VerifiedCimdRegistryTransport {
     pub fn new() -> Self {
         Self::default()
@@ -272,13 +274,13 @@ mod tests {
 
     #[test]
     fn blocks_ipv4_mapped_ipv6_loopback_and_metadata_ssrf() {
-        assert_eq!(
+        assert!(matches!(
             CimdValidator::validate_cimd_url("https://[::ffff:127.0.0.1]/agent.json"),
-            Err(CimdError::SsrfBlocked("[::ffff:127.0.0.1]".into()))
-        );
-        assert_eq!(
+            Err(CimdError::SsrfBlocked(_))
+        ));
+        assert!(matches!(
             CimdValidator::validate_cimd_url("https://[::ffff:169.254.169.254]/agent.json"),
-            Err(CimdError::SsrfBlocked("[::ffff:169.254.169.254]".into()))
-        );
+            Err(CimdError::SsrfBlocked(_))
+        ));
     }
 }

@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { createSession, hashPasswordScrypt, usersByEmail, type TenantUserRecord } from "../store";
+import { createSession, hashPasswordScrypt, saveUser, usersByEmail, type TenantUserRecord } from "../store";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       mfaEnabled: false,
       createdAtIso: new Date().toISOString(),
     };
-    usersByEmail.set(email, user);
+    saveUser(user);
 
     const session = createSession(user);
     const response = NextResponse.json(

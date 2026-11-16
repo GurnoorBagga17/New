@@ -167,6 +167,11 @@ impl OidcIdentityVerifier {
             canonical_resources,
         })
     }
+
+    pub fn with_cimd(mut self, cimd: Arc<crate::cimd::CimdValidator>) -> Self {
+        self.validator = self.validator.with_cimd(cimd);
+        self
+    }
 }
 
 #[async_trait]

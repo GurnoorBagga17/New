@@ -12,8 +12,38 @@ export default function SignInPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email) return;
-    setStatus("Sign-in is a design preview. Identity provider integration is not connected.");
+    if (!email || !password) return;
+    setStatus(null);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        window.location.href = "/console";
+      } else {
+        setStatus(data.error || "Authentication failed.");
+      }
+    } catch {
+      setStatus("Failed to connect to authentication service.");
+    }
+  }
+
+  async function handleEnterpriseSSO() {
+    setStatus(null);
+    try {
+      const res = await fetch("/api/auth/oidc", { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.authorizationUrl) {
+        window.location.href = data.authorizationUrl;
+      } else {
+        setStatus(data.error || "Enterprise SSO / OIDC is not configured in this environment.");
+      }
+    } catch {
+      setStatus("Failed to initiate Enterprise SSO federation.");
+    }
   }
 
   return (
@@ -81,10 +111,10 @@ export default function SignInPage() {
           <button
             type="button"
             className="auth-sso-btn"
-            disabled
+            onClick={handleEnterpriseSSO}
           >
             <LogoOkta size={18} />
-            <span>Enterprise SSO · not connected</span>
+            <span>Continue with Enterprise OIDC (PKCE)</span>
           </button>
         </div>
 
@@ -97,7 +127,7 @@ export default function SignInPage() {
           </p>
           <div className="auth-security-note">
             <IconLock size={12} color="var(--text-muted)" />
-            <span>Preview state · identity provider is not connected.</span>
+            <span>Fail-closed authentication · PBKDF2/scrypt hashed & SameSite=Strict cookies.</span>
           </div>
         </div>
       </div>

@@ -21,11 +21,15 @@ RESULTS_PATH = ROOT / "docs/architecture/benchmark-results.json"
 
 
 def run_benchmarks() -> int:
+    import os
     # Start local-admin-api server on an ephemeral port
     port = 18089
+    env = os.environ.copy()
+    env["PORT"] = str(port)
+    env["AXIOM_RATE_LIMIT_RPM"] = "10000"
     proc = subprocess.Popen(
         ["node", str(ROOT / "gateway/local-admin-api/server.cjs")],
-        env={"PATH": "/usr/local/bin:/usr/bin:/bin", "PORT": str(port), "AXIOM_RATE_LIMIT_RPM": "10000"},
+        env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )

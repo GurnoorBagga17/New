@@ -7,7 +7,7 @@
  */
 
 import { create } from 'zustand';
-import type { AuditEvent, SSEStatus, BufferStats } from '../types';
+import type { AuditEvent, SSEStatus, BufferStats, TelemetrySource } from '../types';
 
 const MAX_BUFFER_SIZE = 2000;
 const STATS_WINDOW_MS = 5000; // 5-second rolling window for events/sec
@@ -15,6 +15,7 @@ const STATS_WINDOW_MS = 5000; // 5-second rolling window for events/sec
 interface TrafficState {
   // Ring buffer
   events: AuditEvent[];
+  source: TelemetrySource;
   
   // SSE connection state
   sseStatus: SSEStatus;
@@ -30,8 +31,9 @@ interface TrafficState {
   selectedEventId: string | null;
   
   // Actions
-  addEvents: (newEvents: AuditEvent[]) => void;
+  addEvents: (newEvents: AuditEvent[], source?: TelemetrySource) => void;
   updateSSEStatus: (status: Partial<SSEStatus>) => void;
+  loadReplayEvents: (events: AuditEvent[]) => void;
   togglePause: () => void;
   resume: () => void;
   selectEvent: (requestId: string | null) => void;
@@ -57,7 +59,7 @@ function calculateEventsPerSecond(): number {
   return elapsed > 0 ? recentTimestamps.length / elapsed : 0;
 }
 
-const SEED_EVENTS: AuditEvent[] = [
+export const SEED_EVENTS: AuditEvent[] = [
   {
     timestamp_rfc3339: new Date(Date.now() - 1200).toISOString(),
     request_id: 'req-live-001',
@@ -136,25 +138,27 @@ const SEED_EVENTS: AuditEvent[] = [
 ];
 
 export const useTrafficStore = create<TrafficState>((set, get) => ({
-  events: SEED_EVENTS,
+  events: [],
+  source: 'offline',
   
   sseStatus: {
-    state: 'connected',
+    state: 'disconnected',
+    source: 'offline',
   },
   
   stats: {
-    totalReceived: SEED_EVENTS.length,
-    currentSize: SEED_EVENTS.length,
+    totalReceived: 0,
+    currentSize: 0,
     maxCapacity: MAX_BUFFER_SIZE,
     droppedCount: 0,
-    eventsPerSecond: 14.8,
+    eventsPerSecond: 0,
   },
   
   isPaused: false,
   pausedAt: null,
   selectedEventId: null,
   
-  addEvents: (newEvents: AuditEvent[]) => {
+  addEvents: (newEvents: AuditEvent[], source: TelemetrySource = 'live') => {
     const state = get();
     
     // If paused, buffer events but don't update viewport
@@ -166,6 +170,7 @@ export const useTrafficStore = create<TrafficState>((set, get) => ({
         
         return {
           events: bounded,
+          source,
           stats: {
             ...prev.stats,
             totalReceived: prev.stats.totalReceived + newEvents.length,
@@ -188,6 +193,7 @@ export const useTrafficStore = create<TrafficState>((set, get) => ({
       
       return {
         events: bounded,
+        source,
         stats: {
           totalReceived: prev.stats.totalReceived + newEvents.length,
           currentSize: bounded.length,
@@ -196,6 +202,21 @@ export const useTrafficStore = create<TrafficState>((set, get) => ({
           eventsPerSecond: calculateEventsPerSecond(),
         },
       };
+    });
+  },
+  
+  loadReplayEvents: (replayEvents: AuditEvent[]) => {
+    const bounded = replayEvents.slice(-MAX_BUFFER_SIZE);
+    set({
+      events: bounded,
+      source: 'replay',
+      stats: {
+        totalReceived: replayEvents.length,
+        currentSize: bounded.length,
+        maxCapacity: MAX_BUFFER_SIZE,
+        droppedCount: Math.max(0, replayEvents.length - MAX_BUFFER_SIZE),
+        eventsPerSecond: 0,
+      },
     });
   },
   

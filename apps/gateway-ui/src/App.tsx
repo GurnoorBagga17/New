@@ -3,8 +3,6 @@ import { lazy, Suspense, useState, useEffect } from "react";
 import { MotionConfig, motion, AnimatePresence } from "motion/react";
 import { ViewErrorBoundary } from "./components/ViewErrorBoundary";
 import { TrafficStream } from "./modules/traffic/components/TrafficStream";
-import { useTrafficStore } from "./modules/traffic/stores/trafficStore";
-import type { SSEConnectionState } from "./modules/traffic/types";
 import {
   IconLiveStream,
   IconCedarStudio,
@@ -137,9 +135,9 @@ const NAV_GROUPS: readonly NavGroup[] = [
   {
     label: "CORE RUNTIME",
     items: [
-      { id: "traffic", label: "Live MCP Stream", icon: IconLiveStream, badge: "LIVE" },
+      { id: "traffic", label: "Live MCP stream", icon: IconLiveStream },
       { id: "policies", label: "Cedar Studio", icon: IconCedarStudio },
-      { id: "kill-switch", label: "Kill Switch", icon: IconKillSwitch, badge: "SUB-100MS" },
+      { id: "kill-switch", label: "Emergency containment", icon: IconKillSwitch },
     ],
   },
   {
@@ -148,7 +146,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
       { id: "fleet", label: "Fleet Workloads", icon: IconFleet },
       { id: "identity", label: "Workload Identity", icon: IconIdentity },
       { id: "attribution", label: "Attribution & AIBOM", icon: IconAttribution },
-      { id: "secretless", label: "Secretless Broker", icon: IconSecretless, badge: "ZERO-SECRET" },
+      { id: "secretless", label: "Secretless Broker", icon: IconSecretless },
     ],
   },
   {
@@ -174,24 +172,6 @@ const NAV_GROUPS: readonly NavGroup[] = [
 
 const ALL_NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
 
-const CONNECTION_LABEL: Record<SSEConnectionState, string> = {
-  connecting: "CONNECTING",
-  connected: "STREAM LIVE",
-  disconnected: "DISCONNECTED",
-  stale: "STALE",
-  paused: "PAUSED",
-  error: "STREAM ERROR",
-};
-
-const CONNECTION_COLOR: Record<SSEConnectionState, string> = {
-  connecting: "text-state-pending border-state-pending/30 bg-state-pending-tint/10",
-  connected: "text-state-enforce border-state-enforce/30 bg-state-enforce-tint/20",
-  disconnected: "text-text-muted border-border-subtle bg-surface-2",
-  stale: "text-state-pending border-state-pending/30 bg-state-pending-tint/10",
-  paused: "text-state-observe border-state-observe/30 bg-state-observe-tint/10",
-  error: "text-state-deny border-state-deny/30 bg-state-deny-tint/10",
-};
-
 function SectionFallback({ label }: { label: string }) {
   return (
     <div
@@ -211,7 +191,6 @@ export default function App() {
   const [view, setView] = useState<ConsoleView>("traffic");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const sseState = useTrafficStore((state) => state.sseStatus.state);
 
   // Aembit / Clutch Security Signature Cybernetic Theme Support (defaults to dark)
   const [theme, setTheme] = useState<"dark" | "light">(() => {
@@ -257,21 +236,18 @@ export default function App() {
           {/* Left Brand Identity */}
           <div className="flex items-center gap-3">
             <div
-              className="relative grid size-10 shrink-0 place-items-center rounded-input border border-brand-cyan/40 bg-gradient-to-br from-brand-cyan/20 via-brand-cyan/5 to-transparent text-brand-cyan shadow-[0_0_15px_rgba(0,229,255,0.2)]"
+              className="relative grid size-8 shrink-0 place-items-center rounded-input bg-brand-orange text-surface-0"
               aria-hidden="true"
             >
-              <svg viewBox="0 0 24 24" fill="none" className="size-5" stroke="currentColor" strokeWidth="2">
-                <path d="M12 2.8 21 19H3L12 2.8Z" />
-                <path d="m12 9 4.2 7.2H7.8L12 9Z" />
-              </svg>
+              <span className="font-display text-sm font-extrabold">A</span>
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-display text-sm font-bold tracking-tight text-text-primary">
-                  AXIOM NHI
+                  AXIOM
                 </span>
                 <span className="inline-flex items-center rounded-full border border-brand-cyan/30 bg-brand-cyan/10 px-1.5 py-0.2 font-mono text-[9px] font-bold text-brand-cyan tracking-wider">
-                  v0.4.2
+                  CONTROL PLANE
                 </span>
               </div>
               <p className="hidden font-mono text-[10px] uppercase tracking-[0.16em] text-text-muted sm:block">
@@ -280,21 +256,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* Center Live Telemetry Indicators (Inspired by Aembit & Clutch) */}
-          <div className="hidden items-center gap-4 lg:flex">
-            <div className="flex items-center gap-2 rounded-input border border-border-subtle bg-surface-2/60 px-3 py-1 font-mono text-[11px]">
-              <span className="text-text-muted">P99 LATENCY:</span>
-              <span className="font-bold text-state-enforce">2.4ms</span>
-            </div>
-            <div className="flex items-center gap-2 rounded-input border border-border-subtle bg-surface-2/60 px-3 py-1 font-mono text-[11px]">
-              <span className="text-text-muted">WORKLOADS:</span>
-              <span className="font-bold text-brand-cyan">18 Active</span>
-            </div>
-            <div className="flex items-center gap-2 rounded-input border border-border-subtle bg-surface-2/60 px-3 py-1 font-mono text-[11px]">
-              <span className="text-text-muted">DYNAMIC LEASES:</span>
-              <span className="font-bold text-brand-orange">4 Vault Leases</span>
-            </div>
-          </div>
+          <span className="hidden rounded-full border border-brand-cyan/40 bg-brand-cyan/5 px-3 py-1 font-mono text-[9px] font-semibold tracking-wider text-brand-cyan sm:inline-flex">LOCAL DEMO</span>
 
           {/* Right Action Tools: Search, Theme Toggle, Stream State, Kill Switch */}
           <div className="flex items-center gap-2 sm:gap-3">
@@ -321,27 +283,6 @@ export default function App() {
               {theme === "dark" ? <IconSun size={15} /> : <IconMoon size={15} />}
             </button>
 
-            {/* SSE Stream State Pill with radar pulse */}
-            <span
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[10px] font-semibold tracking-wider ${CONNECTION_COLOR[sseState]}`}
-            >
-              <span className="relative flex size-2 items-center justify-center">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-current opacity-75" />
-                <span className="relative inline-flex size-1.5 rounded-full bg-current" />
-              </span>
-              {CONNECTION_LABEL[sseState]}
-            </span>
-
-            {/* Emergency Halt Button */}
-            <button
-              type="button"
-              onClick={() => setView("kill-switch")}
-              title="Emergency Kill Switch"
-              className="inline-flex items-center gap-1.5 rounded-input border border-state-deny/60 bg-gradient-to-r from-state-deny/20 to-state-deny/10 px-3 py-1.5 font-mono text-[10px] font-bold tracking-wider text-state-deny transition hover:bg-state-deny hover:text-white shadow-[0_0_12px_rgba(244,63,94,0.2)]"
-            >
-              <IconKillSwitch size={13} />
-              <span className="hidden sm:inline">EMERGENCY HALT</span>
-            </button>
           </div>
         </header>
 

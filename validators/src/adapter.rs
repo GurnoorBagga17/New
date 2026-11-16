@@ -67,6 +67,27 @@ impl AxiomArgumentValidator {
         Ok(Self { profiles: indexed })
     }
 
+    /// Verifies a live MCP tool definition (e.g. captured from `tools/list`)
+    /// against the configured authoritative SHA-256 pin. Detects runtime rug-pull
+    /// and schema tampering attacks (MCP03 Tool Poisoning).
+    pub fn verify_live_tool_definition(
+        &self,
+        target_server: &str,
+        tool_name: &str,
+        live_definition: &Value,
+    ) -> Result<tool_pin::ToolPinFacts, ValidatorError> {
+        let profile = self
+            .profiles
+            .get(&(target_server.to_owned(), tool_name.to_owned()))
+            .ok_or_else(|| {
+                ValidatorError::Internal(format!(
+                    "no trusted profile registered for '{target_server}/{tool_name}'"
+                ))
+            })?;
+        tool_pin::verify(live_definition, &profile.expected_tool_sha256)
+            .map_err(|error| ValidatorError::Internal(error.to_string()))
+    }
+
     async fn validate_profile(
         &self,
         profile: &ToolValidationProfile,
@@ -206,6 +227,42 @@ impl AxiomArgumentValidator {
             };
             results.push(result);
         }
+
+        // Live Intent-Based Security Evaluation (AX-008 / Countering Prompt Hijacking)
+        let intent_env: Option<crate::intent::IntentEnvelope> = args
+            .get("intent")
+            .or_else(|| args.get("_intent"))
+            .and_then(|val| serde_json::from_value(val.clone()).ok());
+
+        if let Some(envelope) = intent_env {
+            let sql_readonly = results.iter().all(|r| r.sql_is_readonly);
+            let traversal = results.iter().any(|r| r.path_traversal_detected);
+            let private_egress = results.iter().any(|r| r.egress_is_private_ip);
+            let outcome = crate::intent::verify_intent_alignment(
+                &envelope,
+                &profile.tool_name,
+                sql_readonly,
+                traversal,
+                private_egress,
+            );
+            results.push(ValidatorResult {
+                validator_id: "intent".into(),
+                passed: outcome.aligned,
+                violation_code: (!outcome.aligned).then(|| "INTENT_DRIFT_DETECTED".into()),
+                reason: outcome.violation_reason,
+                sql_verbs: vec![],
+                sql_tables: vec![],
+                sql_is_readonly: sql_readonly,
+                sql_statement_count: 0,
+                normalized_path: None,
+                path_traversal_detected: traversal,
+                egress_domain: None,
+                egress_is_private_ip: private_egress,
+                tool_pin_sha256: None,
+                tool_pin_verified: false,
+            });
+        }
+
         results
     }
 }
@@ -361,5 +418,28 @@ mod tests {
         let mut config = profile();
         config.expected_tool_sha256 = "0".repeat(64);
         assert!(AxiomArgumentValidator::new(vec![config]).is_err());
+    }
+
+    #[test]
+    fn live_tool_definition_tamper_fails_pin_verification() {
+        let validator = AxiomArgumentValidator::new(vec![profile()]).unwrap();
+
+        // Exact live definition matches pin
+        let valid_live = json!({"name":"run_sql","inputSchema":{"type":"object"}});
+        let valid_check = validator
+            .verify_live_tool_definition("mcp://prod-db", "run_sql", &valid_live)
+            .unwrap();
+        assert!(valid_check.verified);
+
+        // Mutated / poisoned tool definition (MCP03 Tool Poisoning attack) fails pin check
+        let tampered_live =
+            json!({"name":"run_sql","inputSchema":{"type":"object","extra_privileges":true}});
+        let tampered_check = validator
+            .verify_live_tool_definition("mcp://prod-db", "run_sql", &tampered_live)
+            .unwrap();
+        assert!(
+            !tampered_check.verified,
+            "Live mutated tool definition must fail pin verification"
+        );
     }
 }

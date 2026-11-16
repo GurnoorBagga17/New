@@ -8,6 +8,9 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use serde::{Deserialize, Serialize};
 
+pub mod postgres;
+pub use postgres::{LineageDbError, PostgresLineageGraph};
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GraphNode {
     pub entity_uid: String,
@@ -128,5 +131,104 @@ impl LineageGraphEngine {
             blast_radius_score: raw_score,
             recommended_action,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_isolated_leaf_node_revocation_is_safe() {
+        let mut engine = LineageGraphEngine::new();
+        engine.upsert_node(GraphNode {
+            entity_uid: "agent:analyst-1".into(),
+            entity_kind: "Agent".into(),
+            display_name: "Analyst Agent".into(),
+            owner_email: Some("alice@company.com".into()),
+            privilege_weight: 10,
+        });
+
+        let sim = engine.simulate_revocation("agent:analyst-1");
+        assert!(sim.safe_to_revoke_immediately);
+        assert_eq!(sim.directly_affected_agents.len(), 0);
+        assert_eq!(sim.shared_credential_siblings.len(), 0);
+    }
+
+    #[test]
+    fn test_shared_credential_revocation_detects_siblings_and_transitive_dependents() {
+        let mut engine = LineageGraphEngine::new();
+
+        // Database secret shared by two agents
+        engine.upsert_node(GraphNode {
+            entity_uid: "secret:prod-db-creds".into(),
+            entity_kind: "Secret".into(),
+            display_name: "Production DB Password".into(),
+            owner_email: Some("db-team@company.com".into()),
+            privilege_weight: 45,
+        });
+
+        // Agent 1 uses secret
+        engine.upsert_edge(GraphEdge {
+            source_uid: "agent:service-a".into(),
+            target_uid: "secret:prod-db-creds".into(),
+            relation_type: "reads_secret".into(),
+            observed_via: "otel".into(),
+        });
+
+        // Agent 2 uses same secret (sibling workload)
+        engine.upsert_edge(GraphEdge {
+            source_uid: "agent:service-b".into(),
+            target_uid: "secret:prod-db-creds".into(),
+            relation_type: "reads_secret".into(),
+            observed_via: "otel".into(),
+        });
+
+        // Upstream orchestrator depends on Agent 1 (transitive dependency)
+        engine.upsert_edge(GraphEdge {
+            source_uid: "workload:orchestrator".into(),
+            target_uid: "agent:service-a".into(),
+            relation_type: "invokes_agent".into(),
+            observed_via: "static".into(),
+        });
+
+        let sim = engine.simulate_revocation("secret:prod-db-creds");
+
+        // Revoking the shared secret affects both services directly
+        assert_eq!(sim.directly_affected_agents.len(), 2);
+        assert!(sim.directly_affected_agents.contains(&"agent:service-a".to_owned()));
+        assert!(sim.directly_affected_agents.contains(&"agent:service-b".to_owned()));
+
+        // Sibling workloads detected (NHI9:2025 violation)
+        assert_eq!(sim.shared_credential_siblings.len(), 2);
+
+        // Transitive caller identified
+        assert_eq!(sim.transitively_affected_workloads.len(), 1);
+        assert_eq!(sim.transitively_affected_workloads[0], "workload:orchestrator");
+
+        // High blast radius, not safe to revoke immediately without rotation
+        assert!(!sim.safe_to_revoke_immediately);
+        assert!(sim.blast_radius_score > 50);
+        assert!(sim.recommended_action.contains("Shared credential impact detected"));
+    }
+
+    #[test]
+    fn test_cycle_does_not_infinite_loop() {
+        let mut engine = LineageGraphEngine::new();
+        engine.upsert_edge(GraphEdge {
+            source_uid: "node:a".into(),
+            target_uid: "node:b".into(),
+            relation_type: "depends_on".into(),
+            observed_via: "otel".into(),
+        });
+        engine.upsert_edge(GraphEdge {
+            source_uid: "node:b".into(),
+            target_uid: "node:a".into(),
+            relation_type: "depends_on".into(),
+            observed_via: "otel".into(),
+        });
+
+        let sim = engine.simulate_revocation("node:b");
+        assert!(sim.directly_affected_agents.contains(&"node:a".to_owned()));
     }
 }

@@ -280,6 +280,46 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(scrubSecrets(payload)));
 }
 
+const RUST_EXTMCP_ADMIN_URL = process.env.AXIOM_EXTMCP_ADMIN_URL || 'http://127.0.0.1:8787';
+const AXIOM_ADMIN_TOKEN = process.env.AXIOM_ADMIN_TOKEN || 'local-admin-development-token-32bytes-secret';
+
+function syncWithRustExtMcp(endpointPath, method, payload) {
+  return new Promise((resolve) => {
+    try {
+      const url = new URL(endpointPath, RUST_EXTMCP_ADMIN_URL);
+      const postData = JSON.stringify(payload);
+      const req = http.request(
+        url,
+        {
+          method: method || 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(postData),
+            Authorization: `Bearer ${AXIOM_ADMIN_TOKEN}`,
+          },
+          timeout: 2000,
+        },
+        (res) => {
+          let data = '';
+          res.on('data', (chunk) => (data += chunk));
+          res.on('end', () => {
+            resolve({ status: res.statusCode, ok: res.statusCode >= 200 && res.statusCode < 300, data });
+          });
+        }
+      );
+      req.on('error', () => resolve({ status: 0, ok: false, data: null }));
+      req.on('timeout', () => {
+        req.destroy();
+        resolve({ status: 0, ok: false, data: null });
+      });
+      req.write(postData);
+      req.end();
+    } catch (_) {
+      resolve({ status: 0, ok: false, data: null });
+    }
+  });
+}
+
 function parseJsonBody(req, maxBytes = 64 * 1024) {
   return new Promise((resolve, reject) => {
     const contentType = (req.headers['content-type'] || '').toLowerCase();
@@ -590,6 +630,13 @@ function createAdminServer(customState) {
         Object.assign(state.routeModes, body.route_modes);
       }
 
+      // Synchronize bundle with live Rust ExtMCP runtime (SRV-02)
+      syncWithRustExtMcp('/v1/local/policies/bundle', 'PUT', {
+        policies: rawPolicies.map((s) => ({ source: s })),
+        schema: body.schema || '',
+        expected_candidate_version: body.expected_candidate_version || null,
+      }).catch(() => {});
+
       sendJson(res, 200, {
         activated: true,
         version: state.policyVersion,
@@ -650,6 +697,14 @@ function createAdminServer(customState) {
         override_observe_only: true,
       };
       state.revokedSessions.set(target_id, revocationRecord);
+
+      // Synchronize emergency revocation with live Rust ExtMCP runtime (SRV-03)
+      syncWithRustExtMcp('/v1/local/revocations', 'POST', {
+        action: 'revoke',
+        target_kind: revocationRecord.target_kind,
+        target_id,
+        reason,
+      }).catch(() => {});
 
       const ksEvent = appendTamperEvidentAudit(state, {
         event_type: 'kill_switch_action',

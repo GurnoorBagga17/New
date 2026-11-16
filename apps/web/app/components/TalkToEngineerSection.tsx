@@ -85,7 +85,7 @@ export function TalkToEngineerSection() {
           </div>
 
           <div className="trust-cert-badges">
-            <span className="cert-pill">SOC 2 Type II</span>
+            <span className="cert-pill">SOC 2 Prepared</span>
             <span className="cert-pill">HIPAA Ready</span>
             <span className="cert-pill">ISO 27001 Aligned</span>
             <span className="cert-pill">Apache 2.0 Core</span>

@@ -17,6 +17,7 @@ routes:
           - kind: remote
             host: extmcp-service:9001
             failureMode: failOpen
+            timeout: 15ms
             requestHeaders:
               allowed:
                 - authorization

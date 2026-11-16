@@ -100,7 +100,8 @@ mod tests {
         std::fs::create_dir(temp.path().join("data")).unwrap();
         let facts = validate_path(temp.path(), "data/report.txt").unwrap();
         assert!(!facts.traversal_detected);
-        assert!(facts.normalized_path.unwrap().ends_with("data\\report.txt"));
+        let expected_suffix = format!("data{}report.txt", std::path::MAIN_SEPARATOR);
+        assert!(facts.normalized_path.unwrap().ends_with(&expected_suffix));
     }
 
     #[test]

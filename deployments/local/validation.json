@@ -1,0 +1,24 @@
+{
+  "profiles": [
+    {
+      "target_server": "mcp://prod-db",
+      "tool_name": "execute_sql",
+      "tool_definition": {
+        "description": "Execute a SQL query against the database",
+        "inputSchema": {
+          "properties": {
+            "query": { "type": "string" }
+          },
+          "type": "object"
+        },
+        "name": "execute_sql"
+      },
+      "expected_tool_sha256": "c1ad10d22fad9fd86bd258a8652dde6699e2431146c9b4b8cb6ad0cba3e0954f",
+      "sql_argument": "query",
+      "sql_dialect": "postgresql",
+      "allowed_sql_functions": ["avg", "count", "lower", "max", "min", "sum", "upper"],
+      "path_arguments": [],
+      "egress_arguments": []
+    }
+  ]
+}

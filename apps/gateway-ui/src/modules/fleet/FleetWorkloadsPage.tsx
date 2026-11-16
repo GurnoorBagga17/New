@@ -109,16 +109,20 @@ export function FleetWorkloadsPage() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div><p className="font-mono text-[10px] uppercase tracking-wider text-brand-cyan">SAMPLE INVENTORY</p><h1 className="mt-1 font-display text-2xl font-bold text-text-primary">Fleet workloads</h1><p className="mt-1 text-xs text-text-secondary">Review sample workload ownership, attestation, and reachability fields.</p></div>
+        <span className="rounded-full border border-brand-cyan/40 bg-brand-cyan/5 px-3 py-1 font-mono text-[9px] text-brand-cyan">SYNTHETIC FIXTURES</span>
+      </div>
       {/* Top Banner Stats */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <div className="rounded-card border border-border-subtle bg-surface-1 p-4">
-          <p className="font-mono text-xs uppercase tracking-wider text-text-muted">Total Active Fleet</p>
+          <p className="font-mono text-xs uppercase tracking-wider text-text-muted">Identities · sample</p>
           <p className="mt-1 font-display text-2xl font-bold text-text-primary">
             {agents.filter((a) => a.status === "ACTIVE").length} <span className="text-sm font-normal text-text-secondary">/ {agents.length}</span>
           </p>
         </div>
         <div className="rounded-card border border-border-subtle bg-surface-1 p-4">
-          <p className="font-mono text-xs uppercase tracking-wider text-text-muted">Hardware Enclave Attested</p>
+          <p className="font-mono text-xs uppercase tracking-wider text-text-muted">Active · fixture state</p>
           <p className="mt-1 font-display text-2xl font-bold text-state-enforce">
             {agents.filter((a) => a.attestation.includes("Nitro") || a.attestation.includes("TPM")).length}
           </p>
@@ -136,6 +140,7 @@ export function FleetWorkloadsPage() {
           </p>
         </div>
       </div>
+      <p className="text-[11px] text-text-muted">Inventory rows are design fixtures. Connector scans and owner attribution are not live in this preview; row controls change only local sample state.</p>
 
       {/* Filter and Search Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-border-subtle bg-surface-1 p-3">

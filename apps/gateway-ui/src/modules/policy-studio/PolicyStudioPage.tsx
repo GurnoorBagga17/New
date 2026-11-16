@@ -235,9 +235,10 @@ export function PolicyStudioPage({
               Cedar policy authoring &amp; simulation
             </h1>
             <p className="mt-1 text-xs text-text-secondary max-w-2xl leading-relaxed">
-              Policies are simulated against one MCP tools/call envelope, then
-              promoted per route. Monaco and its worker are served from the local
-              bundle; this page makes no outbound requests.
+              Candidate Cedar syntax and schema are validated by the Rust
+              runtime before bundle activation. This validation route does not
+              evaluate the sample MCP envelope or change gateway route modes.
+              Monaco and its worker are served from the local bundle.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -254,7 +255,7 @@ export function PolicyStudioPage({
               <ShieldIcon width={12} height={12} />
               {adapter.capabilities.clientSide
                 ? "IN-BROWSER EVALUATOR"
-                : "BACKEND EVALUATOR"}
+                : "RUST VALIDATION API"}
             </span>
             <span className="font-mono text-xs text-text-muted">{adapter.id}</span>
           </div>

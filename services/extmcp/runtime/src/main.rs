@@ -13,6 +13,14 @@ use std::{
     time::Duration,
 };
 
+mod admin;
+
+use axiom_audit::{AuditBus, AuditBusConfig, AuditSink, AuditWriterConfig, SystemClock};
+use axiom_kill_switch::{
+    persistence::save_snapshot as save_revocation_snapshot, KillSwitchService,
+    RevocationDecision, RevocationSnapshot, RevocationStore, RevocationTarget,
+};
+use axiom_kill_switch::sync::RevocationChecker as KillSwitchRevocationChecker;
 use axiom_identity::{IdentityVerifier as _, OidcIdentityVerifier, TrustedIssuer};
 use axiom_validators::{
     adapter::{EgressArgumentSpec, PathArgumentSpec, ToolValidationProfile},
@@ -24,9 +32,8 @@ use extmcp_authorization::{
     RuntimeMode,
 };
 use extmcp_cedar::{
-    load_snapshot,
     schema::{AXIOM_SCHEMA_SRC, DEFAULT_POLICY_BUNDLE},
-    PolicySnapshotStore,
+    CedarPolicyEngine, PolicySnapshotStore,
 };
 use extmcp_runtime::ExtMcpAdapter;
 use serde::Deserialize;
@@ -95,86 +102,47 @@ struct RevocationConfig {
     agents: Vec<String>,
 }
 
-struct ConfiguredRevocationChecker {
-    global: bool,
-    servers: HashSet<String>,
-    tools: HashSet<String>,
-    agents: HashSet<String>,
-    expires_at_unix_ms: u128,
-}
+struct SharedRevocationChecker(Arc<RevocationStore>);
 
-impl ConfiguredRevocationChecker {
-    fn new(config: RevocationConfig) -> Result<Self, String> {
-        if config.state != "available"
-            || config.version == 0
-            || !(1..=300).contains(&config.freshness_ttl_seconds)
-        {
-            return Err(
-                "revocation snapshot must be available, versioned, and have a freshness TTL from 1 to 300 seconds".into(),
-            );
-        }
-        let now_unix_ms = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_err(|_| "system clock is before the Unix epoch".to_owned())?
-            .as_millis();
-        Ok(Self {
-            global: config.global,
-            servers: config.servers.into_iter().collect(),
-            tools: config.tools.into_iter().collect(),
-            agents: config.agents.into_iter().collect(),
-            expires_at_unix_ms: now_unix_ms
-                .saturating_add(u128::from(config.freshness_ttl_seconds) * 1000),
-        })
-    }
-
-    fn check_target(&self, server: &str, tool_name: &str) -> RevocationOutcome {
-        let current_time = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|duration| duration.as_millis());
-        if !matches!(current_time, Ok(now_unix_ms) if now_unix_ms < self.expires_at_unix_ms) {
-            return RevocationOutcome::Revoked {
-                reason: "revocation snapshot is stale".into(),
-            };
-        }
-        if self.global {
-            return RevocationOutcome::Revoked {
-                reason: "global revocation active".into(),
-            };
-        }
-        if self.servers.contains(server) {
-            return RevocationOutcome::Revoked {
-                reason: "MCP server revocation active".into(),
-            };
-        }
-        if !tool_name.is_empty() && self.tools.contains(&format!("{server}/{tool_name}")) {
-            return RevocationOutcome::Revoked {
-                reason: "tool revocation active".into(),
-            };
-        }
-        RevocationOutcome::Active
-    }
-}
-
-impl RevocationChecker for ConfiguredRevocationChecker {
+impl RevocationChecker for SharedRevocationChecker {
     fn check_pre_identity(&self, server: &str, tool_name: &str) -> RevocationOutcome {
-        self.check_target(server, tool_name)
+        map_revocation_decision(self.0.check_pre_identity(server, Some(tool_name)))
     }
 
-    fn check_post_identity(
-        &self,
-        agent_id: &str,
-        server: &str,
-        tool_name: &str,
-    ) -> RevocationOutcome {
-        match self.check_target(server, tool_name) {
-            RevocationOutcome::Active if self.agents.contains(agent_id) => {
-                RevocationOutcome::Revoked {
-                    reason: "agent revocation active".into(),
-                }
-            }
-            outcome => outcome,
-        }
+    fn check_post_identity(&self, agent_id: &str, server: &str, tool_name: &str) -> RevocationOutcome {
+        map_revocation_decision(self.0.check_post_identity(agent_id, server, Some(tool_name)))
     }
+}
+
+fn map_revocation_decision(decision: RevocationDecision) -> RevocationOutcome {
+    match decision {
+        RevocationDecision::Active { .. } => RevocationOutcome::Active,
+        RevocationDecision::Revoked { primary, .. } => RevocationOutcome::Revoked { reason: primary.reason },
+        RevocationDecision::Stale { primary: Some(primary), .. } => RevocationOutcome::Revoked { reason: primary.reason },
+        RevocationDecision::Stale { .. } => RevocationOutcome::Revoked { reason: "revocation state is stale".into() },
+        RevocationDecision::Unavailable { reason } => RevocationOutcome::Revoked { reason },
+    }
+}
+
+fn seed_revocation_snapshot(config: &RevocationConfig) -> Result<RevocationSnapshot, Box<dyn std::error::Error>> {
+    if config.state != "available" || config.version == 0 || !(1..=300).contains(&config.freshness_ttl_seconds) {
+        return Err("revocation config must be available, versioned, and have freshness TTL from 1 to 300 seconds".into());
+    }
+    let clock = SystemClock;
+    let now = axiom_audit::Clock::now_unix_ms(&clock);
+    let mut snapshot = RevocationSnapshot::empty(format!("axiom-runtime-{}", std::process::id()), now);
+    snapshot.version = config.version;
+    let mut add = |target: RevocationTarget| {
+        snapshot.entries.insert(target.canonical_key(), target.to_state(true, config.version, now, "Configured startup revocation"));
+    };
+    if config.global { add(RevocationTarget::global()); }
+    for server in &config.servers { add(RevocationTarget::server(server.clone())?); }
+    for agent in &config.agents { add(RevocationTarget::agent(agent.clone())?); }
+    for tool in &config.tools {
+        let (server, name) = tool.split_once('/').ok_or("revocation tool IDs must use server/tool form")?;
+        add(RevocationTarget::tool(server, name)?);
+    }
+    Ok(snapshot)
 }
 
 fn read_json<T: for<'de> Deserialize<'de>>(
@@ -328,10 +296,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             if !warmed {
-                return Err(format!(
-                    "could not warm trusted JWKS cache for issuer {issuer} after 5 attempts"
-                )
-                .into());
+                if std::env::var("AXIOM_ALLOW_ANONYMOUS_LOCAL").as_deref() == Ok("1")
+                    || std::env::var("AXIOM_DEV_MODE").as_deref() == Ok("1")
+                {
+                    eprintln!("Dev mode: could not warm trusted JWKS cache for issuer {issuer}, skipping offline cache warm");
+                } else {
+                    return Err(format!(
+                        "could not warm trusted JWKS cache for issuer {issuer} after 5 attempts"
+                    )
+                    .into());
+                }
             }
         }
     }
@@ -343,21 +317,59 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?);
     let revocation_config: RevocationConfig =
         read_json(&required_path("AXIOM_REVOCATION_CONFIG")?, "revocation")?;
-    let revocation_checker = Arc::new(ConfiguredRevocationChecker::new(revocation_config)?);
+    let data_dir = std::env::var("AXIOM_DATA_DIR").unwrap_or_else(|_| "./data/axiom".into());
+    fs::create_dir_all(&data_dir)?;
+    let data_dir = Path::new(&data_dir);
+    let revocation_path = data_dir.join("revocations.snapshot.json");
+    let seed_snapshot = seed_revocation_snapshot(&revocation_config)?;
+    let revocation_store = admin::load_revocation_store(&revocation_path, seed_snapshot.clone())?;
+    if !revocation_path.exists() { save_revocation_snapshot(&revocation_path, &seed_snapshot)?; }
+    let audit_bus = AuditBus::new(AuditBusConfig::default())?;
+    let audit_path = data_dir.join("audit.jsonl");
+    let _audit_writer = axiom_audit::spawn_file_writer(audit_bus.subscribe(), AuditWriterConfig::new(&audit_path))?;
+    let audit_sink: Arc<dyn AuditSink> = Arc::new(audit_bus.emitter());
+    let revocation_service = Arc::new(KillSwitchService::new(revocation_store.clone())
+        .with_audit(audit_sink)
+        .with_persistence(&revocation_path));
+
+    let policy_path = data_dir.join("policy-bundle.json");
+    let (snapshot, _policy_bundle) = admin::load_policy_bundle(&policy_path, DEFAULT_POLICY_BUNDLE, AXIOM_SCHEMA_SRC)?;
+    if !policy_path.exists() {
+        fs::write(&policy_path, serde_json::to_vec_pretty(&_policy_bundle)?)?;
+    }
 
     // The identity verifier enforces the exact allow-list; startup rejects
     // resource-map and validator-profile drift before accepting traffic.
-    let snapshot = load_snapshot(DEFAULT_POLICY_BUNDLE, AXIOM_SCHEMA_SRC)?;
-    let policy_engine = Arc::new(PolicySnapshotStore::new(snapshot));
+    let policy_store = Arc::new(PolicySnapshotStore::new(snapshot));
+    let policy_engine = Arc::new(CedarPolicyEngine::new(policy_store.clone()));
     let pipeline = Arc::new(CheckPipeline::new(
         identity_adapter,
         validator,
-        revocation_checker,
+        Arc::new(SharedRevocationChecker(revocation_store)),
         policy_engine,
     ));
     let adapter = ExtMcpAdapter::new(pipeline, resources, parse_mode()?, true)?;
 
     println!("Axiom NHI ExtMCP gRPC runtime listening on {}", bind_addr);
-    adapter.serve(bind_addr).await?;
+    let token = std::env::var("AXIOM_ADMIN_TOKEN").map_err(|_| "AXIOM_ADMIN_TOKEN must be set to a high-entropy local admin secret")?;
+    if token.len() < 32 { return Err("AXIOM_ADMIN_TOKEN must contain at least 32 bytes".into()); }
+    let actor = std::env::var("AXIOM_ADMIN_ACTOR").unwrap_or_else(|_| "local-operator".into());
+    if actor.trim().is_empty() { return Err("AXIOM_ADMIN_ACTOR cannot be empty".into()); }
+    let admin_addr: SocketAddr = std::env::var("AXIOM_ADMIN_ADDR").unwrap_or_else(|_| "127.0.0.1:8787".into()).parse()?;
+    let (event_sender, _) = tokio::sync::broadcast::channel(512);
+    let lineage_engine = Arc::new(std::sync::Mutex::new(admin::create_seeded_lineage_engine()));
+    let admin_state = admin::AdminApiState {
+        policies: policy_store,
+        policy_file: Arc::new(policy_path),
+        policy_write_lock: Arc::new(std::sync::Mutex::new(())),
+        revocations: revocation_service,
+        token: Arc::new(token),
+        actor: Arc::new(actor),
+        events: event_sender,
+        lineage: lineage_engine,
+    };
+    let grpc = async { adapter.serve(bind_addr).await.map_err(|error| -> Box<dyn std::error::Error> { Box::new(error) }) };
+    let http = async { admin::serve(admin_state, admin_addr).await.map_err(|error| -> Box<dyn std::error::Error> { Box::new(error) }) };
+    tokio::try_join!(grpc, http)?;
     Ok(())
 }

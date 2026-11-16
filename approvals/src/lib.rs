@@ -7,11 +7,16 @@
 //! 1. Argument Tamper Prevention: If an agent alters even 1 character of the SQL/API
 //!    payload after approval, the SHA-256 hash mismatch fails closed.
 //! 2. Atomic Single-Use Consumption: An approved token can be redeemed exactly once.
+//! 3. Re-Approval Prevention: Tickets cannot be re-approved after consumption, expiration, or denial.
+//! 4. Delimiter-Free Canonical Hashing: Uses length-prefixed domain-separated canonical hashing
+//!    to eliminate delimiter-injection collision vulnerabilities.
 
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
+
+pub mod slack;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ApprovalStatus {
@@ -46,8 +51,14 @@ pub enum ApprovalError {
     AlreadyConsumed(String),
     #[error("ticket is not in Approved state")]
     NotApproved,
+    #[error("ticket '{0}' is not in Pending state (already approved)")]
+    AlreadyApproved(String),
+    #[error("ticket '{0}' is not in Pending state (already denied)")]
+    AlreadyDenied(String),
 }
 
+/// Computes length-prefixed domain-separated SHA-256 hash over all payload components.
+/// Eliminates delimiter-injection vulnerabilities (e.g. '|' embedded in agent_id or arguments).
 pub fn compute_payload_sha256(
     agent_id: &str,
     target_server: &str,
@@ -55,7 +66,11 @@ pub fn compute_payload_sha256(
     canonical_arguments_json: &str,
 ) -> String {
     let mut hasher = Sha256::new();
-    hasher.update(format!("{agent_id}|{target_server}|{tool_name}|{canonical_arguments_json}").as_bytes());
+    hasher.update(b"AXIOM_APPROVAL_PAYLOAD_V1\x00");
+    for field in [agent_id, target_server, tool_name, canonical_arguments_json] {
+        hasher.update((field.len() as u64).to_le_bytes());
+        hasher.update(field.as_bytes());
+    }
     format!("sha256:{}", hex::encode(hasher.finalize()))
 }
 
@@ -114,10 +129,28 @@ impl AtomicApprovalStore {
             .tickets
             .get_mut(ticket_id)
             .ok_or_else(|| ApprovalError::NotFound(ticket_id.to_owned()))?;
+
         if now_unix >= ticket.expires_at_unix {
             ticket.status = ApprovalStatus::Expired;
             return Err(ApprovalError::Expired(ticket.expires_at_unix));
         }
+
+        match &ticket.status {
+            ApprovalStatus::Pending => {}
+            ApprovalStatus::Consumed { .. } => {
+                return Err(ApprovalError::AlreadyConsumed(ticket_id.to_owned()));
+            }
+            ApprovalStatus::Expired => {
+                return Err(ApprovalError::Expired(ticket.expires_at_unix));
+            }
+            ApprovalStatus::Approved { .. } => {
+                return Err(ApprovalError::AlreadyApproved(ticket_id.to_owned()));
+            }
+            ApprovalStatus::Denied { .. } => {
+                return Err(ApprovalError::AlreadyDenied(ticket_id.to_owned()));
+            }
+        }
+
         if ticket.payload_sha256 != expected_payload_sha256 {
             return Err(ApprovalError::PayloadTampered {
                 expected: ticket.payload_sha256.clone(),
@@ -173,5 +206,55 @@ impl AtomicApprovalStore {
             consumed_at_unix: now_unix,
         };
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cannot_reapprove_consumed_ticket() {
+        let mut store = AtomicApprovalStore::new();
+        let ticket = store.create_ticket("t-1", "agent-1", "pg", "query", "{\"q\":1}", 1000);
+        let hash = ticket.payload_sha256.clone();
+
+        let approved = store.approve_ticket("t-1", "admin@axiom.security", &hash, 500);
+        assert!(approved.is_ok());
+
+        let consumed = store.consume_atomic("t-1", "agent-1", "pg", "query", "{\"q\":1}", 550);
+        assert!(consumed.is_ok());
+
+        // Attempting to re-approve the consumed ticket must fail closed!
+        let reapprove = store.approve_ticket("t-1", "attacker@axiom.security", &hash, 600);
+        assert!(matches!(reapprove, Err(ApprovalError::AlreadyConsumed(_))));
+
+        // Attempting to consume again must also fail closed!
+        let re_consume = store.consume_atomic("t-1", "agent-1", "pg", "query", "{\"q\":1}", 650);
+        assert!(matches!(re_consume, Err(ApprovalError::AlreadyConsumed(_))));
+    }
+
+    #[test]
+    fn prevents_hash_delimiter_collision() {
+        let h1 = compute_payload_sha256("agent|server", "prod", "tool", "{}");
+        let h2 = compute_payload_sha256("agent", "server|prod", "tool", "{}");
+        assert_ne!(h1, h2, "Length-prefixed hashing prevents delimiter collision attacks");
+    }
+
+    #[test]
+    fn detects_tampered_payload_on_approval_and_consumption() {
+        let mut store = AtomicApprovalStore::new();
+        let ticket = store.create_ticket("t-2", "agent-2", "pg", "query", "{\"q\":\"SELECT 1\"}", 1000);
+
+        // Approving with altered hash fails
+        let err = store.approve_ticket("t-2", "admin@axiom.security", "sha256:badhash", 500);
+        assert!(matches!(err, Err(ApprovalError::PayloadTampered { .. })));
+
+        // Approving with valid hash succeeds
+        store.approve_ticket("t-2", "admin@axiom.security", &ticket.payload_sha256, 500).unwrap();
+
+        // Consuming with altered payload fails
+        let tampered_consume = store.consume_atomic("t-2", "agent-2", "pg", "query", "{\"q\":\"DROP TABLE users\"}", 550);
+        assert!(matches!(tampered_consume, Err(ApprovalError::PayloadTampered { .. })));
     }
 }

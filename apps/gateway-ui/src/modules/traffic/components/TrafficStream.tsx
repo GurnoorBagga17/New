@@ -10,6 +10,7 @@ import { useTrafficStore, selectIsPaused, selectStats } from '../stores/trafficS
 import { TrafficTable } from './TrafficTable';
 import { InspectorDrawer } from './InspectorDrawer';
 import { ConnectionStatus } from './ConnectionStatus';
+import { ViewErrorBoundary } from '../../../components/ViewErrorBoundary';
 import type { AuditEvent } from '../types';
 
 const EASE_TELEMETRY = [0.16, 1, 0.3, 1] as const;
@@ -89,17 +90,17 @@ export function TrafficStream() {
         <div>
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs font-semibold uppercase tracking-wider text-brand-cyan">
-              LIVE TELEMETRY &bull; REAL-TIME AUDIT TAIL
+              LOCAL RUNTIME EVENT STREAM
             </span>
             <span className="inline-flex items-center rounded-full border border-state-enforce/30 bg-state-enforce-tint px-2 py-0.5 font-mono text-[10px] text-state-enforce">
-              60 FPS RENDER BUDGET
+              SYNTHETIC FIXTURES
             </span>
           </div>
           <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-text-primary">
-            Live MCP Traffic Stream
+            Live MCP stream
           </h1>
           <p className="mt-1 text-xs text-text-secondary">
-            Continuous sub-millisecond wire inspection of non-human agent tool calls, Cedar authorization decisions, and AST payload arguments.
+            Admin revocation actions are streamed from the runtime. MCP decision events are not yet published by the Rust request pipeline.
           </p>
         </div>
         
@@ -197,7 +198,9 @@ export function TrafficStream() {
             onMouseLeave={() => setIsHovering(false)}
             className="relative min-w-0 p-3"
           >
-            <TrafficTable events={filteredEvents} onRowClick={handleRowClick} selectedEventId={selectedEventId} />
+            <ViewErrorBoundary viewName="TrafficTable">
+              <TrafficTable events={filteredEvents} onRowClick={handleRowClick} selectedEventId={selectedEventId} />
+            </ViewErrorBoundary>
             <AnimatePresence>
               {isPaused && (
                 <motion.div
@@ -222,7 +225,9 @@ export function TrafficStream() {
 
         {isInspectorOpen && (
           <div className="min-w-0">
-            <InspectorDrawer isOpen={isInspectorOpen} onClose={handleInspectorClose} />
+            <ViewErrorBoundary viewName="InspectorDrawer">
+              <InspectorDrawer isOpen={isInspectorOpen} onClose={handleInspectorClose} />
+            </ViewErrorBoundary>
           </div>
         )}
       </div>

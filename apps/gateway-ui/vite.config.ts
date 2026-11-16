@@ -1,10 +1,21 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type ProxyOptions } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { fileURLToPath } from 'node:url';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
+const adminTarget = process.env.AXIOM_ADMIN_URL || 'http://127.0.0.1:8787';
+const adminProxy: ProxyOptions = {
+  target: adminTarget,
+  changeOrigin: true,
+  configure: (proxy) => {
+    proxy.on('proxyReq', (proxyReq) => {
+      const token = process.env.AXIOM_ADMIN_TOKEN;
+      if (token) proxyReq.setHeader('Authorization', `Bearer ${token}`);
+    });
+  },
+};
 
 // Axiom NHI Gateway UI - Standalone Build Configuration
 // Team 7B: Strict air-gap compliance, zero external requests
@@ -37,19 +48,13 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/v1': {
-        target: 'http://localhost:8787',
-        changeOrigin: true,
-      },
+      '/v1': adminProxy,
     },
   },
   preview: {
     port: 5173,
     proxy: {
-      '/v1': {
-        target: 'http://localhost:8787',
-        changeOrigin: true,
-      },
+      '/v1': adminProxy,
     },
   },
   test: {

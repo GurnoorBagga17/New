@@ -77,6 +77,7 @@ pub struct KillSwitchService {
     audit: Option<Arc<dyn AuditSink>>,
     redactor: Redactor,
     snapshot_path: Option<PathBuf>,
+    cancellations: Arc<InFlightCancellationRegistry>,
 }
 
 impl std::fmt::Debug for KillSwitchService {
@@ -85,6 +86,7 @@ impl std::fmt::Debug for KillSwitchService {
             .field("store", &self.store)
             .field("audit", &self.audit.is_some())
             .field("snapshot_path", &self.snapshot_path)
+            .field("cancellations", &self.cancellations)
             .finish()
     }
 }
@@ -97,7 +99,19 @@ impl KillSwitchService {
             audit: None,
             redactor: Redactor::new(),
             snapshot_path: None,
+            cancellations: Arc::new(InFlightCancellationRegistry::new()),
         }
+    }
+
+    /// Attach a shared cancellation registry for cancelling in-flight requests upon revocation (AX-010).
+    pub fn with_cancellations(mut self, cancellations: Arc<InFlightCancellationRegistry>) -> Self {
+        self.cancellations = cancellations;
+        self
+    }
+
+    /// Access the in-flight cancellation registry.
+    pub fn cancellations(&self) -> &Arc<InFlightCancellationRegistry> {
+        &self.cancellations
     }
 
     /// Attach the audit sink used for kill-switch records.
@@ -198,6 +212,12 @@ impl KillSwitchService {
         });
 
         let result = result?;
+
+        // Immediately cancel any in-flight requests running for this revoked target (AX-010).
+        if command.action == RevocationAction::Revoke {
+            self.cancellations.cancel_target(&command.target.canonical_key());
+            self.cancellations.cancel_target(command.target.id());
+        }
 
         let persisted = match &self.snapshot_path {
             None => None,

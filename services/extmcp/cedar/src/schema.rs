@@ -206,12 +206,49 @@ when {
 };
 "#;
 
+/// Permits discovery and read actions (`tools/list`, `resources/read`, `prompts/get`)
+/// on `McpServer` resources for authenticated agents.
+pub const PERMIT_DISCOVERY_AND_READ: &str = r#"
+// PERMIT_DISCOVERY_AND_READ: allow discovery and read methods when authenticated.
+permit (
+    principal is Axiom::Agent,
+    action in [
+        Axiom::Action::"tools/list",
+        Axiom::Action::"resources/read",
+        Axiom::Action::"prompts/get"
+    ],
+    resource is Axiom::McpServer
+)
+when {
+    context.authenticated == true
+};
+"#;
+
+/// Permits non-SQL `tools/call` when relevant validators pass and no attacks are detected.
+pub const PERMIT_NON_DESTRUCTIVE_TOOL_CALL: &str = r#"
+// PERMIT_NON_DESTRUCTIVE_TOOL_CALL: allow non-SQL tools/call when verified.
+permit (
+    principal is Axiom::Agent,
+    action == Axiom::Action::"tools/call",
+    resource is Axiom::Tool
+)
+when {
+    context.authenticated == true &&
+    context.sql_validation_present == false &&
+    context.tool_pin_verified == true &&
+    context.path_traversal_detected == false &&
+    context.egress_is_private_ip == false
+};
+"#;
+
 /// All default policy sources bundled together.
 ///
 /// This slice is the starting point for the default policy bundle loaded at
 /// startup. Operators may add or override policies on disk.
 pub const DEFAULT_POLICY_BUNDLE: &[&str] = &[
     PERMIT_READONLY_SQL,
+    PERMIT_DISCOVERY_AND_READ,
+    PERMIT_NON_DESTRUCTIVE_TOOL_CALL,
     DENY_DESTRUCTIVE_SQL,
     DENY_PATH_TRAVERSAL,
     DENY_PRIVATE_EGRESS,

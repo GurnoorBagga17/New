@@ -75,19 +75,27 @@ pub fn run_file_writer(
     let mut stats = AuditWriterStats::default();
     let mut dirty = false;
     let flush_every = config.flush_every.max(1) as u64;
+    let mut seq_no: u64 = 0;
+    let mut prev_hash = "0".repeat(64);
 
     loop {
         match subscriber.next_timeout(config.flush_interval) {
             ReceiverOutcome::Record(record) => {
                 match record.to_json_line() {
-                    Ok(line) => {
+                    Ok(raw_json) => {
+                        seq_no += 1;
+                        let entry_hash = compute_chain_digest_hex(&prev_hash, seq_no, &raw_json);
+                        let chained_line = format!(
+                            r#"{{"seq_no":{seq_no},"prev_hash":"{prev_hash}","entry_hash":"{entry_hash}","record":{raw_json}}}"#
+                        );
                         let write_result = writer
-                            .write_all(line.as_bytes())
+                            .write_all(chained_line.as_bytes())
                             .and_then(|_| writer.write_all(b"\n"));
                         if write_result.is_ok() {
                             stats.written += 1;
-                            stats.bytes += line.len() as u64 + 1;
+                            stats.bytes += chained_line.len() as u64 + 1;
                             dirty = true;
+                            prev_hash = entry_hash;
                         } else {
                             stats.failed += 1;
                         }
@@ -98,7 +106,7 @@ pub fn run_file_writer(
                 }
 
                 if stats.written > 0 && stats.written % flush_every == 0 && dirty {
-                    if writer.flush().is_ok() {
+                    if writer.flush().and_then(|_| writer.get_ref().sync_data()).is_ok() {
                         dirty = false;
                     } else {
                         stats.failed += 1;
@@ -107,7 +115,7 @@ pub fn run_file_writer(
             }
             ReceiverOutcome::Timeout => {
                 if dirty {
-                    if writer.flush().is_ok() {
+                    if writer.flush().and_then(|_| writer.get_ref().sync_data()).is_ok() {
                         dirty = false;
                     } else {
                         stats.failed += 1;
@@ -258,27 +266,17 @@ mod tests {
 
 use std::io::{BufRead, BufReader};
 
-/// Computes a deterministic SHA-256 hex digest using standard arithmetic rounds
-/// without external crate dependencies inside `axiom-audit`.
+/// Computes a cryptographically tamper-evident SHA-256 hex digest over the previous hash,
+/// sequence number, and canonical JSON record (AX-011).
 pub fn compute_chain_digest_hex(prev_hash: &str, seq_no: u64, canonical_json: &str) -> String {
-    // FNV-1a 256-bit multi-lane mixing for fast, deterministic tamper detection
-    let mut lanes: [u64; 4] = [
-        0xcbf29ce484222325,
-        0x84222325cbf29ce4,
-        0x100000001b300001,
-        0x9e3779b97f4a7c15,
-    ];
-    let payload = format!("{prev_hash}|{seq_no}|{canonical_json}");
-    for (idx, byte) in payload.bytes().enumerate() {
-        let lane = idx & 3;
-        lanes[lane] ^= u64::from(byte);
-        lanes[lane] = lanes[lane].wrapping_mul(0x100000001b3);
-        lanes[(lane + 1) & 3] = lanes[(lane + 1) & 3].wrapping_add(lanes[lane].rotate_left(13));
-    }
-    format!(
-        "{:016x}{:016x}{:016x}{:016x}",
-        lanes[0], lanes[1], lanes[2], lanes[3]
-    )
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(prev_hash.as_bytes());
+    hasher.update(b"|");
+    hasher.update(seq_no.to_string().as_bytes());
+    hasher.update(b"|");
+    hasher.update(canonical_json.as_bytes());
+    hex::encode(hasher.finalize())
 }
 
 /// Appends a hash-chained JSONL record and fsyncs the underlying file descriptor.

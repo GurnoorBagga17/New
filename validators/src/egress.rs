@@ -225,16 +225,20 @@ impl EgressValidator {
 
         let pinned_addrs: Vec<SocketAddr> = match normalized.parse::<IpAddr>() {
             Ok(ip) => vec![SocketAddr::new(ip, port)],
-            Err(_) => match lookup_host((normalized.as_str(), port)).await {
-                Ok(results) => results.collect(),
-                Err(_) => return Err(failed(Some(normalized), false, "EGRESS_DNS_FAILURE")),
-            },
+            Err(_) => {
+                let host_port = format!("{}:{}", normalized, port);
+                let addrs = match lookup_host(&host_port).await {
+                    Ok(results) => results.collect(),
+                    Err(_) => return Err(failed(Some(normalized.clone()), false, "EGRESS_DNS_FAILURE")),
+                };
+                addrs
+            }
         };
         if pinned_addrs.is_empty() {
-            return Err(failed(Some(normalized), false, "EGRESS_DNS_EMPTY"));
+            return Err(failed(Some(normalized.clone()), false, "EGRESS_DNS_EMPTY"));
         }
         if pinned_addrs.iter().any(|sa| !is_public_unicast(sa.ip())) {
-            return Err(failed(Some(normalized), true, "EGRESS_NON_PUBLIC_ADDRESS"));
+            return Err(failed(Some(normalized.clone()), true, "EGRESS_NON_PUBLIC_ADDRESS"));
         }
 
         Ok(PinnedEgressConnectTarget {

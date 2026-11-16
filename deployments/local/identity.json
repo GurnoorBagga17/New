@@ -1,0 +1,9 @@
+{
+  "issuers": [
+    {
+      "issuer": "https://issuer.example.invalid",
+      "jwks_url": "https://issuer.example.invalid/.well-known/jwks.json"
+    }
+  ],
+  "canonical_resources": ["mcp://prod-db"]
+}

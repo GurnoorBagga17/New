@@ -30,8 +30,15 @@ services:
       AXIOM_VALIDATION_CONFIG: /etc/axiom/validation-profiles.json
       AXIOM_RESOURCE_MAP_CONFIG: /etc/axiom/resources.json
       AXIOM_REVOCATION_CONFIG: /etc/axiom/revocations.json
+      AXIOM_ADMIN_ADDR: 0.0.0.0:8787
+      AXIOM_ADMIN_TOKEN: ${AXIOM_ADMIN_TOKEN:?Set a random admin token of at least 32 characters}
+      AXIOM_ADMIN_ACTOR: ${AXIOM_ADMIN_ACTOR:-local-operator}
+      AXIOM_DATA_DIR: /var/lib/axiom
     volumes:
       - ./config:/etc/axiom:ro
+      - axiom-state:/var/lib/axiom
+    ports:
+      - "127.0.0.1:8787:8787"
     expose:
       - "9001"
     restart: unless-stopped
@@ -45,3 +52,31 @@ services:
     expose:
       - "8000"
     restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: axiom-postgres
+    environment:
+      POSTGRES_USER: axiom
+      POSTGRES_PASSWORD: axiom_password
+      POSTGRES_DB: axiom_lineage
+    ports:
+      - "5432:5432"
+    volumes:
+      - ../../lineage-graph/migrations/0001_phase2_graph.sql:/docker-entrypoint-initdb.d/0001_phase2_graph.sql:ro
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  openbao:
+    image: openbao/openbao:latest
+    container_name: axiom-openbao
+    environment:
+      BAO_DEV_ROOT_TOKEN_ID: root
+      BAO_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    ports:
+      - "8200:8200"
+    restart: unless-stopped
+
+volumes:
+  axiom-state:
+  postgres-data:

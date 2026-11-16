@@ -34,22 +34,32 @@ const ECOSYSTEM_LOGOS = [
 
 export function MarqueeLogos() {
   return (
-    <section className="marquee-section" aria-label="Supported Integrations and Ecosystem">
-      <div className="marquee-label-wrap wrap">
-        <span className="marquee-eyebrow">SEAMLESS INTEGRATION ACROSS EVERY MAJOR AI RUNTIME &amp; ENTERPRISE STACK</span>
+    <section className="py-8 bg-slate-50/70 border-y border-slate-200/80 overflow-hidden relative" aria-label="Supported Integrations and Ecosystem">
+      {/* Left and Right Fade Gradients */}
+      <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-slate-50 via-slate-50/80 to-transparent z-10 pointer-events-none" aria-hidden="true" />
+      <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-slate-50 via-slate-50/80 to-transparent z-10 pointer-events-none" aria-hidden="true" />
+
+      <div className="max-w-7xl mx-auto px-4 text-center mb-5">
+        <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-500">
+          SEAMLESS INTEGRATION ACROSS EVERY MAJOR AI RUNTIME &amp; ENTERPRISE STACK
+        </span>
       </div>
-      <div className="marquee-container">
-        <div className="marquee-track marquee-scroll-left">
+
+      <div className="overflow-hidden whitespace-nowrap flex w-full">
+        <div className="marquee-track marquee-scroll-left flex items-center">
           {[...ECOSYSTEM_LOGOS, ...ECOSYSTEM_LOGOS].map((item, index) => {
             const Icon = item.icon;
             return (
-              <div key={`${item.name}-${index}`} className="marquee-card">
-                <span className="marquee-logo-badge">
-                  <Icon size={20} />
+              <div
+                key={`${item.name}-${index}`}
+                className="inline-flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white border border-slate-200/90 shadow-xs hover:shadow-sm hover:border-indigo-300 transition-all mx-2 flex-shrink-0"
+              >
+                <span className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700">
+                  <Icon size={18} />
                 </span>
-                <div className="marquee-text-group">
-                  <span className="marquee-name">{item.name}</span>
-                  <span className="marquee-tag">{item.tag}</span>
+                <div className="flex flex-col text-left">
+                  <span className="text-xs font-bold text-slate-900 leading-tight">{item.name}</span>
+                  <span className="text-[10px] font-mono text-slate-500 font-medium mt-0.5">{item.tag}</span>
                 </div>
               </div>
             );

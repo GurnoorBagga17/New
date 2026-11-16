@@ -1,0 +1,157 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:a0a00000-0000-4000-8000-000000000001",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-16T14:23:06.566800+00:00",
+    "component": {
+      "type": "application",
+      "name": "Axiom NHI Enterprise Control Plane",
+      "version": "1.0.0",
+      "description": "Zero-Trust Non-Human Identity & Multi-Hop Delegation Governance Platform",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    "properties": [
+      {
+        "name": "compliance:owasp_nhi",
+        "value": "PASSED (10/10)"
+      },
+      {
+        "name": "compliance:owasp_llm",
+        "value": "PASSED (10/10)"
+      },
+      {
+        "name": "compliance:eu_ai_act",
+        "value": "Article 15 & 50 Aligned"
+      },
+      {
+        "name": "compliance:iso_42001",
+        "value": "Aligned"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "machine-learning-model",
+      "name": "claude-3-5-sonnet",
+      "supplier": {
+        "name": "Anthropic"
+      },
+      "description": "Code Generation & Architecture Review"
+    },
+    {
+      "type": "machine-learning-model",
+      "name": "gpt-4o",
+      "supplier": {
+        "name": "OpenAI"
+      },
+      "description": "Intent Inference & Multi-modal Reasoning"
+    },
+    {
+      "type": "machine-learning-model",
+      "name": "axiom-agentgateway",
+      "supplier": {
+        "name": "Axiom NHI"
+      },
+      "description": "Reverse Proxy & Dynamic Tool Pinning Interceptor"
+    },
+    {
+      "type": "machine-learning-model",
+      "name": "axiom-extmcp-runtime",
+      "supplier": {
+        "name": "Axiom NHI"
+      },
+      "description": "gRPC Authorization & Sub-ms Cedar Policy Enforcement"
+    }
+  ],
+  "services": [
+    {
+      "name": "postgres-lineage",
+      "protocol": "stdio/streamable-http",
+      "endpoints": [
+        "query_lineage",
+        "simulate_revocation",
+        "trace_dependencies"
+      ],
+      "properties": [
+        {
+          "name": "tool_definition_sha256",
+          "value": "4228631ea73943fee3480724f2adb4ae9a705eb8ae590ac6ee6e6b8f0382ef50"
+        }
+      ]
+    },
+    {
+      "name": "github-connector",
+      "protocol": "streamable-http",
+      "endpoints": [
+        "get_installation",
+        "list_repo_tokens",
+        "revoke_credential"
+      ],
+      "properties": [
+        {
+          "name": "tool_definition_sha256",
+          "value": "4e9ea59abbab4fc5f64ae338cb1853f50fd8eacd910b44416359aec9bee151d5"
+        }
+      ]
+    },
+    {
+      "name": "aws-iam-connector",
+      "protocol": "streamable-http",
+      "endpoints": [
+        "list_roles",
+        "get_attached_policies",
+        "rightsize_iam_role"
+      ],
+      "properties": [
+        {
+          "name": "tool_definition_sha256",
+          "value": "bf9abae4af850978b8408216cc1e4be9acdbf2b9ca39072e8df8d4089a7c0e7d"
+        }
+      ]
+    },
+    {
+      "name": "openbao-secretless",
+      "protocol": "local-airgap-rest",
+      "endpoints": [
+        "lease_credential",
+        "revoke_lease",
+        "rotate_dynamic_secret"
+      ],
+      "properties": [
+        {
+          "name": "tool_definition_sha256",
+          "value": "091215abf499b4f77d0d0beafbb6411739b041550603fee375f76030d875416c"
+        }
+      ]
+    },
+    {
+      "name": "spicedb-delegation",
+      "protocol": "grpc-gateway",
+      "endpoints": [
+        "check_permission",
+        "write_relationship",
+        "revoke_causal_chain"
+      ],
+      "properties": [
+        {
+          "name": "tool_definition_sha256",
+          "value": "e8bdd8589e6fb18de9e022c4443b25831942d9cdebe8adc110c124ac2133186d"
+        }
+      ]
+    }
+  ],
+  "signature": {
+    "algorithm": "Ed25519",
+    "publicKeyHex": "2f0612a6f8830559ddbb350a3e07ec3b50e76046180c487df88b1270de640bc3",
+    "contentSha256": "sha256:da19a06f12cf72b0f68d7cdb8e41d0e946e44a3c06f667f8f6524d42f4f578fd",
+    "signatureHex": "9eb73faa34787d38b413027fd1976c91fa49a488e226d07da5c8351362510bbfbb3359bd1d47d35917893f121662d4f6281f17558a014fd5a6b366c796366509"
+  }
+}

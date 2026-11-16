@@ -17,7 +17,7 @@ export function IconShield({ className = "", size = 20, color = "currentColor" }
   );
 }
 
-export function IconShieldCheck({ className = "", size = 20, color = "#10B981" }: IconProps) {
+export function IconShieldCheck({ className = "", size = 20, color = "var(--state-enforce)" }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -26,7 +26,7 @@ export function IconShieldCheck({ className = "", size = 20, color = "#10B981" }
   );
 }
 
-export function IconShieldAlert({ className = "", size = 20, color = "#F59E0B" }: IconProps) {
+export function IconShieldAlert({ className = "", size = 20, color = "var(--state-observe)" }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -36,7 +36,7 @@ export function IconShieldAlert({ className = "", size = 20, color = "#F59E0B" }
   );
 }
 
-export function IconShieldDeny({ className = "", size = 20, color = "#F43F5E" }: IconProps) {
+export function IconShieldDeny({ className = "", size = 20, color = "var(--state-deny)" }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -46,7 +46,7 @@ export function IconShieldDeny({ className = "", size = 20, color = "#F43F5E" }:
   );
 }
 
-export function IconLightning({ className = "", size = 20, color = "#00E5FF" }: IconProps) {
+export function IconLightning({ className = "", size = 20, color = "var(--brand-cyan)" }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
@@ -88,7 +88,7 @@ export function IconMerkle({ className = "", size = 20, color = "currentColor" }
   );
 }
 
-export function IconKey({ className = "", size = 20, color = "#F59E0B" }: IconProps) {
+export function IconKey({ className = "", size = 20, color = "var(--state-observe)" }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
       <path d="m21 2-2 2m-1.5 1.5L14 9a5 5 0 1 0 4 4l3.5-3.5" />
@@ -117,7 +117,7 @@ export function IconLock({ className = "", size = 16, color = "currentColor" }: 
   );
 }
 
-export function IconCheck({ className = "", size = 16, color = "#10B981" }: IconProps) {
+export function IconCheck({ className = "", size = 16, color = "var(--state-enforce)" }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
       <polyline points="20 6 9 17 4 12" />
@@ -125,7 +125,7 @@ export function IconCheck({ className = "", size = 16, color = "#10B981" }: Icon
   );
 }
 
-export function IconCross({ className = "", size = 16, color = "#F43F5E" }: IconProps) {
+export function IconCross({ className = "", size = 16, color = "var(--state-deny)" }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
       <line x1="18" y1="6" x2="6" y2="18" />
@@ -167,14 +167,14 @@ export function IconMinus({ className = "", size = 16, color = "currentColor" }:
 export function LogoClaude({ size = 20 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 2L14.4 9.6H22L15.8 14.2L18.2 21.8L12 17.2L5.8 21.8L8.2 14.2L2 9.6H9.6L12 2Z" fill="#D97706" />
+      <path d="M12 2L14.4 9.6H22L15.8 14.2L18.2 21.8L12 17.2L5.8 21.8L8.2 14.2L2 9.6H9.6L12 2Z" fill="var(--state-observe)" />
     </svg>
   );
 }
 
 export function LogoOpenAI({ size = 20 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--state-enforce)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M12 2a4 4 0 0 1 3.5 2.1l1.5 2.6a4 4 0 0 1 4 4.5l-.2 3a4 4 0 0 1-2.5 3.3l-2.6 1.1a4 4 0 0 1-4.8-.8l-2.1-2.1a4 4 0 0 1-1.3-3.6l.4-3a4 4 0 0 1 2.3-3.1L12 2Z" />
     </svg>
   );
@@ -182,7 +182,7 @@ export function LogoOpenAI({ size = 20 }: { size?: number }) {
 
 export function LogoKubernetes({ size = 20 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#38BDF8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--brand-cyan)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="9" />
       <polygon points="12 6 17.2 9 17.2 15 12 18 6.8 15 6.8 9 12 6" />
       <circle cx="12" cy="12" r="2" />
@@ -192,7 +192,7 @@ export function LogoKubernetes({ size = 20 }: { size?: number }) {
 
 export function LogoSnowflake({ size = 20 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#22D3EE" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--brand-cyan)" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
       <line x1="12" y1="2" x2="12" y2="22" />
       <line x1="3.3" y1="7" x2="20.7" y2="17" />
       <line x1="3.3" y1="17" x2="20.7" y2="7" />
@@ -204,18 +204,18 @@ export function LogoSnowflake({ size = 20 }: { size?: number }) {
 
 export function LogoAWS({ size = 20 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--state-observe)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M4 14c4 4 12 4 16 0" />
       <path d="M18 13l2 1.5-1.5 2" />
       <path d="M7 9a3 3 0 1 1 6 0c0 2-3 3-3 3" />
-      <circle cx="10" cy="15" r=".5" fill="#F59E0B" />
+      <circle cx="10" cy="15" r=".5" fill="var(--state-observe)" />
     </svg>
   );
 }
 
 export function LogoVault({ size = 20 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#A855F7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--brand-indigo)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="3" y="3" width="18" height="18" rx="3" />
       <circle cx="12" cy="12" r="3" />
       <path d="M12 7v2" />
@@ -228,7 +228,7 @@ export function LogoVault({ size = 20 }: { size?: number }) {
 
 export function LogoCedar({ size = 20 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#00E5FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--brand-cyan)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M12 2L4 7v10l8 5 8-5V7l-8-5z" />
       <polyline points="9 12 11 14 15 10" />
     </svg>
@@ -237,17 +237,17 @@ export function LogoCedar({ size = 20 }: { size?: number }) {
 
 export function LogoDatadog({ size = 20 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#818CF8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--brand-indigo)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M7 17a4 4 0 0 1-4-4V7a4 4 0 0 1 8 0v1" />
       <path d="M11 11a4 4 0 0 1 8 0v4a4 4 0 0 1-8 0" />
-      <circle cx="15" cy="13" r="1" fill="#818CF8" />
+      <circle cx="15" cy="13" r="1" fill="var(--brand-indigo)" />
     </svg>
   );
 }
 
 export function LogoCrowdStrike({ size = 20 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--state-deny)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M12 3v18" />
       <path d="m4 11 8-8 8 8" />
       <path d="m6 16 6-6 6 6" />
@@ -257,16 +257,16 @@ export function LogoCrowdStrike({ size = 20 }: { size?: number }) {
 
 export function LogoOkta({ size = 20 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2.2" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--brand-cyan)" strokeWidth="2.2" aria-hidden="true">
       <circle cx="12" cy="12" r="8" />
-      <circle cx="12" cy="12" r="3" fill="#3B82F6" />
+      <circle cx="12" cy="12" r="3" fill="var(--brand-cyan)" />
     </svg>
   );
 }
 
 export function LogoLangChain({ size = 20 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--state-enforce)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
     </svg>
@@ -275,7 +275,7 @@ export function LogoLangChain({ size = 20 }: { size?: number }) {
 
 export function LogoCursor({ size = 20 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#A78BFA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--brand-indigo)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <polygon points="3 3 10.07 19.97 12.58 12.58 19.97 10.07 3 3" />
     </svg>
   );

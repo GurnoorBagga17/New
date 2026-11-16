@@ -14,7 +14,7 @@ const SaaSEcosystemPillars = dynamic(
 );
 
 export function UnderTheHood() {
-  const [openSection, setOpenSection] = useState<'architecture' | 'enclave' | 'pillars' | null>(null);
+  const [openSection, setOpenSection] = useState<'architecture' | 'enclave' | 'pillars' | null>('enclave');
 
   const toggleSection = (section: 'architecture' | 'enclave' | 'pillars') => {
     setOpenSection((prev) => (prev === section ? null : section));

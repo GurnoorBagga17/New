@@ -114,6 +114,7 @@ class GatewayMcpInterceptor {
     killSwitchOverridesObserveOnly = true,
     targetServer = 'mcp-backend-default',
     maxConcurrentCallouts = 256,
+    maxAuditHistory = 1000,
   }) {
     this.extMcpClient = extMcpClient;
     this.backendClient = backendClient;
@@ -122,6 +123,7 @@ class GatewayMcpInterceptor {
     this.killSwitchOverridesObserveOnly = killSwitchOverridesObserveOnly;
     this.targetServer = targetServer;
     this.maxConcurrentCallouts = maxConcurrentCallouts;
+    this.maxAuditHistory = maxAuditHistory;
     this.inFlightCallouts = 0;
     this.cancelledCalloutCount = 0;
     this.emittedAuditEvents = [];
@@ -184,6 +186,9 @@ class GatewayMcpInterceptor {
       kill_switch_active: Boolean(event.killSwitchActive),
       latency_us: event.latencyUs || 0,
     };
+    if (this.emittedAuditEvents.length >= this.maxAuditHistory) {
+      this.emittedAuditEvents.shift();
+    }
     this.emittedAuditEvents.push(redactedEvent);
   }
 

@@ -194,35 +194,84 @@ pub struct SignedAiBomManifest {
     pub ed25519_signature: String,
 }
 
+use ring::signature::{Ed25519KeyPair, KeyPair};
+use ring::rand::SystemRandom;
+
 pub fn generate_signed_ai_bom(
     tenant_id: &str,
     models_and_agents: Vec<String>,
     mcp_tool_servers: Vec<String>,
     pinned_tool_hashes: HashMap<String, String>,
 ) -> SignedAiBomManifest {
+    let rng = SystemRandom::new();
+    let pkcs8_bytes = match Ed25519KeyPair::generate_pkcs8(&rng) {
+        Ok(pkcs8) => pkcs8,
+        Err(_) => panic!("Failed to generate secure random Ed25519 keypair for AI-BOM"),
+    };
+    let key_pair = Ed25519KeyPair::from_pkcs8(pkcs8_bytes.as_ref())
+        .expect("Valid generated PKCS#8 Ed25519 keypair");
+
     let mut hasher = Sha256::new();
-    hasher.update(format!("{tenant_id}|{:?}|{:?}", models_and_agents, mcp_tool_servers).as_bytes());
+    hasher.update(b"AXIOM_AI_BOM_CYCLONEDX_V1\x00");
+    hasher.update((tenant_id.len() as u64).to_le_bytes());
+    hasher.update(tenant_id.as_bytes());
+    hasher.update(format!("{:?}|{:?}", models_and_agents, mcp_tool_servers).as_bytes());
     let digest = hex::encode(hasher.finalize());
-    let sig = format!("ed25519:axiom-enclave-sig:{}", &digest[..32]);
+
+    let sig = key_pair.sign(digest.as_bytes());
+    let sig_hex = hex::encode(sig.as_ref());
+    let pub_key_hex = hex::encode(key_pair.public_key().as_ref());
 
     SignedAiBomManifest {
         bom_format: "CycloneDX-AI-BOM".to_owned(),
         spec_version: "1.6".to_owned(),
         tenant_id: tenant_id.to_owned(),
-        generated_at_iso: "2026-11-15T18:00:00Z".to_owned(),
+        generated_at_iso: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
         models_and_agents,
         mcp_tool_servers,
         pinned_tool_hashes,
         compliance_frameworks: vec![
-            "OWASP NHI Top 10 (2025)".to_owned(),
-            "OWASP Agentic/MCP Top 10 (2025)".to_owned(),
-            "EU AI Act Article 15 & 50".to_owned(),
-            "ISO/IEC 42001:2023".to_owned(),
-            "SOC 2 Type II Security & Availability".to_owned(),
+            "OWASP Top 10 for Non-Human Identities (2025)".to_owned(),
+            "OWASP Top 10 for Large Language Model Applications & MCP".to_owned(),
+            "EU AI Act Article 15 & 50 (Transparency & Cyber-Resilience)".to_owned(),
+            "ISO/IEC 42001:2023 AI Management System Alignment".to_owned(),
+            "NIST SP 800-207 Zero Trust Architecture".to_owned(),
         ],
         content_sha256: format!("sha256:{digest}"),
-        ed25519_signature: sig,
+        ed25519_signature: format!("ed25519:pubkey={pub_key_hex}:sig={sig_hex}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ring::signature::UnparsedPublicKey;
+
+    #[test]
+    fn generates_cryptographically_valid_ed25519_signed_ai_bom() {
+        let manifest = generate_signed_ai_bom(
+            "tenant-corp-1",
+            vec!["claude-3-5-sonnet".to_owned()],
+            vec!["github-mcp".to_owned()],
+            HashMap::new(),
+        );
+
+        assert_eq!(manifest.bom_format, "CycloneDX-AI-BOM");
+        assert!(manifest.content_sha256.starts_with("sha256:"));
+        assert!(manifest.ed25519_signature.starts_with("ed25519:pubkey="));
+
+        let parts: Vec<&str> = manifest.ed25519_signature.split(':').collect();
+        let pubkey_hex = parts[1].strip_prefix("pubkey=").unwrap();
+        let sig_hex = parts[2].strip_prefix("sig=").unwrap();
+
+        let pubkey_bytes = hex::decode(pubkey_hex).unwrap();
+        let sig_bytes = hex::decode(sig_hex).unwrap();
+        let digest = manifest.content_sha256.strip_prefix("sha256:").unwrap();
+
+        let peer_public_key = UnparsedPublicKey::new(&ring::signature::ED25519, pubkey_bytes);
+        assert!(peer_public_key.verify(digest.as_bytes(), &sig_bytes).is_ok());
     }
 }
 
 pub mod lifecycle;
+pub mod spicedb;

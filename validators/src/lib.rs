@@ -5,7 +5,7 @@
 //! when the eventual tool execution uses the same confined root and pinned
 //! network address; validation alone cannot eliminate TOCTOU or DNS rebinding.
 
-mod adapter;
+pub mod adapter;
 pub mod egress;
 pub mod filesystem;
 pub mod sql;
