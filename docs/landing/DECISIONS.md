@@ -51,3 +51,21 @@ This log records every architecture and design decision, deviation, and human cl
   5. **Color & Brand Tokens**: Retain existing obsidian canvas (`#0B0F19`), surface layers, Gate luminous teal permit (`#10B981`), rose-red deny (`#F43F5E`), and cyan boundary (`#00E5FF`). All tokens verified against WCAG 2.1 AA (4.5:1 text, 3.0:1 borders).
   6. **Authentication Links**: Main navigation hides sign-up or explicitly badges Sign-In as `Demo`.
   7. **Legal Copy**: Render placeholder Terms of Service and Privacy Policy pages, explicitly badged for human legal review prior to production launch.
+
+### D-007: Phase 2 Page Architecture & Section Composition
+- **Date**: 2026-11-16
+- **Context**: Rebuilding `apps/web/app/page.tsx` into the 13 ordered sections defined in Section 5 of the Implementation Plan.
+- **Section Migration & Retirement Notes**:
+  1. **Header (`SiteShell`)**: Retained slim navigation (Playground, Benchmarks, Docs, GitHub) with Deploy in 5 Min CTA.
+  2. **Hero (`HeroGate`)**: Retired hero terminal and standalone isometric enclave from initial hero fold. Replaced with the interactive The Gate boundary demo cycling through 6 AST and Cedar scenarios, with visible Pause/Play toggle and reduced-motion static fallback.
+  3. **Proof Strip (`ProofStrip`)**: 4 sourced metrics from `claims.ts` (< 5 ms P99 target, 15 ms fail-closed deadline, < 50 ms kill switch target, < 30 min shadow audit target) + 3 verification badges. Infinite brand marquee (`MarqueeLogos`) replaced with neutral, monochrome 'Works out of the box with' integration row to avoid implying unverified customer endorsement.
+  4. **Story Lifecycle (`StoryScroll`)**: 3-stage sticky scroll (Discover, Understand, Govern) driven by IntersectionObserver on desktop, stacked on mobile. Step 1 embeds sample read-only identity discovery fixture (visibly labeled Demo environment).
+  5. **Blast Radius (`BlastRadiusGraph`)**: Embedded directly in Story Step 2. Features deterministic 28-node graph layout, BFS reachability calculation, live sensitive asset counters, simulated token leak and one-click revocation.
+  6. **Kill Switch (`KillSwitchDemo`)**: Embedded directly in Story Step 3. Demonstrates 5 distributed gateway replicas and sub-50 ms emergency fleet revocation with test call replay.
+  7. **Audience Perspectives (`AudienceToggle`)**: 2-tab perspective (Security Leaders vs Platform Engineers), preserving URL hash state (`#security`, `#engineering`). Replaces legacy `ThesisSwitcher`.
+  8. **Under the Hood (`UnderTheHood`)**: Accordion containing `EnclaveVisual`, `SaaSEcosystemPillars`, and standards compliance matrix (RFC 8707, SPIFFE, Cedar 3.x, OCSF 1.1).
+  9. **Transparent Pricing (`MeteringCalculator`)**: Kept calculator with 3 inputs (agents, events, retention), explicit formula display, and prominent $0 Discovery Policy Guarantee.
+  10. **Reproduce Benchmarks (`ReproduceBlock`)**: 3 copyable commands for docker quickstart, 9/9 chaos tests, and latency benchmark harness, plus target percentile teaser chart.
+  11. **Frequently Asked Questions (`FaqAccordion`)**: Updated to 8 objection-handling questions from `landing.ts` copy deck.
+  12. **Final CTA & Engineer Routing (`TalkToEngineerSection`)**: Preserved direct-to-engineer form with honeypot protection.
+  13. **Footer (`SiteShell`)**: Maintained links, legal notices, and `CookieConsent`.

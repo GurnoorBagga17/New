@@ -38,13 +38,13 @@ export function TalkToEngineerSection() {
   };
 
   return (
-    <section className="talk-engineer-section" id="contact-engineer">
+    <section className="talk-engineer-section" id="talk-to-engineer">
       <div className="wrap talk-engineer-grid">
         {/* Left Column: Technical Highlights & Perks */}
         <div className="talk-engineer-info">
           <div className="live-eng-badge">
             <span className="live-eng-dot" />
-            <span>SECURITY ARCHITECTS STANDING BY &bull; RESPONSE UNDER 15 MIN</span>
+            <span>SECURITY ARCHITECTS STANDING BY · RESPONSE UNDER 15 MIN</span>
           </div>
 
           <h2>Talk directly to a security engineer.</h2>
@@ -55,7 +55,7 @@ export function TalkToEngineerSection() {
           <div className="eng-perks-list">
             <div className="eng-perk-item">
               <div className="perk-icon-wrap perk-threat">
-                <IconLightning size={20} color="#00E5FF" />
+                <IconLightning size={20} color="var(--brand-cyan)" />
               </div>
               <div className="perk-content">
                 <h4>Custom MCP Threat Modeling</h4>
@@ -65,7 +65,7 @@ export function TalkToEngineerSection() {
 
             <div className="eng-perk-item">
               <div className="perk-icon-wrap perk-cedar">
-                <IconShieldCheck size={20} color="#10B981" />
+                <IconShieldCheck size={20} color="var(--state-enforce)" />
               </div>
               <div className="perk-content">
                 <h4>Tailored Cedar Policy Templates</h4>
@@ -75,7 +75,7 @@ export function TalkToEngineerSection() {
 
             <div className="eng-perk-item">
               <div className="perk-icon-wrap perk-poc">
-                <IconKey size={20} color="#F59E0B" />
+                <IconKey size={20} color="var(--state-pending)" />
               </div>
               <div className="perk-content">
                 <h4>Zero-Friction Enterprise Proof-of-Concept</h4>

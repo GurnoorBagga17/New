@@ -16,9 +16,8 @@ EXTENSIONS = {".css", ".scss", ".html", ".js", ".jsx", ".ts", ".tsx", ".svg"}
 HEX = re.compile(r"(?<![\w&#\-])#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})(?![\w-])")
 BLACK = re.compile(r"(?<![\w&#\-])#(?:000|0000|000000|00000000)(?![0-9a-fA-F])", re.IGNORECASE)
 
-# Files in apps/web currently pending Phase 1/2 token migration
+# Files in apps/web currently pending Phase 2/3 token migration
 LEGACY_MIGRATION_PENDING = {
-    Path("apps/web/app/page.tsx"),
     Path("apps/web/app/components"),
     Path("apps/web/app/playground"),
     Path("apps/web/app/sign-in"),
