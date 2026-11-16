@@ -21,7 +21,7 @@ export function HeroGate() {
     }
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % GATE_SCENARIOS.length);
-    }, 2800);
+    }, 4200);
     return () => clearInterval(interval);
   }, [isPlaying, isHovered, prefersReducedMotion]);
 
@@ -84,9 +84,9 @@ export function HeroGate() {
           </div>
         </div>
 
-        {/* Right Column: The Gate Interactive Simulation */}
+        {/* Right Column: Sleek Tactical Runtime Inspector */}
         <div
-          className="hero-gate-container"
+          className="hero-gate-container hero-console-wrap"
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
           onFocus={() => setIsHovered(true)}
@@ -94,11 +94,17 @@ export function HeroGate() {
           role="region"
           aria-label="Interactive policy evaluation gate demo"
         >
-          {/* Header Controls */}
-          <div className="hero-gate-header">
-            <div className="hero-gate-title">
-              <span className="hero-gate-pulse" />
-              <span>THE GATE · INLINE BOUNDARY</span>
+          {/* Top Window Bar */}
+          <div className="hero-console-topbar">
+            <div className="console-window-dots" aria-hidden="true">
+              <span className="dot dot-red" />
+              <span className="dot dot-amber" />
+              <span className="dot dot-green" />
+            </div>
+
+            <div className="console-title">
+              <span className="console-live-beacon" />
+              <span>AXIOM INLINE GOVERNANCE GATEWAY</span>
             </div>
 
             <div className="hero-gate-controls">
@@ -107,15 +113,15 @@ export function HeroGate() {
                 onClick={() => setIsPlaying((p) => !p)}
                 className="hero-gate-toggle"
                 aria-label={isPlaying ? 'Pause interactive demo' : 'Play interactive demo'}
-                title={isPlaying ? 'Pause' : 'Play'}
+                title={isPlaying ? 'Pause auto-cycle' : 'Resume auto-cycle'}
               >
                 {isPlaying ? (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <rect x="6" y="4" width="4" height="16" />
-                    <rect x="14" y="4" width="4" height="16" />
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <rect x="5" y="4" width="4" height="16" />
+                    <rect x="15" y="4" width="4" height="16" />
                   </svg>
                 ) : (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <polygon points="5 3 19 12 5 21 5 3" />
                   </svg>
                 )}
@@ -134,91 +140,155 @@ export function HeroGate() {
             Scenario: {activeScenario.name}. Verdict: {activeScenario.verdict.toUpperCase()}. Reason: {activeScenario.reason}.
           </div>
 
-          {/* Fallback for Reduced Motion: Static 3-Row List */}
-          {prefersReducedMotion ? (
-            <div className="hero-gate-static-list" aria-label="Static security scenario summary">
-              {GATE_SCENARIOS.slice(0, 3).map((scenario) => (
-                <div
+          {/* Interactive Scenario Selector Tabs */}
+          <div className="console-scenario-tabs" role="tablist" aria-label="Select security scenario">
+            {GATE_SCENARIOS.map((scenario, index) => {
+              const isSelected = index === currentIndex;
+              return (
+                <button
                   key={scenario.id}
-                  className={`hero-gate-static-item ${scenario.verdict === 'permit' ? 'is-permit' : 'is-deny'}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  className={`console-tab-btn ${isSelected ? 'is-active' : ''} ${scenario.verdict === 'permit' ? 'tab-permit' : 'tab-deny'}`}
+                  onClick={() => setCurrentIndex(index)}
                 >
-                  <div className="static-item-header">
-                    <span className="static-item-badge">{scenario.badge}</span>
-                    <span className="static-item-tool">{scenario.tool}</span>
-                    <span className="static-item-latency">{scenario.latencyDisplay} ({scenario.latencyKind})</span>
-                  </div>
-                  <p className="static-item-reason">{scenario.reason}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            /* Dynamic Visual Stage */
-            <div className="hero-gate-stage" role="img" aria-label={`Security interceptor demonstration showing ${activeScenario.name}`}>
-              {/* Luminous Gate Boundary Line */}
-              <div className="gate-boundary-line" aria-hidden="true">
-                <div className="gate-line-glow" />
-                <span className="gate-marker gate-marker-top">GATE</span>
-                <span className="gate-marker gate-marker-bottom">INTERCEPT</span>
+                  <span className="tab-indicator" />
+                  <span className="tab-name">{scenario.name}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 3-Stage Architecture Pipeline Visual */}
+          <div className="console-pipeline" aria-hidden="true">
+            {/* Stage 1: Workload Agent */}
+            <div className="pipeline-node node-agent">
+              <div className="node-icon-wrap">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="11" width="18" height="10" rx="3" />
+                  <circle cx="12" cy="5" r="2" />
+                  <path d="M12 7v4" />
+                  <line x1="8" y1="16" x2="8.01" y2="16" />
+                  <line x1="16" y1="16" x2="16.01" y2="16" />
+                </svg>
               </div>
-
-              {/* Travelling Tool Call Card */}
-              <div
-                key={activeScenario.id}
-                className={`gate-call-card ${activeScenario.verdict === 'permit' ? 'gate-permit' : 'gate-deny'}`}
-              >
-                <div className="gate-card-top">
-                  <div className="gate-card-identity">
-                    <span className="agent-badge">Agent: data-analyst-prod</span>
-                    <span className="tool-name">{activeScenario.tool}</span>
-                  </div>
-                  <span className={`verdict-pill ${activeScenario.verdict}`}>
-                    {activeScenario.verdict === 'permit' ? 'PERMIT' : 'BLOCKED'}
-                  </span>
-                </div>
-
-                <div className="gate-card-body">
-                  <div className="gate-payload-code">
-                    <code>{activeScenario.payloadSummary}</code>
-                  </div>
-                  <div className="gate-reason-text">
-                    <span className="gate-validator">{activeScenario.validator}</span>
-                    <span className="gate-detail">{activeScenario.reason}</span>
-                  </div>
-                </div>
-
-                <div className="gate-card-footer">
-                  <span className="gate-latency-badge">
-                    Latency: <strong>{activeScenario.latencyDisplay}</strong>
-                    <small className="latency-kind">({activeScenario.latencyKind})</small>
-                  </span>
-
-                  <Link
-                    href={`/playground?scenario=${activeScenario.id}`}
-                    className="gate-playground-link"
-                  >
-                    Run in Playground &rarr;
-                  </Link>
-                </div>
-              </div>
-
-              {/* Scenario Stepper Indicators */}
-              <div className="hero-gate-stepper" role="tablist" aria-label="Select scenario">
-                {GATE_SCENARIOS.map((scenario, index) => (
-                  <button
-                    key={scenario.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={index === currentIndex}
-                    aria-label={`Scenario ${index + 1}: ${scenario.name}`}
-                    className={`stepper-dot ${index === currentIndex ? 'active' : ''} ${scenario.verdict === 'permit' ? 'dot-permit' : 'dot-deny'}`}
-                    onClick={() => setCurrentIndex(index)}
-                  />
-                ))}
+              <div className="node-meta">
+                <span className="node-label">INBOUND WORKLOAD</span>
+                <strong className="node-id">{activeScenario.agentId ?? 'autonomous-agent'}</strong>
+                <span className="node-sub">tools/call: {activeScenario.tool}</span>
               </div>
             </div>
-          )}
+
+            {/* Connecting Beam 1 */}
+            <div className="pipeline-wire">
+              <div className="wire-track" />
+              <div className="wire-pulse pulse-forward" />
+              <span className="wire-tag">MCP WIRE</span>
+            </div>
+
+            {/* Stage 2: Axiom Gate Boundary */}
+            <div className="pipeline-node node-gateway">
+              <div className="node-icon-wrap icon-gate">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2L3 7v6c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V7l-9-5z" />
+                  <path d="M12 8v8" />
+                  <path d="M8 12h8" />
+                </svg>
+              </div>
+              <div className="node-meta">
+                <span className="node-label">AXIOM BOUNDARY</span>
+                <strong className="node-id">{activeScenario.validator}</strong>
+                <span className="node-sub">AST &amp; Cedar Evaluator</span>
+              </div>
+            </div>
+
+            {/* Connecting Beam 2 */}
+            <div className={`pipeline-wire ${activeScenario.verdict === 'permit' ? 'wire-permitted' : 'wire-blocked'}`}>
+              <div className="wire-track" />
+              <div className={`wire-pulse ${activeScenario.verdict === 'permit' ? 'pulse-forward' : 'pulse-blocked'}`} />
+              <span className="wire-tag">{activeScenario.verdict === 'permit' ? 'AUTHORIZED' : 'SEVERED'}</span>
+            </div>
+
+            {/* Stage 3: Target Resource & Verdict */}
+            <div className={`pipeline-node node-target ${activeScenario.verdict === 'permit' ? 'target-permitted' : 'target-blocked'}`}>
+              <div className="node-icon-wrap icon-target">
+                {activeScenario.verdict === 'permit' ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                  </svg>
+                )}
+              </div>
+              <div className="node-meta">
+                <span className="node-label">TARGET RESOURCE</span>
+                <strong className="node-id">{activeScenario.targetResource ?? 'Protected Resource'}</strong>
+                <span className={`verdict-tag ${activeScenario.verdict}`}>
+                  {activeScenario.verdict === 'permit' ? 'PERMITTED' : 'BLOCKED INLINE'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Code & Policy Inspection Split-Deck */}
+          <div className="console-inspector-grid">
+            {/* Left: Tool Call Arguments */}
+            <div className="inspector-panel">
+              <div className="panel-header">
+                <span className="panel-badge">INSPECTED ARGUMENTS</span>
+                <span className="panel-lang">AST PARSER</span>
+              </div>
+              <div className="panel-body">
+                <pre className="code-display">
+                  <code>{activeScenario.payloadSummary}</code>
+                </pre>
+              </div>
+            </div>
+
+            {/* Right: Cedar Policy Rule */}
+            <div className={`inspector-panel ${activeScenario.verdict === 'permit' ? 'border-permit' : 'border-deny'}`}>
+              <div className="panel-header">
+                <span className="panel-badge">CEDAR 3.X POLICY</span>
+                <span className={`verdict-mini-badge ${activeScenario.verdict}`}>
+                  {activeScenario.verdict === 'permit' ? 'ALLOW' : 'FORBID'}
+                </span>
+              </div>
+              <div className="panel-body">
+                <pre className="code-display policy-display">
+                  <code>{activeScenario.cedarRule ?? activeScenario.reason}</code>
+                </pre>
+                <p className="policy-explanation">
+                  <span className="bullet">&bull;</span> {activeScenario.reason}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Console Bottom Action Bar */}
+          <div className="console-footer-bar">
+            <div className="footer-metric">
+              <span className="metric-dot" />
+              <span>Inline Wire Latency: <strong>{activeScenario.latencyDisplay}</strong></span>
+              <span className="metric-tag">({activeScenario.latencyKind})</span>
+              <span className="metric-sep">&bull;</span>
+              <span className="fail-closed-note">Fail-Closed on Outage</span>
+            </div>
+
+            <Link
+              href={`/playground?scenario=${activeScenario.id}`}
+              className="console-playground-cta"
+            >
+              <span>Simulate in Playground</span>
+              <span aria-hidden="true">&rarr;</span>
+            </Link>
+          </div>
         </div>
       </div>
     </section>
   );
 }
+

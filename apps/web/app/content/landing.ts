@@ -34,6 +34,9 @@ export interface GateScenario {
   latencyDisplay: string;
   latencyKind: 'target' | 'measured' | 'simulated';
   validator: string;
+  agentId?: string;
+  targetResource?: string;
+  cedarRule?: string;
 }
 
 export interface StoryStep {
@@ -95,7 +98,7 @@ export const HERO_COPY: HeroCopy = {
 export const GATE_SCENARIOS: GateScenario[] = [
   {
     id: "sql-ast-drop",
-    name: "SQL AST Guard",
+    name: "SQL Injection Guard",
     tool: "postgres_query",
     verdict: "deny",
     badge: "BLOCKED · SQL AST",
@@ -103,11 +106,29 @@ export const GATE_SCENARIOS: GateScenario[] = [
     payloadSummary: "DROP TABLE production_customers CASCADE;",
     latencyDisplay: "< 5 ms",
     latencyKind: "target",
-    validator: "Team 4 SQL AST Engine",
+    validator: "Axiom AST SQL Validator",
+    agentId: "autonomous-finops-agent",
+    targetResource: "mcp://prod-db (PostgreSQL)",
+    cedarRule: 'forbid (principal is Axiom::Agent, action == "execute_sql") when { context.sql_verb == "DROP" };',
+  },
+  {
+    id: "ssrf-egress",
+    name: "Cloud Metadata SSRF",
+    tool: "http_fetch",
+    verdict: "deny",
+    badge: "BLOCKED · SSRF GUARD",
+    reason: "Cloud metadata endpoint (169.254.169.254) egress blocked inline",
+    payloadSummary: "http://169.254.169.254/latest/meta-data/iam/security-credentials/",
+    latencyDisplay: "< 5 ms",
+    latencyKind: "target",
+    validator: "Axiom Egress DNS & IP Firewall",
+    agentId: "web-researcher-bot",
+    targetResource: "http://169.254.169.254",
+    cedarRule: 'forbid (principal, action, resource) when { context.dest_ip in ["169.254.169.254", "127.0.0.1"] };',
   },
   {
     id: "path-traversal",
-    name: "Path Traversal Guard",
+    name: "Filesystem Sandbox",
     tool: "read_file",
     verdict: "deny",
     badge: "BLOCKED · PATH GUARD",
@@ -115,23 +136,14 @@ export const GATE_SCENARIOS: GateScenario[] = [
     payloadSummary: "../../etc/passwd",
     latencyDisplay: "< 5 ms",
     latencyKind: "target",
-    validator: "Team 4 Path Sanitizer",
-  },
-  {
-    id: "ssrf-egress",
-    name: "Egress SSRF Guard",
-    tool: "http_fetch",
-    verdict: "deny",
-    badge: "BLOCKED · SSRF GUARD",
-    reason: "Cloud metadata endpoint (169.254.169.254) egress blocked",
-    payloadSummary: "http://169.254.169.254/latest/meta-data/iam/security-credentials/",
-    latencyDisplay: "< 5 ms",
-    latencyKind: "target",
-    validator: "Team 4 IP / DNS Guard",
+    validator: "Axiom Path Sanitizer & Sandbox",
+    agentId: "code-review-worker",
+    targetResource: "mcp://local-filesystem",
+    cedarRule: 'forbid (principal, action == "read_file") when { context.path.contains("..") || context.path.startsWith("/etc") };',
   },
   {
     id: "tool-pinning",
-    name: "Tool Pinning Guard",
+    name: "Cryptographic Tool Pin",
     tool: "bash_exec",
     verdict: "deny",
     badge: "BLOCKED · UNPINNED TOOL",
@@ -139,7 +151,10 @@ export const GATE_SCENARIOS: GateScenario[] = [
     payloadSummary: "tools/call: bash_exec@v2.4.1 (expected pin: v2.4.0-hardened)",
     latencyDisplay: "< 5 ms",
     latencyKind: "target",
-    validator: "Team 4 Tool Attestation Gate",
+    validator: "Axiom Cryptographic Tool Pinning Gate",
+    agentId: "devops-remediation-runner",
+    targetResource: "mcp://system-bash",
+    cedarRule: 'permit (principal, action, resource) when { context.tool_binary_sha256 == resource.expected_sha256 };',
   },
   {
     id: "github-read",
@@ -151,7 +166,10 @@ export const GATE_SCENARIOS: GateScenario[] = [
     payloadSummary: "{ owner: 'axiom-nhi', repo: 'core', state: 'open' }",
     latencyDisplay: "< 5 ms",
     latencyKind: "target",
-    validator: "Cedar Policy Engine",
+    validator: "Cedar 3.x Scoped RBAC Engine",
+    agentId: "pr-summarizer-agent",
+    targetResource: "mcp://github-api",
+    cedarRule: 'permit (principal is Axiom::Agent, action == "pull:read", resource is Axiom::Repo);',
   },
   {
     id: "s3-audit-read",
@@ -163,7 +181,10 @@ export const GATE_SCENARIOS: GateScenario[] = [
     payloadSummary: "s3://axiom-telemetry-us-east-1/audits/2026/11/report.parquet",
     latencyDisplay: "< 5 ms",
     latencyKind: "target",
-    validator: "Cedar Policy Engine",
+    validator: "Cedar 3.x & Ephemeral Vault Broker",
+    agentId: "compliance-exporter",
+    targetResource: "s3://axiom-telemetry-us-east-1",
+    cedarRule: 'permit (principal has spiffe_tag, action == "s3:GetObject", resource in Axiom::Bucket::"telemetry");',
   },
 ];
 

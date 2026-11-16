@@ -52,7 +52,12 @@ export function ProofStrip() {
         {/* Row 2: Verification Badges */}
         <div className="proof-badges-row">
           <div className="proof-badge">
-            <span className="badge-icon">⚖️</span>
+            <span className="badge-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ color: 'var(--brand-cyan)' }}>
+                <polyline points="16 18 22 12 16 6" />
+                <polyline points="8 6 2 12 8 18" />
+              </svg>
+            </span>
             <div className="badge-text">
               <strong>Apache-2.0 Open Core</strong>
               <small>Runtime gateway, Cedar engine &amp; CLI</small>
@@ -60,7 +65,12 @@ export function ProofStrip() {
           </div>
 
           <div className="proof-badge">
-            <span className="badge-icon">🛡️</span>
+            <span className="badge-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ color: 'var(--state-enforce)' }}>
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <polyline points="9 12 11 14 15 10" />
+              </svg>
+            </span>
             <div className="badge-text">
               <strong>OWASP NHI &amp; MCP Top 10</strong>
               <small>Automated AST &amp; egress rule coverage</small>
@@ -68,7 +78,13 @@ export function ProofStrip() {
           </div>
 
           <div className="proof-badge">
-            <span className="badge-icon">👁️</span>
+            <span className="badge-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ color: 'var(--brand-purple)' }}>
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 8v8" />
+                <path d="M8 12h8" />
+              </svg>
+            </span>
             <div className="badge-text">
               <strong>WCAG 2.1 AA Tokens</strong>
               <small>Verified in automated CI pipeline</small>

@@ -15,7 +15,7 @@ const SAMPLE_DISCOVER_IDENTITIES = [
     id: 'id-01',
     name: 'agent:data-analyst-prod',
     kind: 'Autonomous Agent',
-    icon: '🤖',
+    iconType: 'agent',
     owner: 'data-eng@axiom.security',
     tools: ['postgres_query', 's3_get_object'],
     confidence: '98% (High)',
@@ -25,7 +25,7 @@ const SAMPLE_DISCOVER_IDENTITIES = [
     id: 'id-02',
     name: 'app:github-copilot-workspace',
     kind: 'GitHub App Installation',
-    icon: '🐙',
+    iconType: 'github',
     owner: 'platform-team@axiom.security',
     tools: ['github_list_prs', 'git_commit'],
     confidence: '99% (Attested)',
@@ -35,7 +35,7 @@ const SAMPLE_DISCOVER_IDENTITIES = [
     id: 'id-03',
     name: 'sa:cluster-autoscaler-eu',
     kind: 'K8s Service Account',
-    icon: '☸️',
+    iconType: 'k8s',
     owner: 'infra-sec@axiom.security',
     tools: ['k8s_scale_nodes'],
     confidence: '94% (Attested)',
@@ -45,7 +45,7 @@ const SAMPLE_DISCOVER_IDENTITIES = [
     id: 'id-04',
     name: 'bot:support-summarizer',
     kind: 'Slack Enterprise App',
-    icon: '💬',
+    iconType: 'slack',
     owner: 'c-support@axiom.security',
     tools: ['slack_post_message', 'zendesk_read'],
     confidence: '88% (Heuristic)',
@@ -110,7 +110,42 @@ export function StoryScroll() {
               <tr key={item.id}>
                 <td>
                   <div className="identity-cell">
-                    <span className="identity-icon">{item.icon}</span>
+                    <span className="identity-icon" aria-hidden="true">
+                      {item.iconType === 'agent' && (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--brand-cyan)' }}>
+                          <rect x="4" y="4" width="16" height="16" rx="2" />
+                          <rect x="9" y="9" width="6" height="6" />
+                          <line x1="9" y1="1" x2="9" y2="4" />
+                          <line x1="15" y1="1" x2="15" y2="4" />
+                          <line x1="9" y1="20" x2="9" y2="23" />
+                          <line x1="15" y1="20" x2="15" y2="23" />
+                          <line x1="20" y1="9" x2="23" y2="9" />
+                          <line x1="20" y1="14" x2="23" y2="14" />
+                          <line x1="1" y1="9" x2="4" y2="9" />
+                          <line x1="1" y1="14" x2="4" y2="14" />
+                        </svg>
+                      )}
+                      {item.iconType === 'github' && (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--state-enforce)' }}>
+                          <line x1="6" y1="3" x2="6" y2="15" />
+                          <circle cx="18" cy="6" r="3" />
+                          <circle cx="6" cy="18" r="3" />
+                          <path d="M18 9a9 9 0 0 1-9 9" />
+                        </svg>
+                      )}
+                      {item.iconType === 'k8s' && (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--brand-purple)' }}>
+                          <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                          <polyline points="2 17 12 22 22 17" />
+                          <polyline points="2 12 12 17 22 12" />
+                        </svg>
+                      )}
+                      {item.iconType === 'slack' && (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--state-warning)' }}>
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                      )}
+                    </span>
                     <div>
                       <strong>{item.name}</strong>
                       <small>{item.kind}</small>
