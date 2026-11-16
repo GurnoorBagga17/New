@@ -1,304 +1,115 @@
 // Copyright 2026 Axiom NHI — Licensed under Apache-2.0
-import { useState, useRef, useEffect } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 
-interface RevocationRecord {
-  id: string;
-  targetKind: "agent_id" | "mcp_session" | "global_fleet";
-  targetValue: string;
+type TargetKind = "global" | "mcp_server" | "agent" | "tool";
+interface RevocationEntry {
+  target_kind: TargetKind;
+  target_id: string;
+  revoked: boolean;
+  state_version: number;
+  effective_unix_ms: number;
   reason: string;
-  revokedBy: string;
-  revokedAtUnix: number;
-  status: "ACTIVE_BLOCK" | "RESTORED";
+}
+interface RevocationResponse {
+  state_version: number;
+  revoked_count: number;
+  entries: RevocationEntry[];
 }
 
-const INITIAL_REVOCATIONS: RevocationRecord[] = [
-  {
-    id: "rev-01",
-    targetKind: "agent_id",
-    targetValue: "spiffe://axiom.internal/ns/sandbox/sa/temp-scrape-runner-x9",
-    reason: "Orphaned Shadow NHI detected without active corporate owner",
-    revokedBy: "secops-operator@corp.internal",
-    revokedAtUnix: Math.floor(Date.now() / 1000) - 3600,
-    status: "ACTIVE_BLOCK",
-  },
-];
-
-const TARGET_PRESETS = [
-  { label: "FinOps Agent", value: "spiffe://axiom.internal/ns/prod/sa/autonomous-finops-agent", kind: "agent_id" as const },
-  { label: "GitHub PR Bot", value: "spiffe://axiom.internal/ns/ci/sa/github-pr-review-bot", kind: "agent_id" as const },
-  { label: "Active FinOps Session", value: "sess-finops-prod-01", kind: "mcp_session" as const },
-  { label: "GLOBAL FLEET EMERGENCY HALT", value: "ALL_ACTIVE_WORKLOADS", kind: "global_fleet" as const },
-];
-
 export function KillSwitchPage() {
-  const [revocations, setRevocations] = useState<RevocationRecord[]>(INITIAL_REVOCATIONS);
-  const [selectedTarget, setSelectedTarget] = useState(TARGET_PRESETS[0]!.value);
-  const [targetKind, setTargetKind] = useState<"agent_id" | "mcp_session" | "global_fleet">("agent_id");
-  const [reason, setReason] = useState("Suspected AST command injection attempt");
-  const [operatorEmail, setOperatorEmail] = useState("secops-operator@corp.internal");
-  const [revocationSuccessToast, setRevocationSuccessToast] = useState<string | null>(null);
+  const [targetKind, setTargetKind] = useState<TargetKind>("agent");
+  const [targetId, setTargetId] = useState("");
+  const [reason, setReason] = useState("");
+  const [action, setAction] = useState<"revoke" | "clear">("revoke");
+  const [entries, setEntries] = useState<RevocationEntry[]>([]);
+  const [stateVersion, setStateVersion] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  // Hold-to-confirm button logic (1.5s press)
-  const [holdProgress, setHoldProgress] = useState(0);
-  const [isHolding, setIsHolding] = useState(false);
-  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const startHold = () => {
-    setIsHolding(true);
-    const startTime = Date.now();
-    const duration = 1500; // 1.5 seconds
-
-    holdTimerRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min((elapsed / duration) * 100, 100);
-      setHoldProgress(progress);
-
-      if (progress >= 100) {
-        clearInterval(holdTimerRef.current!);
-        setIsHolding(false);
-        setHoldProgress(0);
-        executeRevocation();
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch("/v1/local/revocations", {
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+        credentials: "same-origin",
+        redirect: "error",
+      });
+      if (!response.ok) throw new Error(`Revocation API returned HTTP ${response.status}.`);
+      const data = (await response.json()) as RevocationResponse;
+      if (!Array.isArray(data.entries) || typeof data.state_version !== "number") {
+        throw new Error("Revocation API response did not match the expected shape.");
       }
-    }, 30);
-  };
-
-  const cancelHold = () => {
-    if (holdTimerRef.current) {
-      clearInterval(holdTimerRef.current);
+      setEntries(data.entries);
+      setStateVersion(data.state_version);
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load revocation state.");
+    } finally {
+      setLoading(false);
     }
-    setIsHolding(false);
-    setHoldProgress(0);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (holdTimerRef.current) clearInterval(holdTimerRef.current);
-    };
   }, []);
 
-  const executeRevocation = async () => {
-    const newRecord: RevocationRecord = {
-      id: `rev-${Date.now()}`,
-      targetKind,
-      targetValue: selectedTarget,
-      reason,
-      revokedBy: operatorEmail,
-      revokedAtUnix: Math.floor(Date.now() / 1000),
-      status: "ACTIVE_BLOCK",
-    };
+  useEffect(() => { void refresh(); }, [refresh]);
 
-    // Try posting to local admin API server if running, else update state directly
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    setNotice(null);
     try {
-      await fetch(`/v1/local/sessions/${encodeURIComponent(selectedTarget)}/revoke`, {
+      const response = await fetch("/v1/local/revocations", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reason,
-          revoked_by: operatorEmail,
-        }),
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ action, target_kind: targetKind, target_id: targetKind === "global" ? "*" : targetId, reason }),
+        cache: "no-store",
+        credentials: "same-origin",
+        redirect: "error",
       });
-    } catch {
-      // Local fallback
+      const result = (await response.json()) as { status?: string; state_version?: number; persisted?: boolean; audit_enqueued?: boolean; message?: string };
+      if (!response.ok) throw new Error(result.message || `Revocation API returned HTTP ${response.status}.`);
+      const storage = result.persisted ? "saved to persistent state" : "updated in memory; persistence was not confirmed";
+      const audit = result.audit_enqueued ? "audit record queued" : "audit queue did not confirm delivery";
+      setNotice(`${result.status === "already_in_desired_state" ? "No change was needed" : action === "revoke" ? "Revocation applied" : "Revocation cleared"} · version ${result.state_version} · ${storage} · ${audit}.`);
+      setTargetId("");
+      setReason("");
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Revocation request failed.");
+    } finally {
+      setSubmitting(false);
     }
-
-    setRevocations((prev) => [newRecord, ...prev]);
-    setRevocationSuccessToast(`Revocation enacted for ${selectedTarget}. Sub-100ms kill confirmed.`);
-    setTimeout(() => setRevocationSuccessToast(null), 5000);
-  };
-
-  const handleRestore = (id: string) => {
-    setRevocations((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: "RESTORED" } : r))
-    );
-  };
+  }
 
   return (
     <div className="space-y-6">
-      {/* Top Banner & Header */}
-      <div className="flex flex-col justify-between gap-4 border-b border-border-subtle pb-5 sm:flex-row sm:items-center">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-semibold uppercase tracking-wider text-state-deny">
-              EMERGENCY CONTAINMENT &bull; SUB-100MS WIRE HALT
-            </span>
-            <span className="inline-flex items-center rounded-full border border-state-deny/40 bg-state-deny-tint px-2 py-0.5 font-mono text-[10px] text-state-deny">
-              API: /v1/local/sessions/:id/revoke
-            </span>
-          </div>
-          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-text-primary">
-            Emergency Kill Switch &amp; Workload Containment
-          </h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Enforces immediate cryptographic session severance across Envoy proxy sidecars. Revocations propagate fleet-wide in sub-100ms via SSE broadcast.
-          </p>
-        </div>
-      </div>
+      <header className="border-b border-border-subtle pb-5">
+        <p className="font-mono text-[10px] uppercase tracking-wider text-brand-cyan">EMERGENCY CONTAINMENT · RUNTIME API</p>
+        <h1 className="mt-1 font-display text-2xl font-bold text-text-primary">Revocation controls</h1>
+        <p className="mt-1 text-sm text-text-secondary">Revocations block new protected calls in the shared runtime store. They do not cancel work already in progress.</p>
+      </header>
 
-      {revocationSuccessToast && (
-        <div className="flex items-center justify-between rounded-card border border-state-deny/50 bg-state-deny-tint p-4 text-xs font-mono text-state-deny">
-          <div className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-state-deny animate-ping" />
-            <span>{revocationSuccessToast}</span>
-          </div>
-          <button type="button" onClick={() => setRevocationSuccessToast(null)}>
-            &times;
-          </button>
-        </div>
-      )}
+      {error && <div role="alert" className="rounded-card border border-state-deny/40 bg-state-deny-tint/10 p-3 text-sm text-state-deny">{error}</div>}
+      {notice && <div role="status" className="rounded-card border border-state-enforce/40 bg-state-enforce-tint/10 p-3 text-sm text-state-enforce">{notice}</div>}
 
-      {/* Target Selector & Two-Step Hold-to-Revoke Section */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <div className="space-y-4 lg:col-span-6">
-          <div className="rounded-card border border-state-deny/30 bg-surface-1 p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-xs font-bold uppercase tracking-wider text-state-deny">
-                ARM REVOCATION PAYLOAD
-              </span>
-              <span className="rounded bg-surface-3 px-2 py-0.5 font-mono text-[10px] text-text-muted">
-                SAFETY-LATCH ENGAGED
-              </span>
-            </div>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+        <form onSubmit={submit} className="space-y-4 rounded-card border border-state-deny/40 bg-surface-1 p-5">
+          <div><p className="font-mono text-[9px] uppercase tracking-wider text-state-deny">REVOCATION REQUEST</p><h2 className="mt-2 font-display text-lg font-semibold text-text-primary">Choose scope and document why.</h2></div>
+          <label className="block text-xs text-text-secondary">Target scope<select value={targetKind} onChange={(event) => setTargetKind(event.target.value as TargetKind)} className="mt-1 w-full rounded-input border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-primary"><option value="agent">Agent identity</option><option value="mcp_server">MCP server</option><option value="tool">Tool (server/tool)</option><option value="global">Global runtime</option></select></label>
+          {targetKind !== "global" && <label className="block text-xs text-text-secondary">Target ID<input required value={targetId} onChange={(event) => setTargetId(event.target.value)} placeholder={targetKind === "tool" ? "mcp://prod-db/query" : targetKind === "mcp_server" ? "mcp://prod-db" : "agent subject ID"} className="mt-1 w-full rounded-input border border-border-subtle bg-surface-2 px-3 py-2 font-mono text-xs text-text-primary placeholder:text-text-muted" /></label>}
+          <label className="block text-xs text-text-secondary">Operator reason<textarea required minLength={1} maxLength={2048} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Describe the observed risk and intended scope." className="mt-1 min-h-28 w-full rounded-input border border-border-subtle bg-surface-2 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted" /></label>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-4"><label className="flex items-center gap-2 text-xs text-text-secondary">Action<select value={action} onChange={(event) => setAction(event.target.value as "revoke" | "clear")} className="rounded-input border border-border-subtle bg-surface-2 px-2 py-1.5 text-xs text-text-primary"><option value="revoke">Revoke</option><option value="clear">Clear revocation</option></select></label><button disabled={submitting} className="rounded-input border border-state-deny/50 bg-state-deny-tint/20 px-4 py-2 text-xs font-semibold text-state-deny disabled:cursor-wait disabled:opacity-50">{submitting ? "Applying…" : action === "revoke" ? "Apply revocation" : "Clear revocation"}</button></div>
+          <p className="text-[10px] text-text-muted">Requests are authorized by the local admin bearer token. Operator identity comes from the runtime configuration, not this form.</p>
+        </form>
 
-            <div className="mt-5 space-y-4">
-              <div>
-                <label className="block font-mono text-xs text-text-muted">Target Preset</label>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {TARGET_PRESETS.map((preset) => (
-                    <button
-                      key={preset.value}
-                      type="button"
-                      onClick={() => {
-                        setSelectedTarget(preset.value);
-                        setTargetKind(preset.kind);
-                      }}
-                      className={`rounded-input border p-2 text-left transition ${
-                        selectedTarget === preset.value
-                          ? "border-state-deny bg-state-deny-tint/20 text-text-primary font-semibold"
-                          : "border-border-subtle bg-surface-2 text-text-secondary hover:border-border-strong"
-                      }`}
-                    >
-                      <div className="font-mono text-xs">{preset.label}</div>
-                      <div className="truncate font-mono text-[10px] text-text-muted">{preset.value}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-mono text-xs text-text-muted">Custom Target Identifier</label>
-                <input
-                  type="text"
-                  value={selectedTarget}
-                  onChange={(e) => setSelectedTarget(e.target.value)}
-                  className="mt-1 w-full rounded-input border border-border-subtle bg-surface-2 px-3 py-2 font-mono text-xs text-text-primary focus:border-state-deny focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block font-mono text-xs text-text-muted">Revocation Reason (Scrubbed)</label>
-                <input
-                  type="text"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  className="mt-1 w-full rounded-input border border-border-subtle bg-surface-2 px-3 py-2 font-mono text-xs text-text-primary focus:border-state-deny focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block font-mono text-xs text-text-muted">Authorized SecOps Operator</label>
-                <input
-                  type="text"
-                  value={operatorEmail}
-                  onChange={(e) => setOperatorEmail(e.target.value)}
-                  className="mt-1 w-full rounded-input border border-border-subtle bg-surface-2 px-3 py-2 font-mono text-xs text-text-primary focus:border-state-deny focus:outline-none"
-                />
-              </div>
-            </div>
-
-            {/* Two-step Hold Button */}
-            <div className="mt-8 border-t border-border-subtle pt-6">
-              <p className="font-mono text-xs text-text-muted text-center mb-3">
-                PRESS AND HOLD 1.5 SECONDS TO EXECUTE REVOCATION
-              </p>
-              <div className="relative overflow-hidden rounded-input">
-                {/* Hold progress fill */}
-                <div
-                  className="absolute inset-0 bg-state-deny transition-all duration-75"
-                  style={{ width: `${holdProgress}%` }}
-                />
-                <button
-                  type="button"
-                  onMouseDown={startHold}
-                  onMouseUp={cancelHold}
-                  onMouseLeave={cancelHold}
-                  onTouchStart={startHold}
-                  onTouchEnd={cancelHold}
-                  className="relative z-10 w-full select-none border border-state-deny bg-state-deny-tint/40 py-3.5 font-mono text-xs font-bold text-state-deny transition active:scale-[0.99]"
-                >
-                  {isHolding
-                    ? `HOLDING... ${Math.round(holdProgress)}%`
-                    : "PRESS & HOLD TO HALT TARGET"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Active Blocks Audit Table */}
-        <div className="space-y-4 lg:col-span-6">
-          <div className="rounded-card border border-border-subtle bg-surface-1 p-5 shadow-sm">
-            <span className="font-mono text-xs font-semibold uppercase tracking-wider text-text-muted">
-              ACTIVE REVOCATION LOG ({revocations.length})
-            </span>
-            <div className="mt-4 space-y-3">
-              {revocations.map((rev) => (
-                <div
-                  key={rev.id}
-                  className={`rounded-card border p-4 transition ${
-                    rev.status === "ACTIVE_BLOCK"
-                      ? "border-state-deny/40 bg-state-deny-tint/10"
-                      : "border-border-subtle bg-surface-2 opacity-60"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-text-primary">
-                      {rev.targetValue.split("/").pop()}
-                    </span>
-                    <span
-                      className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-bold ${
-                        rev.status === "ACTIVE_BLOCK"
-                          ? "bg-state-deny-tint text-state-deny"
-                          : "bg-surface-3 text-text-muted"
-                      }`}
-                    >
-                      {rev.status}
-                    </span>
-                  </div>
-
-                  <p className="mt-1 break-all font-mono text-[10px] text-text-muted">
-                    {rev.targetValue}
-                  </p>
-                  <p className="mt-2 text-xs text-text-secondary leading-relaxed">
-                    Reason: {rev.reason}
-                  </p>
-
-                  <div className="mt-3 flex items-center justify-between border-t border-border-subtle pt-2 font-mono text-[10px] text-text-muted">
-                    <span>Operator: {rev.revokedBy}</span>
-                    {rev.status === "ACTIVE_BLOCK" && (
-                      <button
-                        type="button"
-                        onClick={() => handleRestore(rev.id)}
-                        className="rounded border border-border-subtle bg-surface-2 px-2 py-1 font-semibold text-text-primary transition hover:bg-surface-3"
-                      >
-                        RESTORE ACCESS
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <section className="rounded-card border border-border-subtle bg-surface-1 p-5" aria-labelledby="revocations-heading">
+          <div className="flex items-center justify-between gap-3"><div><p className="font-mono text-[9px] uppercase tracking-wider text-brand-cyan">LIVE RUNTIME STATE</p><h2 id="revocations-heading" className="mt-1 font-display text-lg font-semibold text-text-primary">Revocation entries</h2></div><button type="button" onClick={() => void refresh()} className="rounded-input border border-border-subtle bg-surface-2 px-3 py-1.5 text-xs text-text-secondary">Refresh</button></div>
+          <p className="mt-2 font-mono text-[10px] text-text-muted">{stateVersion === null ? "State version unavailable" : `State version ${stateVersion}`}</p>
+          {loading ? <p className="mt-6 text-sm text-text-muted">Loading runtime state…</p> : entries.length === 0 ? <p className="mt-6 rounded-input border border-border-subtle bg-surface-2 p-4 text-sm text-text-secondary">No revocation records are stored.</p> : <div className="mt-4 space-y-3">{[...entries].reverse().map((entry) => <article key={`${entry.target_kind}:${entry.target_id}`} className={`rounded-input border p-4 ${entry.revoked ? "border-state-deny/40 bg-state-deny-tint/5" : "border-border-subtle bg-surface-2 opacity-75"}`}><div className="flex items-center justify-between gap-3"><span className="font-mono text-[9px] uppercase tracking-wider text-text-muted">{entry.target_kind} · v{entry.state_version}</span><span className={`rounded-full border px-2 py-0.5 font-mono text-[9px] ${entry.revoked ? "border-state-deny/40 text-state-deny" : "border-state-enforce/40 text-state-enforce"}`}>{entry.revoked ? "ACTIVE BLOCK" : "CLEARED"}</span></div><p className="mt-2 break-all font-mono text-xs text-text-primary">{entry.target_id}</p><p className="mt-2 text-xs text-text-secondary">{entry.reason}</p><time className="mt-2 block font-mono text-[9px] text-text-muted">{new Date(entry.effective_unix_ms).toLocaleString()}</time></article>)}</div>}
+          <p className="mt-4 text-[10px] leading-relaxed text-text-muted">This control blocks new calls observed by this runtime instance. It does not revoke upstream credentials or terminate in-flight MCP calls.</p>
+        </section>
       </div>
     </div>
   );

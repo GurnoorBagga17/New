@@ -12724,3 +12724,56 @@ body {
   font-family: var(--typography-font-family-mono, monospace);
   color: var(--text-muted);
 }
+
+/* Axiom product redesign */
+.axiom-site { --axiom-bg:var(--bg-canvas); --axiom-panel:var(--bg-surface-1); --axiom-panel-raised:var(--bg-surface-2); --axiom-border:var(--border-subtle); --axiom-muted:var(--text-muted); --axiom-cyan:var(--brand-cyan); --axiom-orange:var(--brand-orange); background:var(--axiom-bg); color:var(--text-primary); }
+.axiom-site .site-header { position:sticky; top:0; z-index:20; background:rgba(7,9,13,.94); border-bottom:1px solid var(--axiom-border); backdrop-filter:blur(16px); }
+.axiom-site .header-inner { min-height:64px; display:flex; align-items:center; justify-content:space-between; gap:28px; }
+.axiom-wordmark { display:flex; align-items:center; gap:9px; text-decoration:none; font-size:13px; letter-spacing:.04em; color:var(--text-primary); }
+.axiom-mark { display:grid; place-items:center; width:24px; height:24px; border-radius:6px; background:var(--axiom-orange); color:var(--bg-canvas); font-weight:800; }
+.axiom-site .site-nav { display:flex; align-items:center; gap:25px; }
+.axiom-site .site-nav a { color:var(--text-secondary); text-decoration:none; font-size:12px; transition:color .15s; }
+.axiom-site .site-nav a:hover { color:var(--text-primary); }
+.axiom-header-tag,.axiom-card-kicker i { color:var(--axiom-cyan); font:600 9px var(--font-mono,monospace); letter-spacing:.08em; border:1px solid var(--brand-cyan-dim, rgba(0,229,255,0.3)); background:rgba(0,229,255,0.08); border-radius:99px; padding:5px 12px; text-decoration:none; font-style:normal; white-space:nowrap; }
+.axiom-home { max-width:1280px; margin:auto; padding:76px 32px 90px; }
+.axiom-hero { display:grid; grid-template-columns:1fr 1fr; gap:64px; align-items:center; padding:45px 0 92px; }
+.axiom-home .eyebrow { color:var(--axiom-cyan); font:600 9px var(--font-mono,monospace); letter-spacing:.1em; margin:0 0 18px; }
+.axiom-home h1 { font-size:clamp(42px,5.3vw,68px); line-height:1.08; letter-spacing:-.045em; margin:0; max-width:700px; }
+.axiom-lede { max-width:540px; color:var(--text-secondary); font-size:15px; line-height:1.7; margin:24px 0 29px; }
+.axiom-actions { display:flex; gap:12px; }
+.axiom-button { display:inline-flex; min-height:42px; align-items:center; justify-content:center; border:1px solid var(--axiom-border); background:var(--bg-surface-3); border-radius:6px; padding:0 18px; color:var(--text-primary); font-size:12px; font-weight:600; text-decoration:none; }
+.axiom-button.primary { color:var(--bg-canvas); background:var(--axiom-orange); border-color:var(--axiom-orange); }
+.axiom-meta { margin-top:22px; color:var(--text-muted); font:9px var(--font-mono,monospace); letter-spacing:.07em; }.axiom-meta span{padding:0 5px;color:var(--border-strong)}
+.axiom-gate-card,.axiom-step,.axiom-guardrails,.axiom-quickstart { border:1px solid var(--axiom-border); background:var(--axiom-panel); border-radius:10px; }
+.axiom-gate-card { padding:22px 20px 18px; position:relative; overflow:hidden; }
+.axiom-card-kicker { display:flex; justify-content:space-between; align-items:center; color:var(--axiom-cyan); font:600 9px var(--font-mono,monospace); letter-spacing:.08em; margin-bottom:38px; }
+.axiom-card-kicker i { font-size:8px; }
+.axiom-gate-axis { color:var(--text-muted); font:9px var(--font-mono,monospace); padding-bottom:12px; display:flex; justify-content:space-between; }
+.axiom-gate-axis span { position:absolute; left:50%; top:61px; color:var(--axiom-cyan); font-size:8px; }
+.axiom-call-row { display:flex; align-items:center; gap:12px; min-height:62px; border:1px solid var(--border-subtle); background:var(--bg-surface-2); padding:10px 12px; margin-top:10px; border-radius:6px; }
+.axiom-call-row>small { color:var(--text-muted); font:9px var(--font-mono,monospace); }.axiom-call-row div { display:grid; gap:5px; min-width:0; flex:1; }.axiom-call-row b { font:600 11px var(--font-mono,monospace); }.axiom-call-row code { color:var(--text-secondary); font-size:9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.axiom-call-row strong { min-width:88px; text-align:center; border:1px solid currentColor; border-radius:99px; padding:4px 8px; font:600 8px var(--font-mono,monospace); }.axiom-call-row .deny { color:var(--state-deny); }.axiom-call-row .permit { color:var(--state-enforce); }
+.axiom-section { padding:4px 0 48px; }.axiom-section h2,.axiom-guardrails h2,.axiom-quickstart h2 { font-size:clamp(23px,3vw,32px); letter-spacing:-.03em; margin:0 0 20px; }
+.axiom-step-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }.axiom-step { padding:22px 20px; min-height:158px; }.axiom-step .orange { color:var(--axiom-orange); margin-bottom:18px; }.axiom-step h3 { font-size:15px; line-height:1.45; margin:0; font-weight:600; }.axiom-step-tags { color:var(--text-muted); font:9px var(--font-mono,monospace); margin:22px 0 0; }
+.axiom-guardrails { display:grid; grid-template-columns:1fr 1fr; gap:50px; padding:28px; margin-top:28px; }.axiom-guardrails p:not(.eyebrow),.axiom-quickstart p:not(.eyebrow) { color:var(--text-secondary); line-height:1.6; font-size:12px; max-width:440px; }.axiom-process { display:grid; gap:10px; }.axiom-process>div { display:flex; gap:14px; align-items:flex-start; background:var(--bg-surface-2); border:1px solid var(--border-subtle); border-radius:6px; padding:14px; }.axiom-process b { color:var(--axiom-cyan); font:9px var(--font-mono,monospace); }.axiom-process span { display:grid; gap:5px; }.axiom-process strong { font-size:12px; }.axiom-process small { color:var(--text-muted); font-size:10px; }
+.axiom-quickstart { display:flex; align-items:center; justify-content:space-between; gap:25px; margin-top:24px; padding:28px; background:var(--bg-surface-1); }.axiom-quickstart h2 { font-size:23px; margin-bottom:8px; }.axiom-quickstart .eyebrow { margin-bottom:10px; }.axiom-quickstart code { background:var(--bg-canvas); border:1px solid var(--border-subtle); border-radius:6px; padding:17px; color:var(--text-primary); font:11px var(--font-mono,monospace); white-space:nowrap; }
+.axiom-footer { border-top:1px solid var(--axiom-border); padding:25px 0; color:var(--text-muted); }.axiom-footer>div { display:flex; gap:20px; align-items:center; }.axiom-footer span,.axiom-footer nav a { color:var(--text-secondary); font:9px var(--font-mono,monospace); letter-spacing:.08em; }.axiom-footer nav { display:flex; gap:18px; }.axiom-footer a { text-decoration:none; }.axiom-footer small { margin-left:auto; font-size:9px; }
+@media(max-width:800px){.axiom-home{padding:45px 22px 60px}.axiom-hero{grid-template-columns:1fr;gap:35px;padding:30px 0 60px}.axiom-guardrails{grid-template-columns:1fr;gap:20px}.axiom-step-grid{grid-template-columns:1fr}.axiom-quickstart{align-items:flex-start;flex-direction:column}.axiom-site .site-nav{gap:12px}.axiom-site .site-nav a{font-size:10px}.axiom-header-tag{display:none}}
+@media(max-width:520px){.axiom-site .header-inner{gap:10px}.axiom-site .site-nav{gap:9px}.axiom-wordmark{font-size:11px}.axiom-mark{width:21px;height:21px}.axiom-home h1{font-size:43px}.axiom-call-row strong{min-width:70px}.axiom-footer>div{flex-wrap:wrap}.axiom-footer small{margin-left:0;width:100%}.axiom-footer nav{gap:10px}}
+
+/* Public route surfaces share the graphite runtime palette. */
+.docs-page,.benchmark-hub { color:var(--text-primary); padding-top:56px; padding-bottom:80px; }
+.docs-header,.benchmark-hub__header { max-width:850px; margin:0 0 34px; }
+.docs-header h1,.benchmark-hub__header h1 { font-size:clamp(30px,4vw,44px); line-height:1.12; letter-spacing:-.035em; }
+.docs-subtitle,.benchmark-hub__lede { color:var(--text-secondary); font-size:13px; line-height:1.65; }
+.docs-page .docs-badge { color:var(--brand-orange); font:9px var(--font-mono,monospace); }
+.docs-page .docs-content-container { display:block; min-width:0; }
+.docs-page .docs-cards-grid { position:sticky; top:78px; z-index:5; display:flex; gap:5px; overflow:auto; padding:8px; margin:20px 0 24px; background:var(--bg-surface-1); border:1px solid var(--border-subtle); border-radius:8px; }
+.docs-page .doc-topic-card { flex:0 0 auto; padding:9px 12px; border:0; background:transparent; text-decoration:none; }.docs-page .doc-topic-card h3 { display:block; margin:0; color:var(--text-secondary); font-size:11px; font-weight:500; white-space:nowrap; }.docs-page .doc-topic-card p,.docs-page .topic-tag,.docs-page .topic-arrow { display:none; }
+.docs-page .docs-section { max-width:900px; margin:0 0 24px; padding:25px; border:1px solid var(--border-subtle); border-radius:9px; background:var(--bg-surface-1); scroll-margin-top:150px; }
+.docs-page .docs-section h2 { color:var(--text-primary); font-size:21px; }.docs-page .section-prose,.docs-page .docs-section p { color:var(--text-secondary); font-size:12px; line-height:1.75; }.docs-page .docs-section code { color:var(--brand-cyan); }
+.docs-page .code-block-card,.docs-page .feature-bullet-card { background:var(--bg-canvas); border-color:var(--border-subtle); }.docs-page .docs-table { background:var(--bg-surface-1); color:var(--text-secondary); }
+.benchmark-hub__status,.benchmark-hub__card { background:var(--bg-surface-1)!important; border-color:var(--border-subtle)!important; }.benchmark-hub__status h2,.benchmark-hub__card h3 { color:var(--text-primary); }.benchmark-hub__status p,.benchmark-hub__card>p:last-child { color:var(--text-secondary); }
+.auth-page-wrap { min-height:100vh; padding:50px 20px; background:var(--bg-canvas); color:var(--text-primary); }
+.auth-card { border:1px solid var(--border-subtle); border-radius:10px; background:var(--bg-surface-1); box-shadow:none; }.auth-card-top h1 { color:var(--text-primary); }.auth-subtitle,.auth-security-note { color:var(--text-secondary); }.auth-back-link,.auth-forgot-link,.auth-accent-link { color:var(--brand-cyan); }.auth-brand-badge { color:var(--brand-orange); }.auth-input { border-color:var(--border-subtle); background:var(--bg-surface-2); color:var(--text-primary); }.auth-submit-btn { background:var(--brand-orange); color:var(--bg-canvas); }.auth-sso-btn { background:var(--bg-surface-3); color:var(--text-secondary); }.auth-status-msg { background:var(--bg-surface-2); border-color:var(--border-subtle); color:var(--brand-cyan); }
+@media(max-width:720px){.docs-page .docs-cards-grid{top:64px;gap:0}.docs-page .docs-section{padding:18px}.docs-page .doc-topic-card{padding:8px}.docs-page .doc-topic-card h3{display:block;font-size:10px;white-space:nowrap}}
