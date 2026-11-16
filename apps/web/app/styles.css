@@ -1,20 +1,39 @@
+@import "../../../docs/architecture/generated/tokens.css";
 
-/* The Gate Core Tokens */
-:root {
-  --gate-line: var(--brand-cyan, var(--brand-cyan));
+/* ==========================================================================
+   AXIOM NHI — Tactical Cybernetic Design System & Global Enterprise Landing
+   ========================================================================== */
+
+:root,
+:root[data-theme="dark"],
+html[data-theme="dark"],
+html.dark {
+  /* The Gate Visual Identity Tokens */
+  --gate-line: var(--brand-cyan);
   --gate-line-glow: rgba(0, 229, 255, 0.35);
-  --gate-permit: var(--state-enforce, var(--state-enforce));
-  --gate-permit-tint: var(--state-enforce-tint, rgba(16, 185, 129, 0.12));
-  --gate-deny: var(--state-deny, var(--state-deny));
-  --gate-deny-tint: var(--state-deny-tint, rgba(244, 63, 94, 0.14));
-  --gate-neutral: var(--text-muted, var(--text-muted));
+  --gate-permit: var(--state-enforce);
+  --gate-permit-tint: rgba(16, 185, 129, 0.15);
+  --gate-deny: var(--state-deny);
+  --gate-deny-tint: rgba(244, 63, 94, 0.15);
+  --gate-neutral: var(--text-muted);
   --gate-surface: var(--bg-surface-1);
   --gate-surface-elevated: var(--bg-surface-2);
   --gate-border: var(--border-subtle);
-  --gate-border-active: var(--border-strong, var(--border-strong));
+  --gate-border-active: var(--border-strong);
+
+  /* Fonts mapped to next/font CSS variables */
+  --font-ui: var(--font-sans, "Inter", -apple-system, BlinkMacSystemFont, sans-serif);
+  --font-mono: var(--font-mono, "JetBrains Mono", monospace);
+  --font-display: var(--font-display, "Space Grotesk", -apple-system, BlinkMacSystemFont, sans-serif);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-pill: 9999px;
+  color-scheme: dark;
 }
 
-@import "../../../docs/architecture/generated/tokens.css";
 /* ==========================================================================
 
    AXIOM NHI — Tactical Cybernetic Design System & Global Enterprise Landing
@@ -23,91 +42,7 @@
 
 
 
-:root,
 
-:root[data-theme="dark"],
-
-html[data-theme="dark"],
-
-html.dark {
-
-  --bg-canvas: var(--bg-canvas);
-
-  --bg-surface-1: var(--bg-surface-1);
-
-  --bg-surface-2: var(--bg-surface-2);
-
-  --bg-surface-3: var(--bg-surface-3);
-
-
-
-  --border-subtle: rgba(255, 255, 255, 0.07);
-
-  --border-medium: rgba(255, 255, 255, 0.12);
-
-  --border-strong: rgba(255, 255, 255, 0.22);
-
-  --border-glow-cyan: rgba(0, 229, 255, 0.4);
-
-
-
-  --text-primary: var(--text-primary);
-
-  --text-secondary: var(--text-secondary);
-
-  --text-muted: var(--text-muted);
-
-
-
-  --brand-cyan: var(--brand-cyan);
-
-  --brand-cyan-glow: rgba(0, 229, 255, 0.28);
-
-  --brand-cyan-dim: rgba(0, 229, 255, 0.08);
-
-
-
-  --brand-indigo: var(--brand-indigo);
-
-  --brand-indigo-glow: rgba(99, 102, 241, 0.2);
-
-
-
-  --state-enforce: var(--state-enforce);
-
-  --state-enforce-tint: rgba(16, 185, 129, 0.12);
-
-  --state-deny: var(--state-deny);
-
-  --state-deny-tint: rgba(244, 63, 94, 0.14);
-
-  --state-deny-glow: rgba(244, 63, 94, 0.4);
-
-  --state-warn: var(--state-pending);
-
-
-
-  --font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-
-  --font-mono: "JetBrains Mono", "Geist Mono", monospace;
-
-  --font-display: "Space Grotesk", -apple-system, BlinkMacSystemFont, sans-serif;
-
-
-
-  --radius-sm: 6px;
-
-  --radius-md: 10px;
-
-  --radius-lg: 14px;
-
-  --radius-xl: 18px;
-
-  --radius-pill: 9999px;
-
-  color-scheme: dark;
-
-}
 
 
 
@@ -145,9 +80,9 @@ body {
 
   background-color: var(--bg-canvas);
 
-  background-color: var(--bg-canvas, var(--bg-canvas));
+  background-color: var(--bg-canvas);
 
-  color: var(--text-primary, var(--text-primary));
+  color: var(--text-primary);
 
   font-family: var(--font-ui);
 
@@ -10900,13 +10835,13 @@ body {
 .cookie-title {
   font-size: 0.88rem;
   font-weight: 700;
-  color: var(--text-primary, var(--text-primary));
+  color: var(--text-primary);
 }
 
 .cookie-desc {
   font-size: 0.78rem;
   line-height: 1.45;
-  color: var(--text-secondary, var(--text-secondary));
+  color: var(--text-secondary);
 }
 
 .cookie-actions {
@@ -10927,12 +10862,12 @@ body {
 .cookie-btn-subtle {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-secondary, var(--text-secondary));
+  color: var(--text-secondary);
 }
 
 .cookie-btn-subtle:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary, var(--text-primary));
+  color: var(--text-primary);
 }
 
 .cookie-btn-primary {
@@ -10959,7 +10894,7 @@ body {
   padding: 40px 20px;
   background: radial-gradient(circle at 50% 15%, rgba(0, 229, 255, 0.08) 0%, transparent 60%),
               radial-gradient(circle at 85% 70%, rgba(99, 102, 241, 0.06) 0%, transparent 50%),
-              var(--bg-canvas, var(--bg-canvas));
+              var(--bg-canvas);
 }
 
 .auth-card {
@@ -10982,7 +10917,7 @@ body {
 .auth-back-link {
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--brand-cyan, var(--brand-cyan));
+  color: var(--brand-cyan);
   text-decoration: none;
   margin-bottom: 20px;
   display: inline-block;
@@ -11005,14 +10940,14 @@ body {
   font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.1em;
-  color: var(--brand-cyan, var(--brand-cyan));
+  color: var(--brand-cyan);
   text-transform: uppercase;
 }
 
 .auth-card-top h1 {
   font-size: 1.75rem;
   font-weight: 800;
-  color: var(--text-primary, var(--text-primary));
+  color: var(--text-primary);
   letter-spacing: -0.02em;
   margin-bottom: 8px;
 }
@@ -11020,7 +10955,7 @@ body {
 .auth-subtitle {
   font-size: 0.84rem;
   line-height: 1.5;
-  color: var(--text-secondary, var(--text-secondary));
+  color: var(--text-secondary);
 }
 
 .auth-form {
@@ -11038,7 +10973,7 @@ body {
 .auth-field label {
   font-size: 0.78rem;
   font-weight: 600;
-  color: var(--text-secondary, var(--text-secondary));
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -11051,7 +10986,7 @@ body {
 
 .auth-forgot-link {
   font-size: 0.75rem;
-  color: var(--brand-cyan, var(--brand-cyan));
+  color: var(--brand-cyan);
   text-decoration: none;
 }
 
@@ -11066,13 +11001,13 @@ body {
   background: rgba(18, 24, 40, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-md, 10px);
-  color: var(--text-primary, var(--text-primary));
+  color: var(--text-primary);
   outline: none;
   transition: all 0.2s ease;
 }
 
 .auth-input:focus {
-  border-color: var(--brand-cyan, var(--brand-cyan));
+  border-color: var(--brand-cyan);
   box-shadow: 0 0 16px rgba(0, 229, 255, 0.25);
   background: rgba(18, 24, 40, 0.95);
 }
@@ -11113,7 +11048,7 @@ body {
   align-items: center;
   text-align: center;
   margin: 22px 0 18px;
-  color: var(--text-muted, var(--text-muted));
+  color: var(--text-muted);
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -11148,7 +11083,7 @@ body {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-md, 10px);
-  color: var(--text-primary, var(--text-primary));
+  color: var(--text-primary);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -11168,11 +11103,11 @@ body {
 
 .auth-card-footer p {
   font-size: 0.8rem;
-  color: var(--text-secondary, var(--text-secondary));
+  color: var(--text-secondary);
 }
 
 .auth-accent-link {
-  color: var(--brand-cyan, var(--brand-cyan));
+  color: var(--brand-cyan);
   font-weight: 700;
   text-decoration: none;
 }
@@ -11187,7 +11122,7 @@ body {
   justify-content: center;
   gap: 6px;
   font-size: 0.72rem;
-  color: var(--text-muted, var(--text-muted));
+  color: var(--text-muted);
 }
 
 /* ==========================================================================
