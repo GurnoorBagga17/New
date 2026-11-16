@@ -1,6 +1,6 @@
 //! HTTPS egress URL validation with a host allowlist and DNS address checks.
 
-use std::{collections::BTreeSet, net::IpAddr};
+use std::{collections::BTreeSet, net::{IpAddr, SocketAddr}};
 
 use tokio::net::lookup_host;
 use url::Url;
@@ -180,5 +180,67 @@ mod tests {
         let facts = validator.validate("https://localhost").await;
         assert!(!facts.passed);
         assert!(facts.is_private_ip);
+    }
+}
+
+/// Validated, DNS-pinned outbound connection target (AX-013).
+/// Binds the TLS SNI hostname to the exact public `SocketAddr` list validated
+/// at policy time so the socket connector never re-resolves DNS (preventing DNS rebinding TOCTOU).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PinnedEgressConnectTarget {
+    pub sni_hostname: String,
+    pub port: u16,
+    pub pinned_addrs: Vec<SocketAddr>,
+}
+
+impl EgressValidator {
+    /// Resolves DNS once, validates that all returned addresses are public unicast IPs,
+    /// and returns a `PinnedEgressConnectTarget` for direct socket dialing without re-lookup.
+    pub async fn validate_and_pin(&self, input: &str) -> Result<PinnedEgressConnectTarget, EgressFacts> {
+        let Ok(url) = Url::parse(input) else {
+            return Err(failed(None, false, "INVALID_EGRESS_URL"));
+        };
+        if url.scheme() != "https" || url.username() != "" || url.password().is_some() {
+            return Err(failed(
+                url.host_str().map(str::to_owned),
+                false,
+                "EGRESS_SCHEME_OR_CREDENTIALS",
+            ));
+        }
+        let port = url.port().unwrap_or(443);
+        if port != 443 {
+            return Err(failed(
+                url.host_str().map(str::to_owned),
+                false,
+                "EGRESS_PORT_NOT_ALLOWED",
+            ));
+        }
+        let Some(host) = url.host_str() else {
+            return Err(failed(None, false, "EGRESS_HOST_MISSING"));
+        };
+        let normalized = host.trim_end_matches('.').to_ascii_lowercase();
+        if !self.host_is_allowed(&normalized) {
+            return Err(failed(Some(normalized), false, "EGRESS_HOST_NOT_ALLOWED"));
+        }
+
+        let pinned_addrs: Vec<SocketAddr> = match normalized.parse::<IpAddr>() {
+            Ok(ip) => vec![SocketAddr::new(ip, port)],
+            Err(_) => match lookup_host((normalized.as_str(), port)).await {
+                Ok(results) => results.collect(),
+                Err(_) => return Err(failed(Some(normalized), false, "EGRESS_DNS_FAILURE")),
+            },
+        };
+        if pinned_addrs.is_empty() {
+            return Err(failed(Some(normalized), false, "EGRESS_DNS_EMPTY"));
+        }
+        if pinned_addrs.iter().any(|sa| !is_public_unicast(sa.ip())) {
+            return Err(failed(Some(normalized), true, "EGRESS_NON_PUBLIC_ADDRESS"));
+        }
+
+        Ok(PinnedEgressConnectTarget {
+            sni_hostname: normalized,
+            port,
+            pinned_addrs,
+        })
     }
 }

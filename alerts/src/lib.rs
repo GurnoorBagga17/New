@@ -52,3 +52,41 @@ impl AlertDeduplicator {
         true
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RemediationPlaybook {
+    AutoRotateCompromisedSecret,
+    QuarantineAnomalousAgent,
+    SeverSpiceDbDelegationChain,
+    EnforceStepUpHumanApproval,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlaybookExecutionReceipt {
+    pub entity_id: String,
+    pub playbook: RemediationPlaybook,
+    pub auto_revoked: bool,
+    pub dual_secret_rotation_triggered: bool,
+}
+
+pub fn trigger_automated_playbook(
+    entity_id: &str,
+    anomaly_score: u8,
+    shared_credential_siblings: usize,
+) -> PlaybookExecutionReceipt {
+    if anomaly_score >= 85 && shared_credential_siblings > 0 {
+        PlaybookExecutionReceipt {
+            entity_id: entity_id.to_string(),
+            playbook: RemediationPlaybook::AutoRotateCompromisedSecret,
+            auto_revoked: false,
+            dual_secret_rotation_triggered: true,
+        }
+    } else {
+        PlaybookExecutionReceipt {
+            entity_id: entity_id.to_string(),
+            playbook: RemediationPlaybook::QuarantineAnomalousAgent,
+            auto_revoked: true,
+            dual_secret_rotation_triggered: false,
+        }
+    }
+}

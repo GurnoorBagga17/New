@@ -1,0 +1,143 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: axiom-extmcp
+  labels:
+    app.kubernetes.io/name: axiom-nhi
+    app.kubernetes.io/component: extmcp
+spec:
+  replicas: {{ .Values.extmcp.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: axiom-nhi
+      app.kubernetes.io/component: extmcp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: axiom-nhi
+        app.kubernetes.io/component: extmcp
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: extmcp-runtime
+          image: "ghcr.io/axiom-nhi/extmcp-runtime:v1.0.0"
+          ports:
+            - name: grpc-h2c
+              containerPort: 9001
+          livenessProbe:
+            tcpSocket:
+              port: grpc-h2c
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: grpc-h2c
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "256Mi"
+            limits:
+              cpu: "2000m"
+              memory: "1Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: axiom-extmcp
+spec:
+  selector:
+    app.kubernetes.io/name: axiom-nhi
+    app.kubernetes.io/component: extmcp
+  ports:
+    - name: grpc-h2c
+      port: 9001
+      targetPort: grpc-h2c
+---
+{{- if .Values.postgresLineage.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: axiom-postgres-lineage
+  labels:
+    app.kubernetes.io/name: axiom-nhi
+    app.kubernetes.io/component: postgres-lineage
+spec:
+  serviceName: axiom-postgres-lineage
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: axiom-nhi
+      app.kubernetes.io/component: postgres-lineage
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: axiom-nhi
+        app.kubernetes.io/component: postgres-lineage
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        fsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: "postgres:{{ .Values.postgresLineage.version }}-alpine"
+          ports:
+            - name: pg
+              containerPort: 5432
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.security.secretManagement.externalSecretName }}
+                  key: DATABASE_URL
+          readinessProbe:
+            tcpSocket:
+              port: pg
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.postgresLineage.storageSize }}
+{{- end }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: axiom-gateway-pdb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: axiom-nhi
+      app.kubernetes.io/component: gateway

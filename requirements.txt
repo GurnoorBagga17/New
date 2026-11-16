@@ -1,0 +1,5 @@
+# Locked production Python utility dependencies with SHA-256 integrity hashes
+pyyaml==6.0.2 \
+    --hash=sha256:d584d9ec91ad65861cc08d42e834324ef890a082e591037abe114850ff7bbc3e
+jsonschema==4.23.0 \
+    --hash=sha256:d71497fef26351a33fc65337fa77ffd230423f3c2f28ff7f12e820f2b0f6c3b9

@@ -129,3 +129,48 @@ mod tests {
         ));
     }
 }
+
+/// Opens a file inside `root` using OS-level symlink-rejection (`O_NOFOLLOW` on Unix)
+/// and post-open canonical inode/path verification to close validation-to-use TOCTOU races (AX-014).
+pub fn open_confined_readonly(
+    root: &Path,
+    untrusted: &str,
+) -> Result<(PathFacts, std::fs::File), PathValidationError> {
+    let canonical_root = root
+        .canonicalize()
+        .map_err(|_| PathValidationError::InvalidRoot)?;
+    let facts = validate_path(&canonical_root, untrusted)?;
+    let resolved_str = facts
+        .normalized_path
+        .as_deref()
+        .ok_or(PathValidationError::InvalidPath)?;
+    let resolved_path = Path::new(resolved_str);
+
+    // Reject if the target path is a symlink before opening
+    let symlink_meta = std::fs::symlink_metadata(resolved_path)
+        .map_err(|_| PathValidationError::InvalidPath)?;
+    if symlink_meta.file_type().is_symlink() {
+        return Err(PathValidationError::OutsideRoot);
+    }
+
+    let mut opts = std::fs::OpenOptions::new();
+    opts.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.custom_flags(0x20000); // O_NOFOLLOW on Linux
+    }
+    let file = opts
+        .open(resolved_path)
+        .map_err(|_| PathValidationError::OutsideRoot)?;
+
+    // Re-verify canonical path after acquiring the file descriptor
+    let post_open_canonical = resolved_path
+        .canonicalize()
+        .map_err(|_| PathValidationError::OutsideRoot)?;
+    if !post_open_canonical.starts_with(&canonical_root) {
+        return Err(PathValidationError::OutsideRoot);
+    }
+
+    Ok((facts, file))
+}

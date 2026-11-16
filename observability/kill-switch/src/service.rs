@@ -465,3 +465,98 @@ mod tests {
         );
     }
 }
+
+
+// ---------------------------------------------------------------------------
+// AX-010 Remediation: In-Flight Request Cancellation & Durable Receipt
+// ---------------------------------------------------------------------------
+
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
+
+/// Cooperative cancellation handle attached to an in-flight tool execution.
+#[derive(Debug, Default)]
+pub struct CancellationToken {
+    cancelled: AtomicBool,
+}
+
+impl CancellationToken {
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self {
+            cancelled: AtomicBool::new(false),
+        })
+    }
+
+    pub fn cancel(&self) {
+        self.cancelled.store(true, Ordering::SeqCst);
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::SeqCst)
+    }
+}
+
+/// Tracks in-flight tool executions by target key so an emergency kill-switch
+/// revocation immediately signals cancellation to running calls (AX-010).
+#[derive(Debug, Default)]
+pub struct InFlightCancellationRegistry {
+    active: Mutex<HashMap<String, Vec<Arc<CancellationToken>>>>,
+}
+
+impl InFlightCancellationRegistry {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn register(&self, target_id: impl Into<String>) -> Arc<CancellationToken> {
+        let token = CancellationToken::new();
+        let mut guard = self.active.lock().expect("in-flight registry lock");
+        guard.entry(target_id.into()).or_default().push(token.clone());
+        token
+    }
+
+    pub fn cancel_target(&self, target_id: &str) -> usize {
+        let mut guard = self.active.lock().expect("in-flight registry lock");
+        let Some(tokens) = guard.remove(target_id) else {
+            return 0;
+        };
+        for token in &tokens {
+            token.cancel();
+        }
+        tokens.len()
+    }
+}
+
+/// Detailed revocation durability and propagation receipt (AX-010).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DurableRevocationReceipt {
+    pub applied_in_memory: bool,
+    pub persisted: bool,
+    pub in_flight_cancelled: usize,
+    pub audit_durable: bool,
+}
+
+impl DurableRevocationReceipt {
+    pub fn is_completely_durable(&self) -> bool {
+        self.applied_in_memory && self.persisted && self.audit_durable
+    }
+}
+
+#[cfg(test)]
+mod ax010_tests {
+    use super::*;
+
+    #[test]
+    fn cancels_in_flight_calls_on_revocation() {
+        let registry = InFlightCancellationRegistry::new();
+        let t1 = registry.register("finance-agent");
+        let t2 = registry.register("finance-agent");
+        assert!(!t1.is_cancelled());
+
+        let cancelled = registry.cancel_target("finance-agent");
+        assert_eq!(cancelled, 2);
+        assert!(t1.is_cancelled());
+        assert!(t2.is_cancelled());
+    }
+}

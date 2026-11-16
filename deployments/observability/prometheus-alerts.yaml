@@ -1,0 +1,24 @@
+groups:
+  - name: axiom-nhi-runtime-slo
+    rules:
+      - alert: AxiomExtMcpLatencyBudgetExceeded
+        expr: histogram_quantile(0.99, sum(rate(axiom_nhi_extmcp_eval_duration_ms_bucket[5m])) by (le)) > 5.0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ExtMCP p99 inline evaluation exceeded 5ms budget"
+      - alert: AxiomFailClosedTriggered
+        expr: increase(axiom_nhi_fail_closed_blocks_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: page
+        annotations:
+          summary: "Gateway entered fail-closed block state due to ExtMCP timeout or unavailability"
+      - alert: AxiomKillSwitchActivated
+        expr: increase(axiom_nhi_kill_switch_revocations_total[1m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Emergency Kill Switch revocation executed"

@@ -23,3 +23,5 @@ pub struct ValidationFinding {
     pub violation_code: Option<String>,
     pub reason: Option<String>,
 }
+
+pub mod intent;

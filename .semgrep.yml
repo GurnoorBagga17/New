@@ -1,0 +1,14 @@
+rules:
+  - id: axiom-no-wildcard-cors
+    patterns:
+      - pattern: res.setHeader("Access-Control-Allow-Origin", "*")
+    message: "Wildcard CORS is forbidden in Axiom NHI production services; use AXIOM_ALLOWED_ORIGINS."
+    languages: [javascript, typescript]
+    severity: ERROR
+
+  - id: axiom-no-browser-localstorage-secrets
+    patterns:
+      - pattern: localStorage.setItem(...)
+    message: "Storing credentials or session state in browser localStorage violates the Zero-Secret Browser Invariant."
+    languages: [typescript, javascript]
+    severity: ERROR

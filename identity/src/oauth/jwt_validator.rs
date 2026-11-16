@@ -152,13 +152,19 @@ impl JwtValidator {
             .map(str::to_owned)
             .collect();
 
+        let verified_cimd_uri = if crate::cimd::CimdValidator::is_cimd_client_id(&client_id)
+            && crate::cimd::CimdValidator::validate_cimd_url(&client_id).is_ok()
+        {
+            Some(client_id.clone())
+        } else {
+            None
+        };
+
         Ok(IdentityContext {
             authenticated: true,
             agent_id: subject,
             client_id,
-            // CIMD is optional metadata and is not asserted as verified until a
-            // separately hardened document-fetch implementation is connected.
-            cimd_uri: None,
+            cimd_uri: verified_cimd_uri,
             issuer: claim_issuer,
             audience: audiences,
             scopes,

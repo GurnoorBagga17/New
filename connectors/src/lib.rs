@@ -8,8 +8,11 @@
 //!   credential identifiers (`fingerprint_credential_id`).
 
 use std::collections::HashMap;
-use ring::hmac;
+use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
+
+type HmacSha256 = Hmac<Sha256>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -45,9 +48,10 @@ pub struct DiscoveredRelation {
 /// Computes an HMAC-SHA256 fingerprint of a key/credential ID using the tenant salt.
 /// Raw secret material is strictly rejected and never stored.
 pub fn fingerprint_credential_id(tenant_salt: &[u8], credential_identifier: &str) -> String {
-    let key = hmac::Key::new(hmac::HMAC_SHA256, tenant_salt);
-    let tag = hmac::sign(&key, credential_identifier.as_bytes());
-    format!("hmac-sha256:{}", hex::encode(tag.as_ref()))
+    let mut mac = HmacSha256::new_from_slice(tenant_salt).expect("HMAC accepts any key length");
+    mac.update(credential_identifier.as_bytes());
+    let bytes = mac.finalize().into_bytes();
+    format!("hmac-sha256:{}", hex::encode(bytes))
 }
 
 /// Token-bucket rate limiter Configuration for 10,000-NHI <10-minute enterprise scans.
@@ -134,3 +138,5 @@ impl DiscoveryOrchestrator {
         }
     }
 }
+
+pub mod saas_oauth;

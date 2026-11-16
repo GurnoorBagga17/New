@@ -224,3 +224,5 @@ pub fn generate_signed_ai_bom(
         ed25519_signature: sig,
     }
 }
+
+pub mod lifecycle;

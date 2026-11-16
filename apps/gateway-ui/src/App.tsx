@@ -1,6 +1,7 @@
 // Copyright 2026 Axiom NHI — Licensed under Apache-2.0
 import { lazy, Suspense, useState, useEffect } from "react";
 import { MotionConfig, motion, AnimatePresence } from "motion/react";
+import { ViewErrorBoundary } from "./components/ViewErrorBoundary";
 import { TrafficStream } from "./modules/traffic/components/TrafficStream";
 import { useTrafficStore } from "./modules/traffic/stores/trafficStore";
 import type { SSEConnectionState } from "./modules/traffic/types";
@@ -506,89 +507,91 @@ export default function App() {
                   exit={{ opacity: 0, y: -6 }}
                   transition={{ duration: 0.16, ease: "easeOut" }}
                 >
-                  {/* CORE RUNTIME */}
-                  {view === "traffic" && <TrafficStream />}
-                  {view === "policies" && (
-                    <Suspense fallback={<SectionFallback label="Cedar Policy Studio" />}>
-                      <PolicyStudioPage themeMode={theme} />
-                    </Suspense>
-                  )}
-                  {view === "kill-switch" && (
-                    <Suspense fallback={<SectionFallback label="Emergency Kill Switch" />}>
-                      <KillSwitchPage />
-                    </Suspense>
-                  )}
+                  <ViewErrorBoundary key={view} viewName={view}>
+                    {/* CORE RUNTIME */}
+                    {view === "traffic" && <TrafficStream />}
+                    {view === "policies" && (
+                      <Suspense fallback={<SectionFallback label="Cedar Policy Studio" />}>
+                        <PolicyStudioPage themeMode={theme} />
+                      </Suspense>
+                    )}
+                    {view === "kill-switch" && (
+                      <Suspense fallback={<SectionFallback label="Emergency Kill Switch" />}>
+                        <KillSwitchPage />
+                      </Suspense>
+                    )}
 
-                  {/* IDENTITY & GOVERNANCE */}
-                  {view === "fleet" && (
-                    <Suspense fallback={<SectionFallback label="Fleet Workloads" />}>
-                      <FleetWorkloadsPage />
-                    </Suspense>
-                  )}
-                  {view === "identity" && (
-                    <Suspense fallback={<SectionFallback label="Workload Identity & Attestation" />}>
-                      <IdentityAttestationPage />
-                    </Suspense>
-                  )}
-                  {view === "attribution" && (
-                    <Suspense fallback={<SectionFallback label="Ownership Attribution & AIBOM" />}>
-                      <AttributionPage />
-                    </Suspense>
-                  )}
-                  {view === "secretless" && (
-                    <Suspense fallback={<SectionFallback label="Secretless Ephemeral Broker" />}>
-                      <SecretlessBrokerPage />
-                    </Suspense>
-                  )}
+                    {/* IDENTITY & GOVERNANCE */}
+                    {view === "fleet" && (
+                      <Suspense fallback={<SectionFallback label="Fleet Workloads" />}>
+                        <FleetWorkloadsPage />
+                      </Suspense>
+                    )}
+                    {view === "identity" && (
+                      <Suspense fallback={<SectionFallback label="Workload Identity & Attestation" />}>
+                        <IdentityAttestationPage />
+                      </Suspense>
+                    )}
+                    {view === "attribution" && (
+                      <Suspense fallback={<SectionFallback label="Ownership Attribution & AIBOM" />}>
+                        <AttributionPage />
+                      </Suspense>
+                    )}
+                    {view === "secretless" && (
+                      <Suspense fallback={<SectionFallback label="Secretless Ephemeral Broker" />}>
+                        <SecretlessBrokerPage />
+                      </Suspense>
+                    )}
 
-                  {/* SECURITY & COMPLIANCE */}
-                  {view === "lineage" && (
-                    <Suspense fallback={<SectionFallback label="Lineage Graph & Blast Radius" />}>
-                      <LineageGraphPage />
-                    </Suspense>
-                  )}
-                  {view === "approvals" && (
-                    <Suspense fallback={<SectionFallback label="Human-in-the-Loop Approvals" />}>
-                      <ApprovalsPage />
-                    </Suspense>
-                  )}
-                  {view === "alerts" && (
-                    <Suspense fallback={<SectionFallback label="Security Alerts Center" />}>
-                      <AlertsCenterPage />
-                    </Suspense>
-                  )}
-                  {view === "risk" && (
-                    <Suspense fallback={<SectionFallback label="OWASP Risk Engine" />}>
-                      <RiskEnginePage />
-                    </Suspense>
-                  )}
+                    {/* SECURITY & COMPLIANCE */}
+                    {view === "lineage" && (
+                      <Suspense fallback={<SectionFallback label="Lineage Graph & Blast Radius" />}>
+                        <LineageGraphPage />
+                      </Suspense>
+                    )}
+                    {view === "approvals" && (
+                      <Suspense fallback={<SectionFallback label="Human-in-the-Loop Approvals" />}>
+                        <ApprovalsPage />
+                      </Suspense>
+                    )}
+                    {view === "alerts" && (
+                      <Suspense fallback={<SectionFallback label="Security Alerts Center" />}>
+                        <AlertsCenterPage />
+                      </Suspense>
+                    )}
+                    {view === "risk" && (
+                      <Suspense fallback={<SectionFallback label="OWASP Risk Engine" />}>
+                        <RiskEnginePage />
+                      </Suspense>
+                    )}
 
-                  {/* OPERATIONS & PLATFORM */}
-                  {view === "observability" && (
-                    <Suspense fallback={<SectionFallback label="Observability & OTel Traces" />}>
-                      <ObservabilityPage />
-                    </Suspense>
-                  )}
-                  {view === "deployments" && (
-                    <Suspense fallback={<SectionFallback label="Deployments & Air-Gap Topology" />}>
-                      <DeploymentsPage />
-                    </Suspense>
-                  )}
-                  {view === "connectors" && (
-                    <Suspense fallback={<SectionFallback label="Discovery Connectors Hub" />}>
-                      <ConnectorsPage />
-                    </Suspense>
-                  )}
-                  {view === "siem" && (
-                    <Suspense fallback={<SectionFallback label="SIEM & SOAR Forwarding" />}>
-                      <SiemSoarPage />
-                    </Suspense>
-                  )}
-                  {view === "audit" && (
-                    <Suspense fallback={<SectionFallback label="Audit Logs Explorer" />}>
-                      <AuditExplorer />
-                    </Suspense>
-                  )}
+                    {/* OPERATIONS & PLATFORM */}
+                    {view === "observability" && (
+                      <Suspense fallback={<SectionFallback label="Observability & OTel Traces" />}>
+                        <ObservabilityPage />
+                      </Suspense>
+                    )}
+                    {view === "deployments" && (
+                      <Suspense fallback={<SectionFallback label="Deployments & Air-Gap Topology" />}>
+                        <DeploymentsPage />
+                      </Suspense>
+                    )}
+                    {view === "connectors" && (
+                      <Suspense fallback={<SectionFallback label="Discovery Connectors Hub" />}>
+                        <ConnectorsPage />
+                      </Suspense>
+                    )}
+                    {view === "siem" && (
+                      <Suspense fallback={<SectionFallback label="SIEM & SOAR Forwarding" />}>
+                        <SiemSoarPage />
+                      </Suspense>
+                    )}
+                    {view === "audit" && (
+                      <Suspense fallback={<SectionFallback label="Audit Logs Explorer" />}>
+                        <AuditExplorer />
+                      </Suspense>
+                    )}
+                  </ViewErrorBoundary>
                 </motion.div>
               </AnimatePresence>
             </div>

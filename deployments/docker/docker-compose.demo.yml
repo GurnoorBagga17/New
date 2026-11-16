@@ -1,0 +1,18 @@
+# ==============================================================================
+# Axiom NHI — Local Demo & Synthetic Evaluation Harness ONLY (AX-006)
+# WARNING: Uses synthetic fixtures and mock MCP backend. Do NOT use in production.
+# ==============================================================================
+services:
+  demo-admin-console:
+    image: node:22-bookworm-slim
+    working_dir: /app
+    volumes:
+      - ../..:/app
+    environment:
+      - NODE_ENV=development
+      - PORT=8080
+      - AXIOM_BIND_HOST=127.0.0.1
+      - AXIOM_DEMO_MODE=true
+    command: ["node", "gateway/local-admin-api/server.cjs"]
+    ports:
+      - "127.0.0.1:8080:8080"

@@ -309,6 +309,56 @@ async function runTestSuite() {
     assert(callout.metadataContext.fields.axiom_request_id.string_value.length > 0);
   });
 
+
+  // ---------------------------------------------------------------------------
+  // TEST GROUP 4: AX-002 DEFAULT-DENY RESPONSE VALIDATION & AX-012 CANCELLATION
+  // ---------------------------------------------------------------------------
+  console.log('\n--- Group 4: AX-002 Default-Deny Response Validation & AX-012 Cancellation ---');
+
+  for (const [label, badPayload] of [
+    ['null response', null],
+    ['undefined response', undefined],
+    ['empty object {}', {}],
+    ['missing pass/error inside result', { result: {} }],
+    ['unknown result variant', { result: { allow_maybe: {} } }],
+    ['contradictory pass and error', { result: { pass: {}, error: { message: 'err' } } }],
+    ['mismatched request_id correlation', { request_id: 'wrong-req-id-999', result: { pass: {} } }],
+  ]) {
+    await test(`AX-002 Default-Deny: Rejects ${label} in enforce mode and blocks backend`, async () => {
+      const gateway = setupInterceptor('enforce');
+      extMcp.setBehavior('CUSTOM_RAW', { rawResponse: badPayload });
+
+      const request = {
+        jsonrpc: '2.0',
+        id: 'req-ax002',
+        method: 'tools/call',
+        params: { name: 'execute_sql', arguments: { query: 'SELECT 1' } },
+      };
+
+      const response = await gateway.intercept(request);
+      assert.strictEqual(backend.executedCalls.length, 0, `Backend must NEVER execute on ${label}`);
+      assert.strictEqual(response.statusCode, 502);
+      assert.strictEqual(gateway.emittedAuditEvents[0].decision, 'DENY');
+    });
+  }
+
+  await test('AX-012 Cancellation: ExtMCP timeout triggers AbortSignal and cancels underlying request', async () => {
+    const gateway = setupInterceptor('enforce', { calloutTimeoutMs: 15 });
+    extMcp.setBehavior('TIMEOUT');
+
+    const request = {
+      jsonrpc: '2.0',
+      id: 'req-ax012',
+      method: 'tools/call',
+      params: { name: 'execute_sql', arguments: { query: 'SELECT 1' } },
+    };
+
+    const response = await gateway.intercept(request);
+    assert.strictEqual(response.statusCode, 504);
+    assert.strictEqual(extMcp.abortedCallouts, 1, 'Underlying ExtMCP request must be aborted via AbortSignal');
+    assert.strictEqual(gateway.cancelledCalloutCount, 1);
+  });
+
   console.log('\n================================================================');
   console.log(`TEST SUMMARY: ${passed} passed, ${failed} failed`);
   console.log('================================================================');

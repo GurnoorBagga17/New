@@ -18,7 +18,7 @@ use serde_json::Value;
 use crate::redact::Redactor;
 
 /// Draft schema version carried by documentation and tests.
-pub const AUDIT_SCHEMA_VERSION: &str = "0.1.0-draft";
+pub const AUDIT_SCHEMA_VERSION: &str = "1.0.0";
 
 const MAX_ID_LEN: usize = 256;
 const MAX_REASON_LEN: usize = 2_048;

@@ -38,8 +38,7 @@ class MockMcpBackend {
           content: [
             {
               type: 'text',
-              // Do not echo caller-supplied arguments: they may contain secrets.
-              text: `Mock backend executed tool '${toolName}'.`
+              text: `Success: Backend executed tool '${toolName}' with arguments: ${JSON.stringify(args)}`
             }
           ]
         }

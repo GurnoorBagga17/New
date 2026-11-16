@@ -1,0 +1,40 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 512
+  attributes/redact_secrets:
+    actions:
+      - key: http.request.header.authorization
+        action: delete
+      - key: mcp.raw_auth_header
+        action: delete
+      - key: db.statement
+        action: hash
+
+exporters:
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    namespace: axiom_nhi
+  otlphttp/siem:
+    endpoint: "${SIEM_OCSF_ENDPOINT:-https://siem.axiom.internal/v1/ocsf}"
+    tls:
+      insecure: false
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [attributes/redact_secrets, batch]
+      exporters: [otlphttp/siem]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]
