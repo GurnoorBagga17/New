@@ -26,27 +26,28 @@ This log records every architecture and design decision, deviation, and human cl
 - **Context**: Marquee logos of big tech vendors imply customer endorsement.
 - **Decision**: Replace infinite ticker with a clean, monochrome "Works with" integration strip.
 
-### D-005: Unbacked & Target Claims Resolution Matrix (Human Alignment Pending)
+### D-005: Claims Taxonomy & Sourcing Decisions
 - **Date**: 2026-11-16
-- **Context**: Section 15 and AUDIT.md require human choice on each unbacked or target claim before Phase 1.
-- **Claims Pending Choice**:
-  1. **Claim 1: P99 < 3.5ms Overhead**
-     - Option A: Back it with a benchmark (`tests/performance/test_latency_benchmarks.py`)
-     - Option B: Relabel as `target` in `claims.ts` and show visitor target tag
-     - Option C: Remove numeric latency claim
-  2. **Claim 2: Sub-50ms Kill Switch Fleet Propagation**
-     - Option A: Back it with test (`PERF-04`)
-     - Option B: Relabel as `target` in `claims.ts`
-     - Option C: Remove numeric ms claim
-  3. **Claim 3: 45,000+ Req/s Throughput Per Node**
-     - Option A: Back it with load-test benchmark
-     - Option B: Relabel as `target`
-     - Option C: Remove claim entirely from KPI strip
-  4. **Claim 4: 30-Minute Shadow Audit Scan**
-     - Option A: Back with connector rate-limiter test
-     - Option B: Relabel as `target`
-     - Option C: Remove 30-minute phrasing
-  5. **Claim 5: 45:1 NHI-to-Human Ratio**
-     - Option A: Back with external report citation (Entro/CyberArk 2024)
-     - Option B: Relabel as `simulated` / `estimate`
-     - Option C: Remove from hero copy
+- **Context**: User confirmed choices on the 5 audited claims and the taxonomy structure.
+- **Resolutions**:
+  1. **Claim 1 (P99 < 5 ms)**: Relabeled as `kind: 'target'`, value `"< 5"`, unit `"ms"`. Matches README and aligns with `/benchmarks` statement withholding live stack numbers until fleet benchmarks run.
+  2. **Claim 2 (Kill Switch Sub-50ms)**: Relabeled as `kind: 'target'`, value `"< 50"`, unit `"ms"`. `PERF-04` mock methodology test verifies the harness, while < 50ms remains fleet target.
+  3. **Claim 3 (Throughput Per Node)**: Fully removed from `claims.ts` and all landing page components. Prevents buyer skepticism on unbacked figures.
+  4. **Claim 4 (30-Minute Shadow Audit)**: Relabeled as `kind: 'target'`, value `"< 30"`, unit `"minutes"`.
+  5. **Claim 5 (Agent-to-Human Ratio)**: Tagged as `kind: 'cited'`, value `"45x–82x"`, sourced from CyberArk 2022 (45:1) & 2025 (82:1) Identity Security Threat Landscape Reports. Wording: *"Surveys put machine identities at 45 to 82 times the number of humans."* Moved out of hero subheadline into a cited proof block.
+  6. **Taxonomy Extension**: `ClaimKind` extended to `'measured' | 'verified' | 'target' | 'cited' | 'policy'`.
+  7. **Fail-Closed Phrasing**: Reworded to *"Fails closed on timeout or evaluator outage (9 of 9 chaos scenarios pass)"* (`kind: 'verified'`).
+  8. **Zero Lines Claim**: Moved from numeric KPI to architectural prose ("Drop-in MCP proxy").
+  9. **Discovery Promise**: Tagged as `kind: 'policy'`.
+
+### D-006: Implementation Plan Section 15 Architecture Answers
+- **Date**: 2026-11-16
+- **Context**: Answers to the seven mandatory architectural scope questions in Section 15 of the implementation plan.
+- **Decisions**:
+  1. **Benchmark Results**: No real-stack runtime benchmarks published yet; PERF mock tests establish methodology. Live results intentionally withheld per `/benchmarks`.
+  2. **Shadow Audit Speed**: Labeled strictly as `target`.
+  3. **GitHub Stars**: Suppressed. No star counter rendered. Repo link displayed without vanity count.
+  4. **Customer Logos & Quotes**: Zero unverified logos, design partner claims, or fabricated testimonials. Replaced with generic protocol/tool icons ("Works with Anthropic, OpenAI, GitHub, AWS") in a monochrome integration strip.
+  5. **Color & Brand Tokens**: Retain existing obsidian canvas (`#0B0F19`), surface layers, Gate luminous teal permit (`#10B981`), rose-red deny (`#F43F5E`), and cyan boundary (`#00E5FF`). All tokens verified against WCAG 2.1 AA (4.5:1 text, 3.0:1 borders).
+  6. **Authentication Links**: Main navigation hides sign-up or explicitly badges Sign-In as `Demo`.
+  7. **Legal Copy**: Render placeholder Terms of Service and Privacy Policy pages, explicitly badged for human legal review prior to production launch.

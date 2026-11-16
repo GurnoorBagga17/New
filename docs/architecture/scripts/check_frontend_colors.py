@@ -95,6 +95,13 @@ def main() -> int:
             print(f"  - {failure}")
         return 1
 
+    # Phase 1 completion gate: fail if any unmigrated files remain when STRICT_PHASE1 is set
+    if os.environ.get("STRICT_PHASE1") == "1" and LEGACY_MIGRATION_PENDING:
+        print("FAIL frontend color gate: STRICT_PHASE1 enabled but exemptions remain:")
+        for pending in sorted(str(p) for p in LEGACY_MIGRATION_PENDING):
+            print(f"  - {pending}")
+        return 1
+
     # 2. Verify source code token compliance (no hardcoded hex or pure black)
     missing = [path for path in SOURCES if not (ROOT / path).is_dir()]
     findings = []
