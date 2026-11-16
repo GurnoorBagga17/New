@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useTrafficStore } from "../traffic/stores/trafficStore";
 import type { AuditEvent } from "../traffic/types";
 import { VerdictBadge } from "../traffic/components/VerdictBadge";
+import { IconSiem } from "../../components/Icons";
 import {
   buildAuditExport,
   SecretDetectedInExportError,
@@ -167,7 +168,7 @@ export function AuditExplorer() {
       <section className="max-w-3xl rounded-card border border-border-subtle bg-surface-2 p-5" aria-labelledby="revocation-status-title">
         <div className="flex items-center justify-between gap-2 text-state-revoked">
           <div className="flex items-center gap-2">
-            <span aria-hidden="true">⚡</span>
+            <IconSiem size={15} className="text-state-revoked" />
             <h3 id="revocation-status-title" className="font-mono text-xs font-semibold uppercase tracking-wider">Emergency Kill-Switch & Session Revocation</h3>
           </div>
           <span className="font-mono text-xs uppercase text-state-enforce">D3 Override Armed (&lt;50ms Propagation)</span>

@@ -225,41 +225,43 @@ export function PolicyStudioPage({
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="ax-studio">
-        <header className="ax-row" style={{ gridColumn: "1 / -1", alignItems: "flex-start", width: "100%", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "1rem", marginBottom: "0.25rem" }}>
+      <div className="space-y-6">
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-subtle pb-5">
           <div>
-            <p className="ax-overline" style={{ marginBottom: "0.25rem", color: "var(--brand-cyan, #00E5FF)" }}>
+            <p className="font-mono text-xs uppercase tracking-wider text-brand-cyan">
               Axiom NHI · Module 1C · Policy Studio
             </p>
-            <h1 className="ax-title" style={{ fontSize: "1.5rem", letterSpacing: "-0.02em" }}>Cedar policy authoring &amp; simulation</h1>
-            <p className="ax-secondary" style={{ maxWidth: "56rem", marginTop: "0.25rem" }}>
+            <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-text-primary">
+              Cedar policy authoring &amp; simulation
+            </h1>
+            <p className="mt-1 text-xs text-text-secondary max-w-2xl leading-relaxed">
               Policies are simulated against one MCP tools/call envelope, then
               promoted per route. Monaco and its worker are served from the local
               bundle; this page makes no outbound requests.
             </p>
           </div>
-          <div className="ax-btn-row" style={{ marginLeft: "auto" }}>
-            <span className="ax-badge ax-badge--neutral" title="Proposed wire contract">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center rounded-md border border-border-subtle bg-surface-2 px-2.5 py-1 font-mono text-[11px] text-text-secondary">
               CONTRACT {LOCAL_POLICY_CONTRACT_VERSION}
             </span>
             <span
-              className={
+              className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 font-mono text-[11px] font-medium ${
                 adapter.capabilities.clientSide
-                  ? "ax-badge ax-badge--observe"
-                  : "ax-badge ax-badge--allow"
-              }
+                  ? "border-state-observe/30 bg-state-observe-tint/15 text-state-observe"
+                  : "border-state-enforce/30 bg-state-enforce-tint/15 text-state-enforce"
+              }`}
             >
               <ShieldIcon width={12} height={12} />
               {adapter.capabilities.clientSide
                 ? "IN-BROWSER EVALUATOR"
                 : "BACKEND EVALUATOR"}
             </span>
-            <span className="ax-mono ax-muted">{adapter.id}</span>
+            <span className="font-mono text-xs text-text-muted">{adapter.id}</span>
           </div>
         </header>
 
         {managedAdapters ? (
-          <div className="ax-alert ax-alert--info" style={{ gridColumn: "1 / -1" }} role="note">
+          <div className="ax-alert ax-alert--info" role="note">
             <BeakerIcon width={16} height={16} />
             <div>
               <strong>SIMULATED FIXTURE ADAPTER</strong>
@@ -272,7 +274,7 @@ export function PolicyStudioPage({
         ) : null}
 
         {cancelledNotice !== null ? (
-          <div className="ax-alert ax-alert--info" style={{ gridColumn: "1 / -1" }} role="status">
+          <div className="ax-alert ax-alert--info" role="status">
             <AlertIcon width={16} height={16} />
             <div>
               <strong>OPERATOR NOTICE</strong>
@@ -281,8 +283,9 @@ export function PolicyStudioPage({
           </div>
         ) : null}
 
-        {/* Left Column: Cedar Editor, Guided Policy Form, Route Mode Panel */}
-        <div className="ax-stack">
+        {/* Balanced 2-Column Grid: Left (7 cols) for Authoring & Forms, Right (5 cols) for Simulation & Activation */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-7 flex flex-col gap-6 min-w-0">
             <section className="ax-card" aria-labelledby="ax-candidate-title">
               <div className="ax-card__header">
                 <div>
@@ -331,7 +334,7 @@ export function PolicyStudioPage({
             />
           </div>
 
-          <div className="ax-stack">
+          <div className="lg:col-span-5 flex flex-col gap-6 min-w-0">
             <section className="ax-card" aria-labelledby="ax-envelope-title">
               <div className="ax-card__header">
                 <div>
@@ -495,6 +498,7 @@ export function PolicyStudioPage({
               {simulated ? " · SIMULATED FIXTURE" : ""}
             </p>
           </div>
+        </div>
       </div>
     </MotionConfig>
   );

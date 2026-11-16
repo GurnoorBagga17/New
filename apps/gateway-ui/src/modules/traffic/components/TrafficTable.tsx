@@ -18,6 +18,8 @@ import { useRef, useMemo } from 'react';
 import { motion } from 'motion/react';
 import type { AuditEvent } from '../types';
 import { VerdictBadge } from './VerdictBadge';
+import { useTrafficStore } from '../stores/trafficStore';
+import { IconLiveStream, IconSiem } from '../../../components/Icons';
 
 interface TrafficTableProps {
   events: AuditEvent[];
@@ -179,10 +181,50 @@ export function TrafficTable({
   const virtualRows = virtualizer.getVirtualItems();
   const totalSize = virtualizer.getTotalSize();
   
+  const addEvents = useTrafficStore((state) => state.addEvents);
+
+  const handleInjectSample = () => {
+    const samples: AuditEvent[] = [
+      {
+        timestamp_rfc3339: new Date().toISOString(),
+        request_id: `req-sample-${Date.now().toString(36)}`,
+        trace_id: `trace-${Math.random().toString(36).slice(2, 10)}`,
+        agent_id: 'spiffe://axiom.internal/ns/prod/sa/autonomous-finops-agent',
+        target_server: 'mcp://prod-db',
+        tool_name: 'execute_sql',
+        runtime_mode: 'enforce',
+        decision: 'ALLOW',
+        policy_version: 'sha256:7f3b890a88ef',
+        denial_reason: null,
+        validator_summary: ['sql: SELECT verified, readonly=true'],
+        kill_switch_active: false,
+        latency_us: 1240,
+      },
+      {
+        timestamp_rfc3339: new Date(Date.now() - 400).toISOString(),
+        request_id: `req-sample-${(Date.now() - 400).toString(36)}`,
+        trace_id: `trace-${Math.random().toString(36).slice(2, 10)}`,
+        agent_id: 'spiffe://axiom.internal/ns/sandbox/sa/temp-scrape-runner',
+        target_server: 'mcp://filesystem',
+        tool_name: 'read_file',
+        runtime_mode: 'enforce',
+        decision: 'DENY',
+        policy_version: 'sha256:7f3b890a88ef',
+        denial_reason: 'FAIL-CLOSED: Path traversal ../../etc/shadow blocked by sandbox',
+        validator_summary: ['path: traversal detected'],
+        kill_switch_active: false,
+        latency_us: 820,
+      },
+    ];
+    addEvents(samples);
+  };
+
   return (
     <div
       ref={parentRef}
-      className="h-[min(65vh,680px)] min-h-[360px] overflow-auto rounded-card border border-border-subtle bg-surface-1"
+      className={`overflow-auto rounded-card border border-border-subtle bg-surface-1 transition-all ${
+        events.length > 0 ? 'h-[min(65vh,680px)] min-h-[360px]' : 'min-h-[220px]'
+      }`}
     >
       <table className="w-full">
         <thead className="sticky top-0 z-10 bg-surface-2 border-b border-border-subtle">
@@ -203,61 +245,79 @@ export function TrafficTable({
           ))}
         </thead>
         
-        <tbody className="relative" style={{ height: `${totalSize}px` }}>
-          {virtualRows.map((virtualRow) => {
-            const row = table.getRowModel().rows[virtualRow.index];
-            if (!row) return null;
-            
-            const isSelected = row.original.request_id === selectedEventId;
-            
-            return (
-              <motion.tr
-                key={row.id}
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  duration: 0.22,
-                  ease: EASE_TELEMETRY,
-                }}
-                className={`absolute top-0 left-0 w-full cursor-pointer border-b border-border-subtle transition-[transform,opacity] ${
-                  isSelected
-                    ? 'bg-surface-3'
-                    : 'hover:bg-surface-2'
-                }`}
-                style={{
-                  height: `${virtualRow.size}px`,
-                  transform: `translateY(${virtualRow.start}px)`,
-                }}
-                onClick={() => onRowClick(row.original)}
-                tabIndex={0}
-                aria-selected={isSelected}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    onRowClick(row.original);
-                  }
-                }}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    className="px-4 py-3"
-                    style={{ width: cell.column.getSize() }}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </motion.tr>
-            );
-          })}
-        </tbody>
+        {events.length > 0 && (
+          <tbody className="relative" style={{ height: `${totalSize}px` }}>
+            {virtualRows.map((virtualRow) => {
+              const row = table.getRowModel().rows[virtualRow.index];
+              if (!row) return null;
+              
+              const isSelected = row.original.request_id === selectedEventId;
+              
+              return (
+                <motion.tr
+                  key={row.id}
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.22,
+                    ease: EASE_TELEMETRY,
+                  }}
+                  className={`absolute top-0 left-0 w-full cursor-pointer border-b border-border-subtle transition-[transform,opacity] ${
+                    isSelected
+                      ? 'bg-surface-3'
+                      : 'hover:bg-surface-2'
+                  }`}
+                  style={{
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                  onClick={() => onRowClick(row.original)}
+                  tabIndex={0}
+                  aria-selected={isSelected}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onRowClick(row.original);
+                    }
+                  }}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td
+                      key={cell.id}
+                      className="px-4 py-3"
+                      style={{ width: cell.column.getSize() }}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </motion.tr>
+              );
+            })}
+          </tbody>
+        )}
       </table>
       
       {events.length === 0 && (
-        <div className="flex items-center justify-center h-full text-text-muted">
-          <div className="text-center">
-            <p className="text-sm font-medium">No events yet</p>
-            <p className="text-xs mt-1">Waiting for MCP traffic...</p>
+        <div className="flex flex-col items-center justify-center p-12 text-center">
+          <div className="relative mb-3 flex size-12 items-center justify-center rounded-full bg-surface-2 border border-border-subtle">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-brand-cyan opacity-20" />
+            <IconLiveStream size={20} className="relative text-brand-cyan" />
+          </div>
+          <h3 className="font-display text-sm font-semibold text-text-primary">
+            Awaiting MCP Authorization Events
+          </h3>
+          <p className="mt-1 max-w-sm text-xs text-text-muted">
+            The local telemetry buffer is listening for non-human agent tool calls from the runtime gateway.
+          </p>
+          <div className="mt-4 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleInjectSample}
+              className="inline-flex items-center gap-1.5 rounded-input border border-brand-cyan/40 bg-brand-cyan/15 px-3 py-1.5 font-mono text-xs font-semibold text-brand-cyan transition hover:bg-brand-cyan hover:text-bg-canvas shadow-sm"
+            >
+              <IconSiem size={13} />
+              Inject Sample Authorization Events
+            </button>
           </div>
         </div>
       )}
