@@ -8,20 +8,12 @@ import { IconShieldCheck, IconLock, IconArrowRight, LogoOkta } from "../componen
 export default function SignInPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email) return;
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setStatus(`Connecting to enterprise IdP session for ${email}...`);
-      setTimeout(() => {
-        window.location.href = "http://localhost:5173"; // Route to Gateway Console UI
-      }, 700);
-    }, 400);
+    setStatus("Sign-in is a design preview. Identity provider integration is not connected.");
   }
 
   return (
@@ -37,7 +29,7 @@ export default function SignInPage() {
           </div>
           <h1>Sign In</h1>
           <p className="auth-subtitle">
-            Access your autonomous agent governance dashboard, Cedar policies, and live audit telemetry.
+            Sign in to access workspace identity and runtime activity.
           </p>
         </div>
 
@@ -72,13 +64,9 @@ export default function SignInPage() {
             />
           </div>
 
-          <button type="submit" disabled={isSubmitting} className="auth-submit-btn">
+          <button type="submit" className="auth-submit-btn">
             <span>
-              {isSubmitting ? "Authenticating..." : (
-                <span className="btn-flex-inner">
-                  Sign In to Console <IconArrowRight size={15} />
-                </span>
-              )}
+              <span className="btn-flex-inner">Sign In to Console <IconArrowRight size={15} /></span>
             </span>
           </button>
         </form>
@@ -93,13 +81,10 @@ export default function SignInPage() {
           <button
             type="button"
             className="auth-sso-btn"
-            onClick={() => {
-              setStatus("Initiating Okta SAML 2.0 / OIDC assertion...");
-              setTimeout(() => { window.location.href = "http://localhost:5173"; }, 600);
-            }}
+            disabled
           >
             <LogoOkta size={18} />
-            <span>Sign In with Okta / SAML 2.0</span>
+            <span>Enterprise SSO · not connected</span>
           </button>
         </div>
 
@@ -107,12 +92,12 @@ export default function SignInPage() {
           <p>
             No workspace yet?{" "}
             <Link href="/sign-up" className="auth-accent-link">
-              Create free workspace &rarr;
+              Create a workspace &rarr;
             </Link>
           </p>
           <div className="auth-security-note">
-            <IconLock size={12} color="#64748B" />
-            <span>FIPS 140-3 and SOC 2 Type II attestation enforced.</span>
+            <IconLock size={12} color="var(--text-muted)" />
+            <span>Preview state · identity provider is not connected.</span>
           </div>
         </div>
       </div>

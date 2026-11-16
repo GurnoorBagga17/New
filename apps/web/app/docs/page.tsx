@@ -27,7 +27,7 @@ export default function DocsPage() {
             <span className="live-dot" />
             <span>DRAFT REFERENCE &bull; VERIFY AGAINST IMPLEMENTED RUNTIME</span>
           </div>
-          <h1>Axiom NHI Documentation &amp; Architecture Reference</h1>
+          <h1>Axiom documentation</h1>
           <p className="docs-subtitle">
             Phase 1 architecture and integration notes. Runtime capabilities and deployment examples remain subject to implementation and contract review.
           </p>
@@ -39,7 +39,7 @@ export default function DocsPage() {
             <a key={topic.id} href={`#${topic.id}`} className="doc-topic-card">
               <div className="topic-header">
                 <span className="topic-tag">{topic.tag}</span>
-                <span className="topic-arrow">â†—</span>
+              <span className="topic-arrow">↗</span>
               </div>
               <h3>{topic.title}</h3>
               <p>{topic.desc}</p>
@@ -272,7 +272,7 @@ export default function DocsPage() {
               Launch Live Playground
             </Link>
             <Link href="/benchmarks" className="text-link-button">
-              See Benchmark Methodology â†’
+              See benchmark methodology →
             </Link>
           </div>
         </div>

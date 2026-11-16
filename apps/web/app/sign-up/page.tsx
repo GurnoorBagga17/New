@@ -9,20 +9,12 @@ export default function SignUpPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email || !name) return;
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setStatus(`Workspace successfully provisioned for ${email}. Redirecting...`);
-      setTimeout(() => {
-        window.location.href = "http://localhost:5173"; // Route to Gateway Console UI
-      }, 700);
-    }, 450);
+    setStatus("Workspace provisioning is a design preview. Identity and workspace services are not connected.");
   }
 
   return (
@@ -38,7 +30,7 @@ export default function SignUpPage() {
           </div>
           <h1>Create Workspace</h1>
           <p className="auth-subtitle">
-            Deploy your dedicated Axiom NHI tenant. Includes passive discovery forever and 5 free active agents.
+            Set up a workspace to explore identity governance for AI agents.
           </p>
         </div>
 
@@ -83,13 +75,9 @@ export default function SignUpPage() {
             />
           </div>
 
-          <button type="submit" disabled={isSubmitting} className="auth-submit-btn">
+          <button type="submit" className="auth-submit-btn">
             <span>
-              {isSubmitting ? "Provisioning..." : (
-                <span className="btn-flex-inner">
-                  Create Workspace <IconArrowRight size={15} />
-                </span>
-              )}
+              <span className="btn-flex-inner">Create Workspace <IconArrowRight size={15} /></span>
             </span>
           </button>
         </form>
@@ -104,13 +92,10 @@ export default function SignUpPage() {
           <button
             type="button"
             className="auth-sso-btn"
-            onClick={() => {
-              setStatus("Initiating Okta SAML 2.0 / OIDC assertion...");
-              setTimeout(() => { window.location.href = "http://localhost:5173"; }, 600);
-            }}
+            disabled
           >
             <LogoOkta size={18} />
-            <span>Provision with Okta / SSO</span>
+            <span>Enterprise SSO · not connected</span>
           </button>
         </div>
 
@@ -122,8 +107,8 @@ export default function SignUpPage() {
             </Link>
           </p>
           <div className="auth-security-note">
-            <IconLock size={12} color="#64748B" />
-            <span>No credit card required. Free tier forever.</span>
+            <IconLock size={12} color="var(--text-muted)" />
+            <span>Preview state · workspace provisioning is not connected.</span>
           </div>
         </div>
       </div>
