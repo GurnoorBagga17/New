@@ -300,8 +300,13 @@ export function TrafficTable({
       {events.length === 0 && (
         <div className="flex flex-col items-center justify-center p-12 text-center">
           <div className="relative mb-3 flex size-12 items-center justify-center rounded-full bg-surface-2 border border-border-subtle">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-brand-cyan opacity-20" />
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-brand-cyan opacity-20 motion-reduce:animate-none" />
             <IconLiveStream size={20} className="relative text-brand-cyan" />
+          </div>
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface-2 px-2.5 py-0.5 font-mono text-[10px] text-text-muted mb-2">
+            <span>STANDBY</span>
+            <span>&bull;</span>
+            <span>ZERO ACTIVE PACKETS</span>
           </div>
           <h3 className="font-display text-sm font-semibold text-text-primary">
             Awaiting MCP Authorization Events
@@ -315,8 +320,11 @@ export function TrafficTable({
               onClick={handleInjectSample}
               className="inline-flex items-center gap-1.5 rounded-input border border-brand-cyan/40 bg-brand-cyan/15 px-3 py-1.5 font-mono text-xs font-semibold text-brand-cyan transition hover:bg-brand-cyan hover:text-bg-canvas shadow-sm"
             >
+              <span className="rounded bg-brand-cyan/25 px-1 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-brand-cyan">
+                Demo
+              </span>
               <IconSiem size={13} />
-              Inject Sample Authorization Events
+              Inject Sample Authorization Events (Simulated)
             </button>
           </div>
         </div>

@@ -6,32 +6,9 @@
 @import "../../../../docs/architecture/generated/tailwind-theme.css";
 @import "@axiom/cedar-editor/styles.css";
 
-/* Aembit & Clutch Security inspired Cybernetic Dark Theme as Default */
+/* Aembit & Clutch Security Cybernetic Theme: Colors inherited from tokens.json */
 :root {
-  color-scheme: dark !important;
-  --bg-canvas: #07090E !important;
-  --bg-surface-1: #0C1018 !important;
-  --bg-surface-2: #121722 !important;
-  --bg-surface-3: #1A2232 !important;
-  --border-subtle: #1E2738 !important;
-  --border-strong: #334155 !important;
-  --text-primary: #F8FAFC !important;
-  --text-secondary: #94A3B8 !important;
-  --text-muted: #64748B !important;
-  --brand-cyan: #00E5FF !important;
-  --brand-cyan-glow: rgba(0, 229, 255, 0.2) !important;
-  --brand-orange: #FF7B00 !important;
-  --brand-orange-glow: rgba(255, 123, 0, 0.2) !important;
-  --state-enforce: #10B981 !important;
-  --state-enforce-tint: rgba(16, 185, 129, 0.15) !important;
-  --state-observe: #38BDF8 !important;
-  --state-observe-tint: rgba(56, 189, 248, 0.15) !important;
-  --state-pending: #F59E0B !important;
-  --state-pending-tint: rgba(245, 158, 11, 0.15) !important;
-  --state-deny: #F43F5E !important;
-  --state-deny-tint: rgba(244, 63, 94, 0.15) !important;
-  --state-revoked: #EF4444 !important;
-  --state-revoked-tint: rgba(239, 68, 68, 0.2) !important;
+  color-scheme: dark;
   --radius-input: var(--radii-input, 6px);
   --radius-card: var(--radii-card, 10px);
   --radius-modal: var(--radii-modal, 14px);
@@ -41,28 +18,7 @@
 }
 
 :root[data-theme="light"] {
-  color-scheme: light !important;
-  --bg-canvas: #F8FAFC !important;
-  --bg-surface-1: #FFFFFF !important;
-  --bg-surface-2: #F1F5F9 !important;
-  --bg-surface-3: #E2E8F0 !important;
-  --border-subtle: #CBD5E1 !important;
-  --border-strong: #64748B !important;
-  --text-primary: #0F172A !important;
-  --text-secondary: #334155 !important;
-  --text-muted: #64748B !important;
-  --brand-cyan: #0284C7 !important;
-  --brand-orange: #EA580C !important;
-  --state-enforce: #059669 !important;
-  --state-enforce-tint: rgba(5, 150, 105, 0.12) !important;
-  --state-observe: #0284C7 !important;
-  --state-observe-tint: rgba(2, 132, 199, 0.12) !important;
-  --state-pending: #D97706 !important;
-  --state-pending-tint: rgba(217, 119, 6, 0.12) !important;
-  --state-deny: #DC2626 !important;
-  --state-deny-tint: rgba(220, 38, 38, 0.12) !important;
-  --state-revoked: #B91C1C !important;
-  --state-revoked-tint: rgba(185, 28, 28, 0.12) !important;
+  color-scheme: light;
 }
 
 @source "../**/*.{js,ts,jsx,tsx}";

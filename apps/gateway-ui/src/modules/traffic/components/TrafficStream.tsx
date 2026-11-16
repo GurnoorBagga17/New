@@ -107,8 +107,11 @@ export function TrafficStream() {
           <button
             type="button"
             onClick={handleSimulateBurst}
-            className="rounded-input border border-brand-cyan/40 bg-brand-cyan/10 px-3 py-1.5 font-mono text-xs font-semibold text-brand-cyan transition hover:bg-brand-cyan hover:text-bg-canvas"
+            className="inline-flex items-center gap-1.5 rounded-input border border-brand-cyan/40 bg-brand-cyan/10 px-3 py-1.5 font-mono text-xs font-semibold text-brand-cyan transition hover:bg-brand-cyan hover:text-bg-canvas"
           >
+            <span className="rounded bg-brand-cyan/25 px-1 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-brand-cyan">
+              Demo
+            </span>
             Simulate Traffic Burst
           </button>
           <button

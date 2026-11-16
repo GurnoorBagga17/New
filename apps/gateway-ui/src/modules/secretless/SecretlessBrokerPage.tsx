@@ -364,7 +364,7 @@ export function SecretlessBrokerPage() {
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-mono text-text-muted">SCOPE ATTENUATION INTEGRITY:</span>
                   <span className="font-mono font-bold text-state-enforce">
-                    &check; PASS: No Privilege Escalation (Requested &#8838; Granted)
+                    &check; PASS: No Privilege Escalation (Requested &sube; Granted)
                   </span>
                 </div>
               </div>
