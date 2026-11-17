@@ -400,9 +400,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 Err(conn_err) => {
                     eprintln!("Warning: Could not connect to DATABASE_URL: {conn_err}. Falling back to in-memory lineage engine.");
+                    if !is_dev_mode {
+                        return Err(format!("Fatal: Production mode requires a reachable PostgreSQL database: {conn_err}").into());
+                    }
                 }
             }
         }
+    }
+
+    if !is_dev_mode && postgres_lineage_opt.is_none() {
+        return Err("Fatal: Production mode requires DATABASE_URL to be set and connected (fail-closed)".into());
     }
 
     // OpenBao Client Initialization
