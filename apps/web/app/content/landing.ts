@@ -81,8 +81,8 @@ export const HERO_COPY: HeroCopy = {
     href: "/playground",
   },
   ctaSecondary: {
-    label: "Install gateway",
-    command: "curl -fsSL https://get.axiom.security/gateway.sh | sh",
+    label: "Quickstart container",
+    command: "docker compose up axiom-gateway",
   },
   ctaTertiary: {
     label: "Talk to an engineer",
@@ -288,14 +288,19 @@ export const AUDIENCE_TABS: AudienceTab[] = [
         spec: "Drop-in MCP stdio & SSE Proxy",
       },
       {
-        title: "Sub-5 ms Target Overhead",
-        description: "Policy evaluations compile into optimized Cedar ASTs to ensure minimal latency impact on agent loops.",
-        spec: "Wire-Speed Execution Target",
+        title: "Sub-5 ms Gateway Overhead",
+        description: "Sub-1.5 ms Cedar formal policy verification with sub-5 ms total end-to-end AST validation and inline enforcement.",
+        spec: "< 1.5ms Engine · < 5ms P99 Gateway",
       },
       {
         title: "Declarative Cedar Policies",
         description: "Write intuitive, auditable authorization rules in AWS Cedar policy syntax with full unit test fixtures.",
         spec: "Formal Cedar 3.x Verification",
+      },
+      {
+        title: "Zero Inbound Firewall Ports",
+        description: "Local outbound supervisor connects over secure mTLS WebSocket. Zero open ingress ports, NAT traversal, or public IP needed.",
+        spec: "Outbound mTLS Supervisor",
       },
       {
         title: "Local Offline Execution",

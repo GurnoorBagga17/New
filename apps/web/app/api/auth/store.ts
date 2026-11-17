@@ -292,4 +292,90 @@ export async function getOperatorSession(req: NextRequest): Promise<SessionRecor
   return null;
 }
 
+/**
+ * Phase 1 Task 1.2: Pluggable Session Adapter interface
+ * Supports distributed session stores (Redis, PostgreSQL) with local fallback.
+ */
+export interface SessionAdapter {
+  getSession(sessionId: string): Promise<SessionRecord | null>;
+  saveSession(session: SessionRecord): Promise<void>;
+  deleteSession(sessionId: string): Promise<boolean>;
+}
+
+export class PostgresSessionAdapter implements SessionAdapter {
+  constructor(private pool: pg.Pool) {}
+
+  async getSession(sessionId: string): Promise<SessionRecord | null> {
+    try {
+      const res = await this.pool.query(
+        `SELECT s.session_id, s.user_id, s.tenant_id, s.csrf_token, EXTRACT(EPOCH FROM s.expires_at)::bigint as expires_at_unix, o.role
+         FROM operator_sessions s
+         JOIN operators o ON s.user_id = o.user_id
+         WHERE s.session_id = $1 AND s.revoked = FALSE AND s.expires_at > NOW()`,
+        [sessionId]
+      );
+      if (res.rows.length > 0) {
+        const row = res.rows[0];
+        return {
+          sessionId: row.session_id,
+          userId: row.user_id,
+          tenantId: row.tenant_id,
+          role: row.role as OperatorRole,
+          csrfToken: row.csrf_token,
+          expiresAtUnix: Number(row.expires_at_unix),
+        };
+      }
+    } catch (err) {
+      console.warn("PostgresSessionAdapter.getSession failed:", err);
+    }
+    return null;
+  }
+
+  async saveSession(session: SessionRecord): Promise<void> {
+    try {
+      await this.pool.query(
+        `INSERT INTO operator_sessions (session_id, user_id, tenant_id, csrf_token, expires_at)
+         VALUES ($1, $2, $3, $4, to_timestamp($5))
+         ON CONFLICT (session_id) DO UPDATE SET
+           csrf_token = EXCLUDED.csrf_token,
+           expires_at = EXCLUDED.expires_at,
+           revoked = FALSE`,
+        [session.sessionId, session.userId, session.tenantId, session.csrfToken, session.expiresAtUnix]
+      );
+    } catch (err) {
+      console.warn("PostgresSessionAdapter.saveSession failed:", err);
+    }
+  }
+
+  async deleteSession(sessionId: string): Promise<boolean> {
+    try {
+      const res = await this.pool.query(
+        "UPDATE operator_sessions SET revoked = TRUE WHERE session_id = $1",
+        [sessionId]
+      );
+      return (res.rowCount ?? 0) > 0;
+    } catch (err) {
+      console.warn("PostgresSessionAdapter.deleteSession failed:", err);
+      return false;
+    }
+  }
+}
+
+export class LocalSessionAdapter implements SessionAdapter {
+  async getSession(sessionId: string): Promise<SessionRecord | null> {
+    return getSession(sessionId);
+  }
+  async saveSession(session: SessionRecord): Promise<void> {
+    sessionsById.set(session.sessionId, session);
+    persistStore();
+  }
+  async deleteSession(sessionId: string): Promise<boolean> {
+    return deleteSession(sessionId);
+  }
+}
+
+export const defaultSessionAdapter: SessionAdapter = dbPool
+  ? new PostgresSessionAdapter(dbPool)
+  : new LocalSessionAdapter();
+
 export { usersByEmail, sessionsById };

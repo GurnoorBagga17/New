@@ -236,6 +236,13 @@ fn build_validator(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .try_init();
+
     let env_mode = std::env::var("AXIOM_ENV").unwrap_or_else(|_| "development".to_owned());
     let allow_anonymous = std::env::var("AXIOM_ALLOW_ANONYMOUS_LOCAL").unwrap_or_default() == "1";
     let dev_mode = std::env::var("AXIOM_DEV_MODE").unwrap_or_default() == "1";
@@ -376,10 +383,85 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    // Phase 2: Ingestion Linkage — drop chunked audit spool files for axiom-agent-supervisor
+    let spool_dir = data_dir.join("spool");
+    let _ = fs::create_dir_all(&spool_dir);
+    let audit_sub_spool = audit_bus.subscribe();
+    let spool_dir_clone = spool_dir.clone();
+    tokio::task::spawn_blocking(move || {
+        let mut buffer = Vec::new();
+        let mut last_flush = std::time::Instant::now();
+        loop {
+            match audit_sub_spool.next_timeout(std::time::Duration::from_millis(1000)) {
+                axiom_audit::ReceiverOutcome::Record(record) => {
+                    if let Ok(line) = serde_json::to_string(&record) {
+                        buffer.push(line);
+                    }
+                }
+                axiom_audit::ReceiverOutcome::Timeout | axiom_audit::ReceiverOutcome::Disconnected => {}
+            }
+            if (!buffer.is_empty() && last_flush.elapsed() >= std::time::Duration::from_secs(5)) || buffer.len() >= 50 {
+                let now_ms = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis();
+                let filename = format!("spool_{}_{}.jsonl", now_ms, std::process::id());
+                let tmp_path = spool_dir_clone.join(format!("{}.tmp", filename));
+                let final_path = spool_dir_clone.join(filename);
+                if let Ok(mut f) = fs::File::create(&tmp_path) {
+                    use std::io::Write;
+                    for line in &buffer {
+                        let _ = writeln!(f, "{}", line);
+                    }
+                    let _ = f.flush();
+                    let _ = fs::rename(tmp_path, final_path);
+                }
+                buffer.clear();
+                last_flush = std::time::Instant::now();
+            }
+        }
+    });
+
     // The identity verifier enforces the exact allow-list; startup rejects
     // resource-map and validator-profile drift before accepting traffic.
     let policy_store = Arc::new(PolicySnapshotStore::new(snapshot));
     let policy_engine = Arc::new(CedarPolicyEngine::new(policy_store.clone()));
+
+    // Phase 2: Live Hot-Reload Watcher for supervisor-provided policy.cedar and bundle updates
+    let policy_watcher_store = policy_store.clone();
+    let cedar_file_path = data_dir.join("policy.cedar");
+    let bundle_file_path = data_dir.join("policy-bundle.json");
+    tokio::spawn(async move {
+        let mut last_cedar_mtime = None;
+        let mut last_bundle_mtime = None;
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            if let Ok(meta) = tokio::fs::metadata(&cedar_file_path).await {
+                if let Ok(mtime) = meta.modified() {
+                    if last_cedar_mtime.map_or(false, |prev| mtime > prev) {
+                        if let Ok(content) = tokio::fs::read_to_string(&cedar_file_path).await {
+                            if let Ok(new_snapshot) = extmcp_cedar::load_snapshot(&[&content], AXIOM_SCHEMA_SRC) {
+                                let v = policy_watcher_store.swap(new_snapshot);
+                                println!("Live hot-reload: updated Cedar policy v{} from {}", v, cedar_file_path.display());
+                            }
+                        }
+                    }
+                    last_cedar_mtime = Some(mtime);
+                }
+            }
+            if let Ok(meta) = tokio::fs::metadata(&bundle_file_path).await {
+                if let Ok(mtime) = meta.modified() {
+                    if last_bundle_mtime.map_or(false, |prev| mtime > prev) {
+                        if let Ok((new_snapshot, _)) = admin::load_policy_bundle(&bundle_file_path, DEFAULT_POLICY_BUNDLE, AXIOM_SCHEMA_SRC) {
+                            let v = policy_watcher_store.swap(new_snapshot);
+                            println!("Live hot-reload: updated Cedar policy bundle v{} from {}", v, bundle_file_path.display());
+                        }
+                    }
+                    last_bundle_mtime = Some(mtime);
+                }
+            }
+        }
+    });
     let pipeline = Arc::new(CheckPipeline::new(
         identity_adapter,
         validator,

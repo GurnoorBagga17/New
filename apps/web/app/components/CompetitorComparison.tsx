@@ -26,7 +26,7 @@ const COMPARISON_DATA: FeatureRow[] = [
   {
     capability: "Sub-Millisecond Cedar Policy Engine",
     category: "Runtime",
-    axiom: { status: "check", label: "< 1.5ms P99 deterministic formal verification", highlight: true },
+    axiom: { status: "check", label: "< 1.5ms engine (< 5ms P99 gateway overhead)", highlight: true },
     aembit: { status: "partial", label: "Conditional access (35–60ms proxy latency)" },
     tokenSecurity: { status: "cross", label: "No inline policy enforcement engine" },
     cyberark: { status: "partial", label: "Opaque vault check (120ms+ latency)" },
@@ -199,7 +199,7 @@ export function CompetitorComparison() {
 
           {/* Bottom Footnote & CTA */}
           <div className="p-4 bg-[var(--bg-surface-2)] border-t border-[var(--border-subtle)] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-[var(--text-secondary)]">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <span className="flex items-center gap-1 text-emerald-700 font-bold">✓ Native Supported</span>
               <span className="flex items-center gap-1 text-amber-700 font-bold">◎ Partial / Out-of-Band</span>
               <span className="flex items-center gap-1 text-slate-500 font-bold">✕ Not Supported</span>
@@ -209,6 +209,9 @@ export function CompetitorComparison() {
                 View Pricing &amp; $0 Discovery Pledge →
               </Link>
             </div>
+          </div>
+          <div className="px-4 py-2 bg-[var(--bg-surface-1)] border-t border-[var(--border-subtle)] text-[10px] text-[var(--text-muted)] text-center sm:text-left">
+            * Comparison based on publicly published vendor architectural documentation, protocol RFC specifications, and enterprise deployment tiers as of Q1 2025. All product names, logos, and brands are property of their respective owners.
           </div>
         </div>
       </div>

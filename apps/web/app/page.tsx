@@ -60,7 +60,7 @@ export default function HomePage() {
               Test ExtMCP &amp; Cedar Guardrails in Real Time
             </h2>
             <p className="mt-3 text-base text-[var(--text-secondary)]">
-              Simulate live agent tool invocations, watch fail-closed Cedar policy decisions in sub-3ms, or trigger an instant cluster-wide emergency kill switch.
+              Simulate live agent tool invocations, watch fail-closed Cedar policy decisions in sub-1.5ms (&lt; 5ms total gateway overhead), or trigger an instant cluster-wide emergency kill switch.
             </p>
           </div>
           <TerminalSimulator />

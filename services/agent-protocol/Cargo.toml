@@ -1,0 +1,15 @@
+[package]
+name = "axiom-agent-protocol"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Wire contract for the Axiom hybrid SaaS control plane and outbound agent channel"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+sha2.workspace = true
+hex.workspace = true
+uuid = { version = "1", features = ["serde", "v4"] }

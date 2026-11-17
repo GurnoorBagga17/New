@@ -41,15 +41,15 @@ export function UnderTheHood() {
               aria-expanded={openSection === 'enclave'}
             >
               <div className="trigger-title">
-                <span className="trigger-badge">ENCLAVE RUNTIME</span>
-                <strong>AWS Nitro &amp; Confidential Computing Isolation</strong>
+                <span className="trigger-badge">ENTERPRISE ENCLAVE PROFILE</span>
+                <strong>Confidential Computing &amp; Nitro Enclave Isolation</strong>
               </div>
               <span className="trigger-chevron">{openSection === 'enclave' ? '−' : '+'}</span>
             </button>
             {openSection === 'enclave' && (
               <div className="accordion-content">
                 <p className="accordion-desc">
-                  The Axiom Evaluator executes in memory-isolated enclaves (AWS Nitro Enclaves, GCP Confidential VMs, or AMD SEV-SNP). Static credentials never touch persistent disks.
+                  The Axiom Evaluator supports memory-isolated enclave deployment (AWS Nitro Enclaves, GCP Confidential VMs, or AMD SEV-SNP). Static credentials never touch persistent disks and keys stay sealed in hardware memory.
                 </p>
                 <div className="enclave-embed">
                   <EnclaveVisual />
