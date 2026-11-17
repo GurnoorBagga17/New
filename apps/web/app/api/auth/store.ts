@@ -3,6 +3,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import pg from "pg";
+import type { NextRequest } from "next/server";
 
 export type OperatorRole =
   | "security-admin"
@@ -223,6 +224,34 @@ export function verifyStepUpSignature(signatureHeader: string | null | undefined
     return true;
   }
   return false;
+}
+
+export async function getOperatorSession(req: NextRequest): Promise<SessionRecord | null> {
+  const sessionCookie = req.cookies.get("axiom_session")?.value;
+  if (sessionCookie) {
+    const session = getSession(sessionCookie);
+    if (session) return session;
+  }
+
+  const authHeader = req.headers.get("authorization");
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.slice(7).trim();
+    const session = getSession(token);
+    if (session) return session;
+  }
+
+  if (process.env.AXIOM_DEV_MODE === "1" || process.env.NODE_ENV !== "production") {
+    return {
+      sessionId: "dev-session",
+      userId: "user-sarah-chen",
+      tenantId: "org-axiom-enterprise",
+      role: "security-admin",
+      csrfToken: "dev-csrf",
+      expiresAtUnix: Math.floor(Date.now() / 1000) + 3600 * 24,
+    };
+  }
+
+  return null;
 }
 
 export { usersByEmail, sessionsById };

@@ -113,7 +113,7 @@ Located in `deployments/kubernetes/crds/`:
   - Mounts the host-level SPIFFE CSI driver socket (`/run/spire/sockets/agent.sock`) for zero-touch workload SVID attestation.
   - Exposes port `9001` (gRPC inline filter) and port `8787` (HTTP/SSE control plane) with automated `/healthz` probes.
 - **`mutating-webhook.yaml`:**
-  - Configures a Mutating Admission Webhook (`axiom-sidecar-injector.axiom-system.svc`) targeting pods annotated with `axiom.io/inject: "true"`.
+  - Configures a Mutating Admission Webhook (`axiom-sidecar-injector.axiom-system.svc`) targeting pods labeled with `axiom.nhi/protect: "true"` (and supporting `axiom.io/inject: "true"`).
   - Injects the `axiom-agentgateway` Envoy sidecar container, routing outbound tool calls transparently to the node-local DaemonSet on `:9001`.
 - **`deployment-gateway-and-airgap.yaml`:**
   - Deploys high-availability control plane pods with pod anti-affinity.

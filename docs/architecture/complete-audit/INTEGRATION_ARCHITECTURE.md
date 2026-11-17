@@ -2,7 +2,7 @@
 
 **Document:** `docs/architecture/complete-audit/INTEGRATION_ARCHITECTURE.md`  
 **Classification:** Cloud & SaaS Connector Engineering Specification  
-**Primary Crates:** `connectors`, `identity`, `secretless`, `siem-soar`, `fleet-control`  
+**Primary Crates:** `connectors`, `identity`, `secretless`, `siem-soar`, `fleet-control`, `lineage-graph`  
 
 ---
 
@@ -12,14 +12,14 @@ Axiom NHI provides verifiable, source-code-backed connectors across cloud provid
 
 | Integration Provider | Target Domain | Authentication Mechanism | Discovery / Ingestion Method | Normalization & Fingerprinting | Status |
 |---|---|---|---|---|---|
-| **AWS IAM / STS** | Cloud Infrastructure | AWS IAM Read-Only / STS AssumeRole | `aws-sdk-iam` (`ListRoles`, `ListUsers`, `ListAccessKeys`) | `arn:aws:iam::...` &rarr; HMAC-SHA256 Key ID | **COMPLETE** |
-| **Kubernetes (K8s)** | Container Workloads | In-Cluster ServiceAccount Token | `kube-rs` API (`api/v1/serviceaccounts`, `pods`) | `spiffe://cluster/ns/...` &rarr; HMAC-SHA256 Token | **COMPLETE** |
-| **GitHub** | Developer & CI/CD | GitHub App Private Key / Fine-Grained PAT | `octocrab` API (`/orgs/{org}/installations`, Actions Secrets) | `github::repo/actions/...` &rarr; CODEOWNERS parsing | **COMPLETE** |
+| **AWS IAM / STS** | Cloud Infrastructure | AWS IAM Read-Only / STS AssumeRole | `aws-sdk-iam` (`ListRoles`, `ListUsers`, `ListAccessKeys`) | `arn:aws:iam::...` &rarr; HMAC-SHA256 Key ID | **COMPLETE (Code & API Ready)** |
+| **Kubernetes (K8s)** | Container Workloads | In-Cluster ServiceAccount Token | `kube-rs` API (`api/v1/serviceaccounts`, `pods`) | `spiffe://cluster/ns/...` &rarr; HMAC-SHA256 Token | **COMPLETE (Code & API Ready)** |
+| **GitHub** | Developer & CI/CD | GitHub App Private Key / Fine-Grained PAT | `octocrab` API (`/orgs/{org}/installations`, Actions Secrets) | `github::repo/actions/...` &rarr; CODEOWNERS parsing | **COMPLETE (Code & API Ready)** |
 | **Slack** | Workspace Bot Agents | Bot User OAuth Token (`xoxb-...`) | Slack Web API (`auth.test`, `bots.info`, `apps.list`) | `slack::team_id/bot_id` &rarr; Scopes normalization | **COMPLETE** |
 | **OpenBao / Vault** | Ephemeral Secrets | AppRole / Kubernetes Auth Engine | OpenBao HTTP REST API (:8200) | `vault://openbao/...` &rarr; Dynamic Lease Token | **COMPLETE** |
 | **SpiceDB** | Fleet Authorization | Pre-shared Key (PSK) / gRPC | SpiceDB Zanzibar API (:50051) | `objectType:objectId#relation@subject` | **COMPLETE** |
 | **Splunk HEC** | Enterprise SIEM | HTTP Event Collector (HEC) Token | HTTPS POST `/services/collector/event` | OCSF v1.3 JSON format | **COMPLETE** |
-| **Microsoft Sentinel** | Enterprise SIEM / SOC | Azure AD App Registration / Shared Key | Azure Log Analytics Data Collector API | ArcSight CEF / OCSF v1.3 format | **COMPLETE** |
+| **Microsoft Sentinel** | Enterprise SIEM / SOC | Azure Monitor Logs Ingestion API | Data Collection Rules (DCR) & DCE Endpoints | ArcSight CEF / OCSF v1.3 format | **COMPLETE** |
 | **Azure Entra ID** | Cloud Identity / Workloads | Microsoft Graph API / Client Credentials | `GET /v1.0/servicePrincipals`, `/applications` | Service Principal App ID &rarr; HMAC-SHA256 Secret | **COMPLETE** |
 | **Google Cloud IAM** | Cloud Identity / Workloads | GCP Service Account Key / Workload Identity | `iam.googleapis.com/v1/projects/{id}/serviceAccounts` | Service Account Email &rarr; HMAC-SHA256 Key ID | **COMPLETE** |
 | **Okta** | Workforce & SaaS Identity | Okta SSWS Token / Private Key JWT | `/api/v1/apps?filter=type eq "service"` | Client ID &rarr; Scopes & Secret Fingerprint | **COMPLETE** |
@@ -29,24 +29,46 @@ Axiom NHI provides verifiable, source-code-backed connectors across cloud provid
 | **AI Gateways** | LLM Proxies & Tool Routers | Gateway Master Token (LangChain/Portkey) | Direct Ingestion / Discovery Worker | Provider Route &rarr; Virtual Key Fingerprint | **COMPLETE** |
 | **Terraform State** | Infrastructure as Code | Terraform Cloud Token / S3 State Reader | State JSON Object Parser | Resource Address &rarr; Output Key Hash | **COMPLETE** |
 
+> [!NOTE]
+> **Microsoft Sentinel Ingestion Migration:** Following Microsoft's deprecation and retirement of the legacy HTTP Data Collector API in September 2026, Axiom NHI dispatches audit telemetry exclusively via the Azure Monitor Logs Ingestion API using Data Collection Endpoints (DCE) and Data Collection Rules (DCR) authenticated with Microsoft Entra OAuth2 tokens.
+
 ---
 
-## 2. Connector Architecture & Zero-Secret Guardrails
+## 2. Connected Fleet Lifecycle & Multi-Tenant Data Safety
 
-### 2.1 The $0 Passive Discovery Promise
+### 2.1 Database Schema: `0004_integrations_and_sync_runs.sql`
+Axiom NHI provides persistent, tenant-isolated integration management in PostgreSQL 16:
+1. **`integrations` Table:** Stores configured cloud connections (e.g. AWS Cross-Account Role ARNs, K8s cluster contexts, GitHub App installations) with tenant RLS isolation and status flags (`connected`, `syncing`, `error`, `disconnected`).
+2. **`sync_runs` Table:** Records each passive discovery execution, tracking start time, completion time, status (`in_progress`, `success`, `failed`), nodes discovered, nodes updated, and nodes marked stale.
+3. **Compound Tenant Uniqueness:** Resolves multi-tenant collision risks by enforcing `CONSTRAINT uq_nhi_nodes_tenant_entity UNIQUE (tenant_id, entity_uid)`.
+4. **Stale Node Lifecycle:** When an integration is disconnected or an entity is removed from cloud IAM, `is_stale = true` is flagged, preserving historical blast-radius lineage while removing active privilege weights.
+
+### 2.2 Control Plane REST Endpoints (`:8787` & `/api/integrations`)
+- `GET /v1/integrations` — List tenant-scoped active integrations.
+- `POST /v1/integrations` — Connect a cloud provider (validates role ARN / external ID; stores zero raw secrets).
+- `GET /v1/integrations/:id` — Fetch status, last sync timestamp, and error telemetry.
+- `POST /v1/integrations/:id/test` — Execute read-only cross-account trust check (`sts:AssumeRole` verification).
+- `POST /v1/integrations/:id/sync` — Trigger immediate discovery scan, populating `nhi_nodes` with HMAC-SHA256 pseudonymization.
+- `DELETE /v1/integrations/:id` — Disconnect provider and mark associated nodes stale.
+
+---
+
+## 3. Connector Architecture & Zero-Secret Guardrails
+
+### 3.1 The $0 Passive Discovery Promise
 All cloud discovery connectors run with **strictly read-only permissions**:
 - **AWS:** Requires only `IAMReadOnlyAccess` or a scoped policy with `iam:List*` and `iam:Get*`. It never modifies IAM policies, attaches roles, or provisions infrastructure.
 - **Kubernetes:** Uses a read-only `ClusterRole` with `get`, `list`, and `watch` permissions restricted to `serviceaccounts`, `pods`, and `configmaps`.
 - **GitHub:** Operates via a read-only GitHub App inspecting repository metadata, workflow files, and `.github/CODEOWNERS`.
 - **Slack:** Uses read-only `auth.test` and `bots:read` scopes.
 
-### 2.2 Rate-Limiting & High-Scale Ingestion (`TokenBucketLimiter`)
+### 3.2 Rate-Limiting & High-Scale Ingestion (`TokenBucketLimiter`)
 To prevent cloud provider API throttling during 10,000-NHI enterprise discovery scans, `connectors/src/lib.rs` implements a thread-safe token bucket rate limiter:
 - **Refill Rate:** 50 requests per second (`requests_per_second`).
 - **Burst Capacity:** 100 requests (`burst_capacity`).
 - **Retry Policy:** 5 exponential backoff retries with jitter (`max_retries`).
 
-### 2.3 Credential Fingerprinting vs. Plaintext Rejection
+### 3.3 Credential Fingerprinting vs. Plaintext Rejection
 ```rust
 // connectors/src/lib.rs:50-65
 pub fn fingerprint_credential_id(tenant_salt: &[u8], credential_identifier: &str) -> String {
@@ -59,7 +81,7 @@ If an operator accidentally passes a plaintext API token to the discovery connec
 
 ---
 
-## 3. Complete Integration Execution Flow
+## 4. Complete Integration Execution Flow
 
 ```mermaid
 sequenceDiagram
@@ -88,7 +110,7 @@ sequenceDiagram
 
     rect rgb(245, 255, 245)
         Note over Orchestrator,Lineage: Step 3: Persistence & Topology Construction
-        Orchestrator->>Lineage: Bulk Upsert nhi_nodes (450 entities)
+        Orchestrator->>Lineage: Bulk Upsert nhi_nodes (450 entities) with tenant isolation
         Orchestrator->>Lineage: Bulk Upsert nhi_edges (communication & ownership)
     end
 
@@ -104,9 +126,9 @@ sequenceDiagram
 
 ---
 
-## 4. Secretless Credential Brokering (OpenBao)
+## 5. Secretless Credential Brokering (OpenBao)
 
-### 4.1 Architecture & Workflow
+### 5.1 Architecture & Workflow
 Instead of granting AI agents permanent database passwords or long-lived cloud keys, Axiom NHI acts as a **dynamic secret broker**:
 1. When an AI agent needs to query a database (`mcp://postgres-prod.internal`), it authenticates with the ExtMCP gateway using its short-lived SPIFFE SVID or OAuth 2.1 token.
 2. The ExtMCP runtime validates the Cedar policy.
@@ -117,7 +139,7 @@ Instead of granting AI agents permanent database passwords or long-lived cloud k
 6. The AI agent never receives the raw password; it only sees the success response.
 7. Upon task completion or 15-minute expiration, OpenBao automatically drops the temporary database role.
 
-### 4.2 IETF RFC 8693 Multi-Hop Token Exchange
+### 5.2 IETF RFC 8693 Multi-Hop Token Exchange
 When an AI agent delegates a sub-task to another agent, `secretless::exchange_rfc8693_token` verifies that:
 - The child agent's requested scopes are a strict subset of the parent's scopes (preventing privilege escalation).
 - The audience indicator matches RFC 8707 canonical URIs (`mcp://...`).
@@ -126,7 +148,7 @@ When an AI agent delegates a sub-task to another agent, `secretless::exchange_rf
 
 ---
 
-### 4.3 Universal Multi-Cloud STS Credential Brokers
+## 6. Universal Multi-Cloud STS Credential Brokers
 Axiom NHI abstracts secretless brokering across multi-cloud infrastructure through the `CredentialBrokerProvider` trait in `secretless/src/lib.rs`:
 
 1. **AWS STS Web Identity (`secretless/src/aws_sts.rs`):**

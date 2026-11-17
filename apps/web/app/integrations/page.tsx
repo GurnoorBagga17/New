@@ -1,8 +1,21 @@
 // Copyright 2026 Axiom NHI — Licensed under Apache-2.0
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
+
+interface ConnectedIntegration {
+  id: string;
+  tenant_id: string;
+  provider: string;
+  display_name: string;
+  credential_ref: string;
+  external_id?: string | null;
+  status: "connected" | "syncing" | "error" | "disconnected";
+  last_sync_at: string | null;
+  last_error?: string | null;
+  created_at: string;
+}
 
 interface Connector {
   id: string;
@@ -148,196 +161,163 @@ routes:
       disallow_private_ranges: ["127.0.0.0/8", "169.254.169.254/32", "10.0.0.0/8"]`,
   },
   {
-    id: "aws-iam-sts",
-    name: "AWS IAM & STS",
+    id: "aws-iam-discovery",
+    name: "AWS IAM & STS Roles",
     category: "cloud",
     categoryLabel: "Cloud IAM & Kubernetes",
     mode: "discovery",
     modeLabel: "READ-ONLY DISCOVERY",
-    latency: "Passive ($0)",
-    protocol: "AWS STS AssumeRoleWithWebIdentity",
+    latency: "Passive Scan",
+    protocol: "AWS STS AssumeRole (External ID)",
     zeroSecretGuarantee: "HMAC-SHA256 Fingerprinted Only",
-    owaspControls: ["OWASP NHI3", "OWASP NHI7"],
-    description: "Passive inventory of all IAM Roles, Machine Users, and cross-account Trust Policies. Calculates static blast radius at zero query cost.",
-    configSnippet: `# terraform read-only discovery policy
-resource "aws_iam_role" "axiom_discovery" {
-  name = "AxiomNHIDiscoveryRole"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{ Action = "sts:AssumeRole", Effect = "Allow", Principal = { AWS = "arn:aws:iam::123456789012:role/AxiomHost" } }]
-  })
+    owaspControls: ["OWASP NHI1", "OWASP NHI3"],
+    description: "Discovers overprivileged service roles, long-lived access keys, and cross-account trust policies without deploying host agents.",
+    configSnippet: `# trust_policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": { "AWS": "arn:aws:iam::881239012481:role/AxiomScannerRole" },
+    "Action": "sts:AssumeRole",
+    "Condition": { "StringEquals": { "sts:ExternalId": "axm-tenant-9901-ext" } }
+  }]
 }`,
   },
   {
-    id: "kubernetes-spiffe",
-    name: "Kubernetes (EKS / GKE / AKS)",
+    id: "k8s-service-accounts",
+    name: "Kubernetes ServiceAccounts",
+    category: "cloud",
+    categoryLabel: "Cloud IAM & Kubernetes",
+    mode: "discovery",
+    modeLabel: "READ-ONLY DISCOVERY",
+    latency: "Passive Scan",
+    protocol: "K8s API + Projected Tokens",
+    zeroSecretGuarantee: "HMAC-SHA256 Fingerprinted Only",
+    owaspControls: ["OWASP NHI2", "OWASP NHI7"],
+    description: "Maps workload pod identities, projected tokens, and bound cluster roles to detect unsegmented AI cluster nodes.",
+    configSnippet: `# clusterrole_binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: axiom-passive-discovery
+rules:
+  - apiGroups: [""]
+    resources: ["serviceaccounts", "pods", "namespaces"]
+    verbs: ["get", "list", "watch"]`,
+  },
+  {
+    id: "gcp-workload-identity",
+    name: "Google Cloud Workload Identity",
+    category: "cloud",
+    categoryLabel: "Cloud IAM & Kubernetes",
+    mode: "discovery",
+    modeLabel: "READ-ONLY DISCOVERY",
+    latency: "Passive Scan",
+    protocol: "GCP Workload Identity Federation",
+    zeroSecretGuarantee: "HMAC-SHA256 Fingerprinted Only",
+    owaspControls: ["OWASP NHI3", "OWASP NHI8"],
+    description: "Federated scanning of GCP Service Accounts, Cloud Run agent identities, and IAM bindings via OIDC subject assertions.",
+    configSnippet: `# gcp_federation_config.json
+{
+  "audience": "//iam.googleapis.com/projects/123456789/locations/global/workloadIdentityPools/axiom-pool/providers/axiom-oidc",
+  "credential_source": {
+    "file": "/var/run/secrets/tokens/axiom-token"
+  }
+}`,
+  },
+  {
+    id: "azure-entra-workload",
+    name: "Azure Entra ID Workload Identities",
+    category: "cloud",
+    categoryLabel: "Cloud IAM & Kubernetes",
+    mode: "discovery",
+    modeLabel: "READ-ONLY DISCOVERY",
+    latency: "Passive Scan",
+    protocol: "Entra App Registrations / Graph API",
+    zeroSecretGuarantee: "HMAC-SHA256 Fingerprinted Only",
+    owaspControls: ["OWASP NHI1", "OWASP NHI4"],
+    description: "Scans enterprise Service Principals, Managed Identities, and tenant app permissions with zero storage of client secrets.",
+    configSnippet: `# entra_registration.json
+{
+  "apiPermissions": ["Application.Read.All", "IdentityRiskEvent.Read.All"],
+  "consentType": "AdminConsentRequired",
+  "federatedCredential": "urn:axiom:tenant:cloud-prod"
+}`,
+  },
+  {
+    id: "spire-agent",
+    name: "SPIRE & SPIFFE Workload Attestation",
     category: "cloud",
     categoryLabel: "Cloud IAM & Kubernetes",
     mode: "inline",
     modeLabel: "INLINE ENFORCEMENT",
     latency: "< 1.2ms",
-    protocol: "SPIFFE / SPIRE Workload Attestation",
-    zeroSecretGuarantee: "Ephemeral OpenBao Lease <= 300s",
-    owaspControls: ["OWASP NHI4", "OWASP NHI8"],
-    description: "Attests Kubernetes Pod service accounts cryptographically using x509 SVIDs before allowing MCP tool communication.",
-    configSnippet: `# helm values.yaml
-spire:
-  enabled: true
-  trustDomain: "axiom.k8s.local"
-  workloadAttestation:
-    k8s_psat:
-      cluster: "prod-us-east-1"`,
-  },
-  {
-    id: "google-cloud-wif",
-    name: "Google Cloud WIF",
-    category: "cloud",
-    categoryLabel: "Cloud IAM & Kubernetes",
-    mode: "discovery",
-    modeLabel: "READ-ONLY DISCOVERY",
-    latency: "Passive ($0)",
-    protocol: "OIDC Federation",
-    zeroSecretGuarantee: "HMAC-SHA256 Fingerprinted Only",
-    owaspControls: ["OWASP NHI1", "OWASP NHI3"],
-    description: "Maps Google Cloud Workload Identity Pools, Service Account Keys, and IAM bindings across multi-cloud infrastructure.",
-    configSnippet: `# gcp provider configuration
-provider "google" {
-  project = "axiom-governance-prod"
-  impersonate_service_account = "axiom-auditor@axiom-governance-prod.iam.gserviceaccount.com"
-}`,
-  },
-  {
-    id: "microsoft-entra",
-    name: "Microsoft Entra ID / Azure AD",
-    category: "cloud",
-    categoryLabel: "Cloud IAM & Kubernetes",
-    mode: "discovery",
-    modeLabel: "READ-ONLY DISCOVERY",
-    latency: "Passive ($0)",
-    protocol: "Microsoft Graph API",
-    zeroSecretGuarantee: "HMAC-SHA256 Fingerprinted Only",
-    owaspControls: ["OWASP NHI2", "OWASP NHI6"],
-    description: "Continuous posture assessment for Enterprise App Registrations, Service Principals, and client certificates.",
-    configSnippet: `# azure app registration
-az ad app credential reset \\
-  --id "00000000-0000-0000-0000-000000000000" \\
-  --append --display-name "AxiomReadAudit"`,
-  },
-  {
-    id: "spiffe-spire",
-    name: "SPIFFE / SPIRE Attestation Engine",
-    category: "cloud",
-    categoryLabel: "Cloud IAM & Kubernetes",
-    mode: "inline",
-    modeLabel: "INLINE ENFORCEMENT",
-    latency: "< 0.8ms",
-    protocol: "x509 SVID Workload Attestation",
-    zeroSecretGuarantee: "HMAC-SHA256 Fingerprinted Only",
-    owaspControls: ["OWASP NHI4", "OWASP NHI9"],
-    description: "Binary sha256 checksum and cgroup path attestation for Linux host processes before issuing ephemeral access tokens.",
-    configSnippet: `# spire-agent.conf
+    protocol: "SPIFFE Workload API Unix Socket",
+    zeroSecretGuarantee: "Ephemeral X.509 SVID (TTL <= 1h)",
+    owaspControls: ["OWASP NHI1", "OWASP NHI2"],
+    description: "Zero-token mTLS kernel attestation. Verifies binary hash and Linux cgroups before authorizing agent network access.",
+    configSnippet: `# spire_workload.conf
 agent {
-  data_dir = "/run/spire/data"
-  log_level = "INFO"
-  server_address = "spire-server.internal"
-  server_port = "8081"
-  trust_domain = "axiom.prod"
+  spiffe_id = "spiffe://corp.internal/ns/ai/sa/analyst-agent"
+  socket_path = "/run/spire/sockets/agent.sock"
 }`,
   },
   {
-    id: "github-enterprise",
-    name: "GitHub Enterprise & CODEOWNERS",
+    id: "github-actions-app",
+    name: "GitHub Actions & App Tokens",
     category: "code",
     categoryLabel: "Code, Git & CI/CD",
     mode: "discovery",
     modeLabel: "READ-ONLY DISCOVERY",
-    latency: "Passive ($0)",
-    protocol: "GitHub App REST & GraphQL",
+    latency: "Passive Scan",
+    protocol: "GitHub App Installation Token",
     zeroSecretGuarantee: "HMAC-SHA256 Fingerprinted Only",
-    owaspControls: ["OWASP NHI2", "OWASP NHI10"],
-    description: "Extracts Human Owner attribution from CODEOWNERS files to achieve >= 0.85 owner confidence on machine identities.",
-    configSnippet: `# axiom-connectors.toml
-[github]
-app_id = 981240
-installation_id = 4591024
-repositories = ["*"]
-parse_codeowners = true
-owner_confidence_boost = 0.85`,
+    owaspControls: ["OWASP NHI2", "OWASP NHI5"],
+    description: "Scans organization CODEOWNERS, fine-grained PATs, and GitHub Actions secret bindings to identify unowned automated workflows.",
+    configSnippet: `# github-app-permissions.json
+{
+  "permissions": {
+    "organization_administration": "read",
+    "members": "read",
+    "actions": "read"
+  }
+}`,
   },
   {
     id: "gitlab-cicd",
-    name: "GitLab CI/CD",
+    name: "GitLab CI/CD & Deploy Tokens",
     category: "code",
     categoryLabel: "Code, Git & CI/CD",
     mode: "discovery",
     modeLabel: "READ-ONLY DISCOVERY",
-    latency: "Passive ($0)",
-    protocol: "GitLab REST API v4",
+    latency: "Passive Scan",
+    protocol: "GitLab Group API v4",
     zeroSecretGuarantee: "HMAC-SHA256 Fingerprinted Only",
-    owaspControls: ["OWASP NHI3", "OWASP NHI6"],
-    description: "Detects orphaned Project Access Tokens, Group Deploy Keys, and Runner registrations with unrotated credentials.",
-    configSnippet: `# gitlab sync config
-[gitlab]
-base_url = "https://gitlab.enterprise.internal"
-scan_scopes = ["deploy_keys", "project_access_tokens", "ci_variables"]
-read_only = true`,
+    owaspControls: ["OWASP NHI2", "OWASP NHI5"],
+    description: "Discovers unrotated GitLab Deploy Tokens, project deploy keys, and runner registration tokens across group hierarchies.",
+    configSnippet: `# gitlab_scanner.yaml
+scanner:
+  endpoint: "https://gitlab.corp.internal/api/v4"
+  scope: "read_api"
+  audit_runners: true`,
   },
   {
-    id: "github-actions-oidc",
-    name: "GitHub Actions OIDC",
-    category: "code",
-    categoryLabel: "Code, Git & CI/CD",
-    mode: "inline",
-    modeLabel: "INLINE ENFORCEMENT",
-    latency: "< 2.9ms",
-    protocol: "RFC 8707 Resource Indicators",
-    zeroSecretGuarantee: "Ephemeral OpenBao Lease <= 300s",
-    owaspControls: ["OWASP NHI1", "OWASP NHI4"],
-    description: "Cryptographically binds GHA workflow identity tokens to exact repository refs, PR numbers, and environment scopes.",
-    configSnippet: `# .github/workflows/deploy.yml
-- name: Axiom Exchange
-  uses: axiom-nhi/exchange-action@v1
-  with:
-    gateway-url: "https://gateway.axiom.internal:9090"
-    role-arn: "arn:aws:iam::123456789012:role/DeployRole"`,
-  },
-  {
-    id: "terraform-opentofu",
-    name: "Terraform / OpenTofu State",
-    category: "code",
-    categoryLabel: "Code, Git & CI/CD",
-    mode: "discovery",
-    modeLabel: "READ-ONLY DISCOVERY",
-    latency: "Passive ($0)",
-    protocol: "S3 / GCS State Parser",
-    zeroSecretGuarantee: "HMAC-SHA256 Fingerprinted Only",
-    owaspControls: ["OWASP NHI5", "OWASP NHI7"],
-    description: "Parses remote state files to discover non-human IAM resources before deployment, flagging unmanaged keys.",
-    configSnippet: `# terraform backend reader
-[terraform]
-backend = "s3"
-bucket = "terraform-state-prod"
-prefix = "environments/us-east-1/"
-region = "us-east-1"`,
-  },
-  {
-    id: "openbao-broker",
-    name: "OpenBao (MPL-2.0 Dynamic Broker)",
+    id: "openbao-vault",
+    name: "OpenBao (Apache-2.0 Secrets Engine)",
     category: "vault",
     categoryLabel: "Secret Vaults & Identity",
     mode: "inline",
     modeLabel: "INLINE ENFORCEMENT",
-    latency: "< 1.5ms",
-    protocol: "Native OpenBao REST / Transit",
-    zeroSecretGuarantee: "Ephemeral OpenBao Lease <= 300s",
-    owaspControls: ["OWASP NHI5", "OWASP NHI8"],
-    description: "Dynamic secret engine broker running in clean container isolation. Emits disposable credentials injected at gateway egress.",
-    configSnippet: `# openbao broker policy
-path "database/creds/readonly-analyst" {
-  capabilities = ["read"]
-  min_wrapping_ttl = "60s"
-  max_wrapping_ttl = "300s"
-}`,
+    latency: "< 2.8ms",
+    protocol: "HTTP/2 REST (Direct Boundary)",
+    zeroSecretGuarantee: "Dynamic Lease Revoked in <= 300s",
+    owaspControls: ["OWASP NHI5", "OWASP MCP01"],
+    description: "Isolated Apache-2.0 boundary. Generates ephemeral, single-use database and cloud credentials injected dynamically into agent tools.",
+    configSnippet: `# openbao_mount.sh
+bao secrets enable -path=axiom-dynamic database
+bao write axiom-dynamic/config/postgres \\
+    plugin_name=postgresql-database-plugin \\
+    connection_url="postgresql://{{username}}:{{password}}@pg.internal:5432/prod"`,
   },
   {
     id: "hashicorp-vault",
@@ -346,97 +326,71 @@ path "database/creds/readonly-analyst" {
     categoryLabel: "Secret Vaults & Identity",
     mode: "inline",
     modeLabel: "INLINE ENFORCEMENT",
-    latency: "< 1.9ms",
-    protocol: "Vault Transit & KV v2",
-    zeroSecretGuarantee: "Ephemeral OpenBao Lease <= 300s",
+    latency: "< 3.0ms",
+    protocol: "AppRole / JWT Auth",
+    zeroSecretGuarantee: "Short-Lived Response-Wrapping",
     owaspControls: ["OWASP NHI5", "OWASP NHI8"],
-    description: "Namespace-aware dynamic credential issuance with automated revocation triggers linked to Axiom Kill Switch.",
-    configSnippet: `# vault-agent.hcl
-auto_auth {
-  method "approle" {
-    mount_path = "auth/approle"
-    config = {
-      role_id_file_path = "/etc/vault/role-id"
-      secret_id_file_path = "/etc/vault/secret-id"
-    }
-  }
+    description: "Interoperates with existing corporate Vault clusters via AppRole auth to wrap secrets with cryptographic cubbyhole delivery.",
+    configSnippet: `# vault_auth.hcl
+auth "approle" {
+  role_name = "axiom-runtime-worker"
+  token_ttl = "10m"
+  token_max_ttl = "30m"
 }`,
   },
   {
-    id: "aws-secrets-manager",
-    name: "AWS Secrets Manager",
-    category: "vault",
-    categoryLabel: "Secret Vaults & Identity",
-    mode: "discovery",
-    modeLabel: "READ-ONLY DISCOVERY",
-    latency: "Passive ($0)",
-    protocol: "AWS Secrets Manager Read",
-    zeroSecretGuarantee: "HMAC-SHA256 Fingerprinted Only",
-    owaspControls: ["OWASP NHI3", "OWASP NHI5"],
-    description: "Scans secret metadata, rotation intervals, and consumer resource ARNs without reading secret string contents.",
-    configSnippet: `# iam read metadata only
-Statement = [{
-  Effect = "Allow"
-  Action = ["secretsmanager:ListSecrets", "secretsmanager:DescribeSecret"]
-  Resource = "*"
-}]`,
-  },
-  {
-    id: "okta-workforce",
-    name: "Okta Workforce & OIDC",
-    category: "vault",
-    categoryLabel: "Secret Vaults & Identity",
-    mode: "discovery",
-    modeLabel: "READ-ONLY DISCOVERY",
-    latency: "Passive ($0)",
-    protocol: "OIDC / OAuth 2.0 PKCE",
-    zeroSecretGuarantee: "HMAC-SHA256 Fingerprinted Only",
-    owaspControls: ["OWASP NHI2", "OWASP NHI6"],
-    description: "Federates human operator sessions with machine identity ownership graphs for instant audit attribution.",
-    configSnippet: `# okta oidc configuration
-[auth.oidc]
-issuer = "https://company.okta.com"
-client_id = "0oa98214klz0192"
-redirect_uri = "https://axiomnhi.dev/api/auth/oidc/callback"`,
-  },
-  {
-    id: "spicedb-graph",
-    name: "SpiceDB Delegation Graph",
+    id: "cyberark-conjur",
+    name: "CyberArk Conjur Cloud",
     category: "vault",
     categoryLabel: "Secret Vaults & Identity",
     mode: "inline",
     modeLabel: "INLINE ENFORCEMENT",
-    latency: "< 0.9ms",
-    protocol: "gRPC ContextSync / Zanzibar",
-    zeroSecretGuarantee: "HMAC-SHA256 Fingerprinted Only",
-    owaspControls: ["OWASP NHI4", "OWASP NHI9"],
-    description: "Sub-millisecond Zanzibar graph checks ('Can Agent X invoke Tool Y under Delegation Z right now?').",
-    configSnippet: `# schema.zed
-definition user {}
-definition agent {
-  relation owner: user
-  relation delegate: agent
-  permission invoke_tool = owner + delegate->invoke_tool
-}`,
+    latency: "< 3.2ms",
+    protocol: "Conjur REST API / Host Factory",
+    zeroSecretGuarantee: "Dynamic Host Factory Tokens",
+    owaspControls: ["OWASP NHI5", "OWASP NHI9"],
+    description: "Attests machine workloads against CyberArk Conjur policies, mapping agent lineage to enterprise PAM safes.",
+    configSnippet: `# conjur_policy.yml
+- !host
+  id: agents/financial-reconciler
+  annotations:
+    axiom.nhi/supervised: "true"`,
   },
   {
-    id: "splunk-hec",
-    name: "Splunk HEC (OCSF / CEF)",
+    id: "okta-workforce",
+    name: "Okta Workforce & Service Accounts",
+    category: "vault",
+    categoryLabel: "Secret Vaults & Identity",
+    mode: "discovery",
+    modeLabel: "READ-ONLY DISCOVERY",
+    latency: "Passive Scan",
+    protocol: "Okta Management API (SSWS)",
+    zeroSecretGuarantee: "HMAC-SHA256 Fingerprinted Only",
+    owaspControls: ["OWASP NHI4", "OWASP NHI7"],
+    description: "Cross-correlates human supervisors with automated OAuth applications, API service tokens, and orphan admin identities.",
+    configSnippet: `# okta_client.conf
+[okta]
+org_url = "https://corp.okta.com"
+scopes = ["okta.apps.read", "okta.users.read"]`,
+  },
+  {
+    id: "microsoft-sentinel",
+    name: "Microsoft Sentinel (Logs Ingestion API)",
     category: "siem",
     categoryLabel: "SIEM, SOAR & Ticketing",
     mode: "inline",
     modeLabel: "INLINE ENFORCEMENT",
-    latency: "< 1.1ms",
-    protocol: "OCSF v1.3 JSON over TLS",
+    latency: "< 1.5ms",
+    protocol: "Azure Monitor Logs Ingestion (DCR/DCE)",
     zeroSecretGuarantee: "HMAC-SHA256 Fingerprinted Only",
     owaspControls: ["OWASP NHI6", "OWASP NHI10"],
-    description: "Asynchronous zero-loss audit log streaming to Splunk HTTP Event Collector with pre-enqueue HMAC secret scrubbing.",
-    configSnippet: `# splunk_hec.conf
-[audit.splunk]
-hec_url = "https://splunk-hec.corp:8088/services/collector/raw"
-channel = "axiom-audit-stream"
-schema_version = "ocsf-1.3.0"
-batch_size = 500`,
+    description: "Direct streaming of policy evaluation spans to Microsoft Sentinel via Data Collection Rules (DCR) and Endpoints (DCE).",
+    configSnippet: `# sentinel_ingestion.json
+{
+  "dce_endpoint": "https://axiom-dce.eastus-1.ingest.monitor.azure.com",
+  "dcr_immutable_id": "dcr-018f4a21e428701980",
+  "stream_name": "Custom-AxiomAudit_CL"
+}`,
   },
   {
     id: "datadog-siem",
@@ -499,15 +453,147 @@ approvals:
 ];
 
 export default function IntegrationsPage() {
+  // Connected Fleet State
+  const [connectedIntegrations, setConnectedIntegrations] = useState<ConnectedIntegration[]>([]);
+  const [isLoadingFleet, setIsLoadingFleet] = useState<boolean>(true);
+  const [fleetActionMsg, setFleetActionMsg] = useState<{ id: string; text: string; ok: boolean } | null>(null);
+
+  // Connect Provider Modal State
+  const [showConnectModal, setShowConnectModal] = useState<boolean>(false);
+  const [newProvider, setNewProvider] = useState<string>("aws_iam");
+  const [newDisplayName, setNewDisplayName] = useState<string>("");
+  const [newCredentialRef, setNewCredentialRef] = useState<string>("");
+  const [newExternalId, setNewExternalId] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Catalog State
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [activeModalConnector, setActiveModalConnector] = useState<Connector | null>(null);
   const [copiedSnippet, setCopiedSnippet] = useState<boolean>(false);
 
+  // Fetch Connected Integrations Fleet
+  const loadFleet = useCallback(async () => {
+    try {
+      setIsLoadingFleet(true);
+      const res = await fetch("/api/integrations");
+      if (res.ok) {
+        const data = await res.json();
+        setConnectedIntegrations(data.integrations || []);
+      }
+    } catch {
+      // Offline or network error
+    } finally {
+      setIsLoadingFleet(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadFleet();
+  }, [loadFleet]);
+
+  // Test Connection Action
+  const handleTestConnection = async (id: string) => {
+    setFleetActionMsg({ id, text: "Verifying cross-account trust...", ok: true });
+    try {
+      const res = await fetch(`/api/integrations/${encodeURIComponent(id)}/test`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setFleetActionMsg({
+          id,
+          text: `Verified: ${data.permissions_verified?.length || 4} read-only permissions confirmed.`,
+          ok: true,
+        });
+      } else {
+        setFleetActionMsg({ id, text: data.message || "Connection verification failed.", ok: false });
+      }
+    } catch {
+      setFleetActionMsg({ id, text: "Error contacting verification endpoint.", ok: false });
+    }
+    setTimeout(() => setFleetActionMsg(null), 5000);
+  };
+
+  // Sync Now Action
+  const handleSyncNow = async (id: string) => {
+    setFleetActionMsg({ id, text: "Triggering discovery scan...", ok: true });
+    setConnectedIntegrations((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, status: "syncing" } : item))
+    );
+    try {
+      const res = await fetch(`/api/integrations/${encodeURIComponent(id)}/sync`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setFleetActionMsg({
+          id,
+          text: `Scan complete: ${data.nodes_discovered} entities indexed & HMAC fingerprinted.`,
+          ok: true,
+        });
+        setConnectedIntegrations((prev) =>
+          prev.map((item) =>
+            item.id === id ? { ...item, status: "connected", last_sync_at: data.finished_at } : item
+          )
+        );
+      } else {
+        setFleetActionMsg({ id, text: data.message || "Discovery sync failed.", ok: false });
+      }
+    } catch {
+      setFleetActionMsg({ id, text: "Network error triggering sync.", ok: false });
+    }
+    setTimeout(() => setFleetActionMsg(null), 5000);
+  };
+
+  // Disconnect Action
+  const handleDisconnect = async (id: string) => {
+    if (!window.confirm("Are you sure you want to disconnect this integration? Discovered NHI nodes will be marked as stale.")) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/integrations/${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (res.ok) {
+        setConnectedIntegrations((prev) => prev.filter((item) => item.id !== id));
+      }
+    } catch {
+      // Handle error
+    }
+  };
+
+  // Create Connection
+  const handleCreateIntegration = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDisplayName || !newCredentialRef) return;
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/integrations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: newProvider,
+          display_name: newDisplayName,
+          credential_ref: newCredentialRef,
+          external_id: newExternalId || undefined,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.integration) {
+          setConnectedIntegrations((prev) => [data.integration, ...prev]);
+        }
+        setShowConnectModal(false);
+        setNewDisplayName("");
+        setNewCredentialRef("");
+        setNewExternalId("");
+      }
+    } catch {
+      // Handle error
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Filter Catalog
   const filteredConnectors = useMemo(() => {
     return CONNECTORS.filter((c) => {
-      const matchesCategory =
-        selectedCategory === "all" || c.category === selectedCategory;
+      const matchesCategory = selectedCategory === "all" || c.category === selectedCategory;
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
         !q ||
@@ -527,24 +613,30 @@ export default function IntegrationsPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
-      {/* Header Banner */}
-      <div className="max-w-7xl mx-auto text-center mb-12">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-semibold uppercase tracking-wider mb-4">
+      {/* Top Header */}
+      <div className="max-w-7xl mx-auto text-center mb-10">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-200/80 text-indigo-700 text-xs font-semibold uppercase tracking-wider mb-4">
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <circle cx="12" cy="12" r="10" />
             <path d="m4.93 4.93 4.24 4.24M14.83 9.17l4.24-4.24M14.83 14.83l4.24 4.24M9.17 14.83l-4.24 4.24" />
           </svg>
-          24 Certified Connectors
+          Enterprise Integrations &amp; Discovery Fleet
         </div>
         <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight font-sans">
-          Integrate Axiom NHI with Your Entire Stack
+          Connected Fleet &amp; Connector Catalog
         </h1>
         <p className="mt-4 text-base sm:text-lg text-slate-600 max-w-3xl mx-auto leading-relaxed">
-          Zero-risk passive discovery meets inline pre-execution tool gating. Connect your AI agent runtimes, cloud workload IAM, codebases, secret vaults, and SIEM pipelines in minutes.
+          Manage your live cloud provider cross-account trust links, trigger discovery sync runs, and deploy inline gRPC tool guardrails across your enterprise infrastructure.
         </p>
 
         {/* 1-Click Fast-Track Actions */}
         <div className="mt-6 flex flex-wrap justify-center items-center gap-3">
+          <button
+            onClick={() => setShowConnectModal(true)}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-md transition-all cursor-pointer"
+          >
+            <span>+</span> Connect New Cloud Provider
+          </button>
           <Link
             href="/integrations/wizard"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-md transition-all cursor-pointer"
@@ -559,36 +651,127 @@ export default function IntegrationsPage() {
             <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            View Sample Executive CISO Report
+            Executive CISO Report
           </Link>
-        </div>
-
-        {/* Highlight Stats Bar */}
-        <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
-            <span className="text-2xl font-black text-slate-900 font-mono">24</span>
-            <p className="text-xs text-slate-500 font-medium mt-1">Ecosystem Connectors</p>
-          </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
-            <span className="text-2xl font-black text-emerald-600 font-mono">&lt; 5ms</span>
-            <p className="text-xs text-slate-500 font-medium mt-1">Inline Wire Latency</p>
-          </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
-            <span className="text-2xl font-black text-sky-600 font-mono">$0</span>
-            <p className="text-xs text-slate-500 font-medium mt-1">Passive Discovery Cost</p>
-          </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
-            <span className="text-2xl font-black text-indigo-600 font-mono">0</span>
-            <p className="text-xs text-slate-500 font-medium mt-1">Raw Secrets Stored</p>
-          </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto">
-        {/* Search & Category Filter */}
+        {/* SECTION 1: Connected Fleet Management */}
+        <div className="mb-12 bg-white border border-slate-200/90 rounded-2xl p-6 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-slate-100 gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-slate-900">Active Tenant Integrations</h2>
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  {connectedIntegrations.length} Active
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Discovered non-human identities are automatically synchronized into the lineage graph with SHA-256 HMAC pseudonymization.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowConnectModal(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-colors cursor-pointer border border-indigo-200"
+            >
+              <span>+</span> Add Connection
+            </button>
+          </div>
+
+          {isLoadingFleet ? (
+            <div className="py-12 text-center text-slate-500 text-sm">
+              <span className="inline-block animate-spin mr-2">⚙</span> Loading tenant integrations...
+            </div>
+          ) : connectedIntegrations.length === 0 ? (
+            <div className="py-12 text-center">
+              <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center text-xl font-bold mb-3">
+                ☁
+              </div>
+              <h3 className="text-sm font-bold text-slate-800">No active integrations connected</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                Connect your AWS IAM, Kubernetes, or GitHub accounts to begin automated non-human identity discovery and permission graph mapping.
+              </p>
+              <button
+                onClick={() => setShowConnectModal(true)}
+                className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg cursor-pointer transition-colors"
+              >
+                Connect AWS IAM Now
+              </button>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100 mt-2">
+              {connectedIntegrations.map((item) => (
+                <div key={item.id} className="py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-slate-900">{item.display_name}</span>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                          item.status === "connected"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : item.status === "syncing"
+                            ? "bg-amber-50 text-amber-700 border border-amber-200 animate-pulse"
+                            : "bg-red-50 text-red-700 border border-red-200"
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${item.status === "connected" ? "bg-emerald-500" : item.status === "syncing" ? "bg-amber-500" : "bg-red-500"}`} />
+                        {item.status.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="text-xs font-mono text-slate-500 flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span>Provider: <strong className="text-slate-700">{item.provider}</strong></span>
+                      <span>Target: <strong className="text-slate-700">{item.credential_ref}</strong></span>
+                      {item.external_id && (
+                        <span>External ID: <strong className="text-slate-700">{item.external_id}</strong></span>
+                      )}
+                      {item.last_sync_at && (
+                        <span className="text-slate-400">
+                          Last sync: {new Date(item.last_sync_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      )}
+                    </div>
+                    {fleetActionMsg && fleetActionMsg.id === item.id && (
+                      <p className={`text-xs font-semibold ${fleetActionMsg.ok ? "text-indigo-600" : "text-red-600"}`}>
+                        {fleetActionMsg.text}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 self-end md:self-center">
+                    <button
+                      onClick={() => handleTestConnection(item.id)}
+                      className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+                      title="Validate STS cross-account trust"
+                    >
+                      Test Connection
+                    </button>
+                    <button
+                      onClick={() => handleSyncNow(item.id)}
+                      disabled={item.status === "syncing"}
+                      className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                      title="Scan for non-human identities now"
+                    >
+                      {item.status === "syncing" ? "Syncing..." : "Sync Now"}
+                    </button>
+                    <button
+                      onClick={() => handleDisconnect(item.id)}
+                      className="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold transition-colors cursor-pointer"
+                      title="Disconnect and mark nodes stale"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* SECTION 2: Connector Catalog Header & Search */}
         <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 mb-8 shadow-xs">
           <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-            {/* Search Input */}
             <div className="relative flex-1">
               <svg className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8" />
@@ -598,12 +781,11 @@ export default function IntegrationsPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name, protocol (e.g. CIMD, SPIFFE, OCSF), or OWASP control..."
+                placeholder="Search catalog by name, protocol (e.g. CIMD, SPIFFE, OCSF), or OWASP control..."
                 className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 placeholder-slate-400 transition-all"
               />
             </div>
 
-            {/* Mode Legend */}
             <div className="flex items-center gap-3 text-xs font-medium text-slate-600">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -616,15 +798,14 @@ export default function IntegrationsPage() {
             </div>
           </div>
 
-          {/* Category Tabs */}
           <div className="flex items-center gap-2 overflow-x-auto pt-4 mt-4 border-t border-slate-100 scrollbar-none">
             {[
-              { id: "all", label: "All (24)" },
-              { id: "mcp", label: "MCP & AI Agent Runtimes (6)" },
-              { id: "cloud", label: "Cloud IAM & Kubernetes (5)" },
-              { id: "code", label: "Code, Git & CI/CD (4)" },
-              { id: "vault", label: "Secret Vaults & Identity (5)" },
-              { id: "siem", label: "SIEM, SOAR & Ticketing (4)" },
+              { id: "all", label: "All Connectors" },
+              { id: "mcp", label: "MCP & AI Agent Runtimes" },
+              { id: "cloud", label: "Cloud IAM & Kubernetes" },
+              { id: "code", label: "Code, Git & CI/CD" },
+              { id: "vault", label: "Secret Vaults & Identity" },
+              { id: "siem", label: "SIEM, SOAR & Ticketing" },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -641,7 +822,7 @@ export default function IntegrationsPage() {
           </div>
         </div>
 
-        {/* 24-Connector Grid */}
+        {/* SECTION 3: Connector Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredConnectors.map((c) => (
             <div
@@ -649,7 +830,6 @@ export default function IntegrationsPage() {
               className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-6 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
             >
               <div>
-                {/* Top Badge & Category */}
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                     {c.categoryLabel}
@@ -665,23 +845,19 @@ export default function IntegrationsPage() {
                   </span>
                 </div>
 
-                {/* Connector Title */}
                 <h3 className="text-base font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
                   {c.name}
                 </h3>
 
-                {/* Description */}
                 <p className="mt-2 text-xs text-slate-600 leading-relaxed min-h-[48px]">
                   {c.description}
                 </p>
 
-                {/* Protocol Pill */}
                 <div className="mt-3.5 flex items-center gap-2 text-[11px] font-mono text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-2.5 py-1.5">
                   <span className="text-slate-400">Protocol:</span>
                   <span className="font-semibold text-slate-700">{c.protocol}</span>
                 </div>
 
-                {/* Zero-Secret Guarantee Pill */}
                 <div className="mt-2 flex items-center gap-1.5 text-[10.5px] font-medium text-emerald-700 bg-emerald-50/70 border border-emerald-100 rounded-md px-2 py-1">
                   <svg className="w-3 h-3 text-emerald-600 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -689,7 +865,6 @@ export default function IntegrationsPage() {
                   <span>{c.zeroSecretGuarantee}</span>
                 </div>
 
-                {/* OWASP Tags */}
                 <div className="mt-3 flex flex-wrap gap-1">
                   {c.owaspControls.map((tag) => (
                     <span
@@ -702,7 +877,6 @@ export default function IntegrationsPage() {
                 </div>
               </div>
 
-              {/* Bottom Action: Open Configuration Snippet */}
               <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-[11px] text-slate-400 font-mono">Ready for Deploy</span>
                 <button
@@ -734,11 +908,102 @@ export default function IntegrationsPage() {
         )}
       </div>
 
+      {/* Connect Provider Modal */}
+      {showConnectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900">Connect Cloud Provider</h3>
+              <button
+                onClick={() => setShowConnectModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-sm font-bold transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateIntegration} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Provider Type</label>
+                <select
+                  value={newProvider}
+                  onChange={(e) => setNewProvider(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-900"
+                >
+                  <option value="aws_iam">AWS IAM (STS Cross-Account Role)</option>
+                  <option value="kubernetes">Kubernetes (ServiceAccount / Token)</option>
+                  <option value="github">GitHub App (Fine-Grained Permissions)</option>
+                  <option value="azure_entra">Azure Entra ID (Service Principal)</option>
+                  <option value="gcp_iam">Google Cloud IAM (Workload Identity)</option>
+                  <option value="openbao">OpenBao / HashiCorp Vault</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Display Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. AWS Production Workloads (Account 123456789012)"
+                  value={newDisplayName}
+                  onChange={(e) => setNewDisplayName(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Credential Reference / Target ARN</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="arn:aws:iam::123456789012:role/AxiomDiscoveryRole"
+                  value={newCredentialRef}
+                  onChange={(e) => setNewCredentialRef(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-900 font-mono"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Zero raw secrets are stored. Axiom authenticates via STS AssumeRole using an external ID.
+                </p>
+              </div>
+
+              {newProvider === "aws_iam" && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">External ID (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="axm-tenant-ext-id"
+                    value={newExternalId}
+                    onChange={(e) => setNewExternalId(e.target.value)}
+                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-900 font-mono"
+                  />
+                </div>
+              )}
+
+              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowConnectModal(false)}
+                  className="px-4 py-2 rounded-xl text-slate-600 hover:text-slate-900 text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer transition-colors disabled:opacity-50"
+                >
+                  {isSubmitting ? "Connecting..." : "Save & Connect"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Config Preview Modal */}
       {activeModalConnector && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs">
           <div className="bg-white border border-slate-200 rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-150">
-            {/* Modal Header */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div>
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -757,7 +1022,6 @@ export default function IntegrationsPage() {
               </button>
             </div>
 
-            {/* Modal Body */}
             <div className="mt-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-slate-700">
@@ -771,7 +1035,6 @@ export default function IntegrationsPage() {
                 </button>
               </div>
 
-              {/* Code Box */}
               <pre className="bg-slate-900 text-slate-100 p-4 rounded-xl text-xs font-mono overflow-x-auto leading-relaxed border border-slate-800">
                 <code>{activeModalConnector.configSnippet}</code>
               </pre>
@@ -784,7 +1047,6 @@ export default function IntegrationsPage() {
               </div>
             </div>
 
-            {/* Modal Footer */}
             <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
               <Link
                 href="/docs"

@@ -6,7 +6,10 @@
 
 use sqlx::{postgres::PgPoolOptions, PgPool, Row};
 use thiserror::Error;
-use crate::{GraphEdge, GraphNode, OperatorRecord, OperatorSessionRecord, RevocationImpactSimulation, TenantRecord};
+use crate::{
+    GraphEdge, GraphNode, IntegrationRecord, OperatorRecord, OperatorSessionRecord,
+    RevocationImpactSimulation, SyncRunRecord, TenantRecord,
+};
 
 #[derive(Debug, Error)]
 pub enum LineageDbError {
@@ -53,6 +56,8 @@ impl PostgresLineageGraph {
         sqlx::raw_sql(ddl2).execute(&self.pool).await?;
         let ddl3 = include_str!("../migrations/0003_operator_auth_and_scim.sql");
         sqlx::raw_sql(ddl3).execute(&self.pool).await?;
+        let ddl4 = include_str!("../migrations/0004_integrations_and_sync_runs.sql");
+        sqlx::raw_sql(ddl4).execute(&self.pool).await?;
         Ok(())
     }
 
@@ -451,5 +456,232 @@ impl PostgresLineageGraph {
             blast_radius_score,
             recommended_action,
         })
+    }
+
+    /// Creates a new integration for a tenant.
+    pub async fn create_integration(
+        &self,
+        id: &str,
+        tenant_id: &str,
+        provider: &str,
+        display_name: &str,
+        credential_ref: &str,
+        external_id: Option<&str>,
+        created_by: Option<&str>,
+    ) -> Result<IntegrationRecord, LineageDbError> {
+        let row = sqlx::query(
+            r#"
+            INSERT INTO integrations (id, tenant_id, provider, display_name, credential_ref, external_id, created_by, status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, 'connected')
+            RETURNING id, tenant_id, provider, display_name, credential_ref, external_id, status, last_sync_at, last_error, created_at
+            "#,
+        )
+        .bind(id)
+        .bind(tenant_id)
+        .bind(provider)
+        .bind(display_name)
+        .bind(credential_ref)
+        .bind(external_id)
+        .bind(created_by)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(IntegrationRecord {
+            id: row.get("id"),
+            tenant_id: row.get("tenant_id"),
+            provider: row.get("provider"),
+            display_name: row.get("display_name"),
+            credential_ref: row.get("credential_ref"),
+            external_id: row.get("external_id"),
+            status: row.get("status"),
+            last_sync_at: row.get("last_sync_at"),
+            last_error: row.get("last_error"),
+            created_at: row.get("created_at"),
+        })
+    }
+
+    /// Lists all integrations for a tenant.
+    pub async fn list_integrations(&self, tenant_id: &str) -> Result<Vec<IntegrationRecord>, LineageDbError> {
+        let rows = sqlx::query(
+            r#"
+            SELECT id, tenant_id, provider, display_name, credential_ref, external_id, status, last_sync_at, last_error, created_at
+            FROM integrations
+            WHERE tenant_id = $1
+            ORDER BY created_at DESC
+            "#,
+        )
+        .bind(tenant_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut list = Vec::new();
+        for row in rows {
+            list.push(IntegrationRecord {
+                id: row.get("id"),
+                tenant_id: row.get("tenant_id"),
+                provider: row.get("provider"),
+                display_name: row.get("display_name"),
+                credential_ref: row.get("credential_ref"),
+                external_id: row.get("external_id"),
+                status: row.get("status"),
+                last_sync_at: row.get("last_sync_at"),
+                last_error: row.get("last_error"),
+                created_at: row.get("created_at"),
+            });
+        }
+        Ok(list)
+    }
+
+    /// Gets a single integration by ID for a tenant.
+    pub async fn get_integration(&self, tenant_id: &str, id: &str) -> Result<Option<IntegrationRecord>, LineageDbError> {
+        let row = sqlx::query(
+            r#"
+            SELECT id, tenant_id, provider, display_name, credential_ref, external_id, status, last_sync_at, last_error, created_at
+            FROM integrations
+            WHERE tenant_id = $1 AND id = $2
+            "#,
+        )
+        .bind(tenant_id)
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|r| IntegrationRecord {
+            id: r.get("id"),
+            tenant_id: r.get("tenant_id"),
+            provider: r.get("provider"),
+            display_name: r.get("display_name"),
+            credential_ref: r.get("credential_ref"),
+            external_id: r.get("external_id"),
+            status: r.get("status"),
+            last_sync_at: r.get("last_sync_at"),
+            last_error: r.get("last_error"),
+            created_at: r.get("created_at"),
+        }))
+    }
+
+    /// Updates an integration's status, last sync timestamp, and optional error.
+    pub async fn update_integration_status(
+        &self,
+        tenant_id: &str,
+        id: &str,
+        status: &str,
+        last_error: Option<&str>,
+    ) -> Result<(), LineageDbError> {
+        sqlx::query(
+            r#"
+            UPDATE integrations
+            SET status = $3,
+                last_sync_at = NOW(),
+                last_error = $4,
+                updated_at = NOW()
+            WHERE tenant_id = $1 AND id = $2
+            "#,
+        )
+        .bind(tenant_id)
+        .bind(id)
+        .bind(status)
+        .bind(last_error)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Deletes an integration and marks associated discovered nodes as stale.
+    pub async fn delete_integration(&self, tenant_id: &str, id: &str) -> Result<bool, LineageDbError> {
+        // Mark nodes stale first
+        sqlx::query(
+            r#"
+            UPDATE nhi_nodes
+            SET is_stale = true
+            WHERE tenant_id = $1 AND integration_id = $2
+            "#,
+        )
+        .bind(tenant_id)
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+
+        let res = sqlx::query(
+            r#"
+            DELETE FROM integrations
+            WHERE tenant_id = $1 AND id = $2
+            "#,
+        )
+        .bind(tenant_id)
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(res.rows_affected() > 0)
+    }
+
+    /// Records the start of a sync run.
+    pub async fn create_sync_run(
+        &self,
+        id: &str,
+        integration_id: &str,
+        tenant_id: &str,
+    ) -> Result<SyncRunRecord, LineageDbError> {
+        let row = sqlx::query(
+            r#"
+            INSERT INTO sync_runs (id, integration_id, tenant_id, status)
+            VALUES ($1, $2, $3, 'running')
+            RETURNING id, integration_id, tenant_id, started_at, finished_at, status, nodes_seen, nodes_new, nodes_stale, error
+            "#,
+        )
+        .bind(id)
+        .bind(integration_id)
+        .bind(tenant_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(SyncRunRecord {
+            id: row.get("id"),
+            integration_id: row.get("integration_id"),
+            tenant_id: row.get("tenant_id"),
+            started_at: row.get("started_at"),
+            finished_at: row.get("finished_at"),
+            status: row.get("status"),
+            nodes_seen: row.get("nodes_seen"),
+            nodes_new: row.get("nodes_new"),
+            nodes_stale: row.get("nodes_stale"),
+            error: row.get("error"),
+        })
+    }
+
+    /// Records the completion of a sync run.
+    pub async fn complete_sync_run(
+        &self,
+        id: &str,
+        status: &str,
+        nodes_seen: i32,
+        nodes_new: i32,
+        nodes_stale: i32,
+        error: Option<&str>,
+    ) -> Result<(), LineageDbError> {
+        sqlx::query(
+            r#"
+            UPDATE sync_runs
+            SET status = $2,
+                finished_at = NOW(),
+                nodes_seen = $3,
+                nodes_new = $4,
+                nodes_stale = $5,
+                error = $6
+            WHERE id = $1
+            "#,
+        )
+        .bind(id)
+        .bind(status)
+        .bind(nodes_seen)
+        .bind(nodes_new)
+        .bind(nodes_stale)
+        .bind(error)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
     }
 }

@@ -12,6 +12,34 @@ pub mod postgres;
 pub use postgres::{LineageDbError, PostgresLineageGraph};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IntegrationRecord {
+    pub id: String,
+    pub tenant_id: String,
+    pub provider: String,
+    pub display_name: String,
+    pub credential_ref: String,
+    pub external_id: Option<String>,
+    pub status: String,
+    pub last_sync_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_error: Option<String>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SyncRunRecord {
+    pub id: String,
+    pub integration_id: String,
+    pub tenant_id: String,
+    pub started_at: chrono::DateTime<chrono::Utc>,
+    pub finished_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub status: String,
+    pub nodes_seen: i32,
+    pub nodes_new: i32,
+    pub nodes_stale: i32,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TenantRecord {
     pub tenant_id: String,
     pub organization_name: String,

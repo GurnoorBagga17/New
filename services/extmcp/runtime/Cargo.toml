@@ -32,6 +32,7 @@ sha2 = { workspace = true }
 hmac = { workspace = true }
 hex = { workspace = true }
 getrandom = { workspace = true }
+uuid = { version = "1.10", features = ["v4"] }
 
 [build-dependencies]
 protoc-bin-vendored = "3"
