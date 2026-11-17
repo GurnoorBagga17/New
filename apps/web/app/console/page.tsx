@@ -4,6 +4,9 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import ComplianceMatrix from "../components/ComplianceMatrix";
+import EnterpriseLicensingWidget from "../components/EnterpriseLicensingWidget";
+import RemediationTicketModal, { type FindingItem } from "../components/RemediationTicketModal";
 
 interface OperatorProfile {
   authenticated: boolean;
@@ -83,8 +86,13 @@ export default function ConsolePage() {
   const [operator, setOperator] = useState<OperatorProfile | null>(null);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<
-    "traffic" | "lineage" | "cedar" | "openbao" | "owasp" | "killswitch"
+    "traffic" | "lineage" | "cedar" | "openbao" | "owasp" | "killswitch" | "compliance" | "licensing"
   >("traffic");
+
+  // Enterprise Sales Demo & Ticketing state
+  const [isSalesDemoActive, setIsSalesDemoActive] = useState<boolean>(false);
+  const [remediationFinding, setRemediationFinding] = useState<FindingItem | null>(null);
+  const [ticketToast, setTicketToast] = useState<string | null>(null);
 
   // Traffic Module state
   const [trafficData, setTrafficData] = useState<AuditRecord[]>(INITIAL_TRAFFIC);
@@ -348,24 +356,111 @@ export default function ConsolePage() {
           )}
         </div>
 
-        {/* Right: Operator Identity & Sign Out */}
-        <div className="flex items-center gap-4 text-xs">
-          <div className="hidden sm:flex items-center gap-2">
+        {/* Right: Operator Identity & Sales Actions */}
+        <div className="flex items-center gap-3 text-xs">
+          <Link
+            href="/integrations/wizard"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-colors shadow-xs"
+          >
+            <span>+</span> Quick Connect Cloud
+          </Link>
+
+          <Link
+            href="/reports/executive"
+            target="_blank"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold border border-slate-700 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export CISO Report
+          </Link>
+
+          <button
+            onClick={() => {
+              const next = !isSalesDemoActive;
+              setIsSalesDemoActive(next);
+              if (next) {
+                setTrafficData([
+                  {
+                    id: "tx-fincorp-01",
+                    timestamp: new Date().toISOString().slice(11, 19),
+                    agentId: "agent::fincorp-portfolio-bot",
+                    tool: "snowflake.execute_ddl",
+                    decision: "DENY",
+                    latencyMs: 0.34,
+                    prevHash: "0x8f2d...9a12",
+                    entryHash: "0x77aa...1122",
+                    secretRef: "vault://openbao/snowflake/creds/analyst",
+                    blockedReason: "AST scan matched DEST_DDL (DROP TABLE). Policy deny_destructive_ddl enforced.",
+                  },
+                  {
+                    id: "tx-fincorp-02",
+                    timestamp: new Date().toISOString().slice(11, 19),
+                    agentId: "agent::fincorp-compliance-evaluator",
+                    tool: "aws.sts_assume_role",
+                    decision: "ALLOW",
+                    latencyMs: 0.28,
+                    prevHash: "0x77aa...1122",
+                    entryHash: "0xbb44...9988",
+                    secretRef: "aws://sts/web_identity/assumed_role",
+                  },
+                  ...INITIAL_TRAFFIC,
+                ]);
+              } else {
+                setTrafficData(INITIAL_TRAFFIC);
+              }
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer border ${
+              isSalesDemoActive
+                ? "bg-amber-400 text-slate-900 border-amber-300 shadow-sm"
+                : "bg-slate-800 hover:bg-slate-700 text-amber-300 border-slate-700"
+            }`}
+          >
+            {isSalesDemoActive ? "Sales Demo Active (FinCorp)" : "Enable Sales Pitch Demo"}
+          </button>
+
+          <div className="hidden md:flex items-center gap-2 pl-2 border-l border-slate-800">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-slate-300 font-medium">{operator?.email}</span>
-            <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono uppercase text-[10px]">
-              {operator?.role || "operator"}
-            </span>
           </div>
 
           <button
             onClick={handleLogout}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
+            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
           >
             Sign Out
           </button>
         </div>
       </header>
+
+      {/* Enterprise Pitch Banner (when active) */}
+      {isSalesDemoActive && (
+        <aside aria-label="Sales Demo Banner" className="bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 text-white px-4 sm:px-8 py-2.5 text-xs flex flex-wrap items-center justify-between border-b border-indigo-800/50">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded bg-amber-400 text-slate-900 font-bold uppercase tracking-wider text-[10px]">
+              Active Simulation
+            </span>
+            <span className="font-semibold text-slate-200">
+              Global Financial Institution Fleet: <strong>2,480 NHIs</strong> across AWS, GCP, Snowflake, and LangGraph Agents.
+            </span>
+          </div>
+          <span className="text-emerald-400 font-mono font-bold">
+            &check; 3 Destructive Attack Streams Blocked Inline (&lt;0.4ms)
+          </span>
+        </aside>
+      )}
+
+      {/* Toast Notification */}
+      {ticketToast && (
+        <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-slate-900 text-white shadow-2xl border border-slate-800 flex items-center gap-3 text-xs animate-slide-up">
+          <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span>{ticketToast}</span>
+          <button onClick={() => setTicketToast(null)} className="text-slate-400 hover:text-white font-bold ml-2">
+            &times;
+          </button>
+        </div>
+      )}
 
       {/* ====================================================================
          CONTROL PLANE WORKSPACE
@@ -380,6 +475,8 @@ export default function ConsolePage() {
             { id: "openbao", label: "OpenBao Secretless Leases" },
             { id: "owasp", label: "OWASP Top 10 Scorecard" },
             { id: "killswitch", label: "Emergency Kill Switch" },
+            { id: "compliance", label: "Compliance Frameworks" },
+            { id: "licensing", label: "Enterprise Licensing & Quotas" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -763,6 +860,19 @@ export default function ConsolePage() {
                     <span className="text-[10px] font-mono font-bold text-indigo-600 block">{c.id}</span>
                     <strong className="text-xs text-slate-900">{c.title}</strong>
                     <span className="text-[11px] text-slate-500 block mt-0.5">Remediation: {c.fix}</span>
+                    <button
+                      onClick={() => setRemediationFinding({
+                        id: c.id,
+                        title: c.title,
+                        severity: "HIGH",
+                        workload: `workload::${c.id.toLowerCase()}-agent`,
+                        owner: "security-lead@enterprise.com",
+                        suggestedAction: c.fix,
+                      })}
+                      className="mt-1.5 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      + Dispatch Jira / ServiceNow Ticket &rarr;
+                    </button>
                   </div>
                   <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold font-mono">
                     {c.status}
@@ -873,6 +983,29 @@ export default function ConsolePage() {
               </div>
             )}
           </div>
+        )}
+
+        {/* ================================================================
+           TAB 7: COMPLIANCE FRAMEWORKS CROSSWALK
+           ================================================================ */}
+        {activeTab === "compliance" && <ComplianceMatrix />}
+
+        {/* ================================================================
+           TAB 8: ENTERPRISE LICENSING & QUOTAS
+           ================================================================ */}
+        {activeTab === "licensing" && <EnterpriseLicensingWidget />}
+
+        {/* ================================================================
+           REMEDIATION TICKET DISPATCH MODAL
+           ================================================================ */}
+        {remediationFinding && (
+          <RemediationTicketModal
+            finding={remediationFinding}
+            onClose={() => setRemediationFinding(null)}
+            onTicketCreated={(id, platform) => {
+              setTicketToast(`Successfully dispatched ${platform} ticket ${id} (14-day SLA assigned to owner)`);
+            }}
+          />
         )}
       </div>
     </div>
