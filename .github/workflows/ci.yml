@@ -1,0 +1,76 @@
+name: Axiom NHI — Continuous Integration & Security Verification
+
+on:
+  push:
+    branches: [main, master, landing-v2]
+  pull_request:
+    branches: [main, master, landing-v2]
+
+permissions:
+  contents: read
+
+jobs:
+  rust-workspace-tests:
+    name: Rust Workspace Tests & Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: Rust format check
+        run: cargo fmt --all -- --check
+      - name: Clippy static analysis
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Workspace unit and integration tests
+        run: cargo test --workspace
+
+  frontend-typecheck-and-build:
+    name: Frontend Typecheck, Lint & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Workspace TypeScript typecheck
+        run: pnpm run typecheck
+      - name: Workspace ESLint
+        run: pnpm run lint
+      - name: Workspace tests
+        run: pnpm run test
+      - name: Workspace production build
+        run: pnpm run build
+
+  helm-lint-and-template:
+    name: Helm Chart Lint & Manifest Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: "v3.16.2"
+      - name: Lint Helm Chart
+        run: helm lint deployments/helm/axiom-nhi
+      - name: Render Helm Templates
+        run: helm template axiom-nhi-test deployments/helm/axiom-nhi --namespace axiom-system > rendered-manifests.yaml
+      - name: Verify Rendered Manifests Non-Empty
+        run: test -s rendered-manifests.yaml
+
+  contracts-and-tokens:
+    name: Architecture Contracts & Design Tokens
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install "jsonschema>=4.23,<5" "PyYAML>=6,<7"
+      - run: python docs/architecture/scripts/check_design_tokens.py
+      - run: python docs/architecture/scripts/validate_api_contract_fixtures.py

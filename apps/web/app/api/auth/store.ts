@@ -208,39 +208,77 @@ export function saveUser(user: TenantUserRecord): void {
 /**
  * Validates cryptographic WebAuthn / Step-Up signature header (X-Axiom-StepUp-Signature)
  * for destructive actions (Emergency Kill Switch and Policy Bundle hot-swaps).
+ * Eliminates shape-based bypass: requires authentic cryptographic HMAC-SHA256 over payload hash.
  */
 export function verifyStepUpSignature(signatureHeader: string | null | undefined, payloadHash: string): boolean {
-  if (!signatureHeader) return false;
-  // Format 1: Passkey / WebAuthn signature token format
-  if (signatureHeader.startsWith("wa_sig_") && signatureHeader.length >= 32) {
-    return true;
+  if (!signatureHeader || signatureHeader.length < 32) return false;
+  const isDevMode = process.env.AXIOM_DEV_MODE === "1" && process.env.NODE_ENV !== "production";
+  const secret = process.env.AXIOM_ADMIN_TOKEN || process.env.AXIOM_STEPUP_SECRET;
+  if (!secret) {
+    if (!isDevMode) return false;
+    return signatureHeader === "axm_dev_stepup_sig";
   }
-  // Format 2: HMAC-SHA256 over canonical payload hash
-  const secret = process.env.AXIOM_ADMIN_TOKEN || process.env.AXIOM_STEPUP_SECRET || "axiom_stepup_fallback_secret_32bytes";
-  const expectedHmac = crypto.createHmac("sha256", secret).update(payloadHash).digest("hex");
-  const providedBuf = Buffer.from(signatureHeader, "hex");
-  const expectedBuf = Buffer.from(expectedHmac, "hex");
-  if (providedBuf.length === expectedBuf.length && crypto.timingSafeEqual(providedBuf, expectedBuf)) {
-    return true;
+  try {
+    const expectedHmac = crypto.createHmac("sha256", secret).update(payloadHash).digest("hex");
+    const providedBuf = Buffer.from(signatureHeader, "hex");
+    const expectedBuf = Buffer.from(expectedHmac, "hex");
+    if (providedBuf.length === expectedBuf.length && crypto.timingSafeEqual(providedBuf, expectedBuf)) {
+      return true;
+    }
+  } catch {
+    return false;
   }
   return false;
 }
 
 export async function getOperatorSession(req: NextRequest): Promise<SessionRecord | null> {
-  const sessionCookie = req.cookies.get("axiom_session")?.value;
-  if (sessionCookie) {
-    const session = getSession(sessionCookie);
-    if (session) return session;
-  }
+  const token =
+    req.cookies.get("axiom_session")?.value ||
+    (req.headers.get("authorization")?.startsWith("Bearer ")
+      ? req.headers.get("authorization")!.slice(7).trim()
+      : null);
 
-  const authHeader = req.headers.get("authorization");
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    const token = authHeader.slice(7).trim();
+  if (token) {
+    // 1. Authoritative check against PostgreSQL operator_sessions when pool is active
+    if (dbPool) {
+      try {
+        const res = await dbPool.query(
+          `SELECT s.session_id, s.user_id, s.tenant_id, s.csrf_token, EXTRACT(EPOCH FROM s.expires_at)::bigint as expires_at_unix, o.role
+           FROM operator_sessions s
+           JOIN operators o ON s.user_id = o.user_id
+           WHERE s.session_id = $1 AND s.revoked = FALSE AND s.expires_at > NOW()`,
+          [token]
+        );
+        if (res.rows.length > 0) {
+          const row = res.rows[0];
+          return {
+            sessionId: row.session_id,
+            userId: row.user_id,
+            tenantId: row.tenant_id,
+            role: row.role as OperatorRole,
+            csrfToken: row.csrf_token,
+            expiresAtUnix: Number(row.expires_at_unix),
+          };
+        }
+      } catch (err) {
+        if (process.env.NODE_ENV === "production") {
+          console.error("Database query failed during operator session validation:", err);
+          return null;
+        }
+      }
+    }
+
+    // 2. Fallback to cached memory store
     const session = getSession(token);
     if (session) return session;
   }
 
-  if (process.env.AXIOM_DEV_MODE === "1" || process.env.NODE_ENV !== "production") {
+  // Explicit dev mode fallback only when explicitly acknowledged and strictly outside production
+  if (
+    process.env.AXIOM_DEV_MODE === "1" &&
+    process.env.AXIOM_ALLOW_ANONYMOUS_LOCAL === "1" &&
+    process.env.NODE_ENV !== "production"
+  ) {
     return {
       sessionId: "dev-session",
       userId: "user-sarah-chen",

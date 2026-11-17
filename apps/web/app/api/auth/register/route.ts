@@ -28,6 +28,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "An account for this email already exists" }, { status: 409 });
     }
 
+    // Workstream B4: Enforce invite code verification in production unless open self-registration is explicitly set
+    if (process.env.NODE_ENV === "production" && process.env.AXIOM_ALLOW_OPEN_REGISTRATION !== "true") {
+      const inviteCode = typeof body.inviteCode === "string" ? body.inviteCode.trim() : "";
+      const expectedCode = process.env.AXIOM_INVITE_CODE;
+      if (!expectedCode || inviteCode !== expectedCode) {
+        return NextResponse.json(
+          { error: "Public registration is disabled. A valid organization invite code is required." },
+          { status: 403 }
+        );
+      }
+    }
+
     const { saltHex, hashHex } = hashPasswordScrypt(password);
     const user: TenantUserRecord = {
       userId: `usr_${crypto.randomUUID()}`,
