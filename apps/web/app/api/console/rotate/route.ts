@@ -1,35 +1,50 @@
 // Copyright 2026 Axiom NHI — Licensed under Apache-2.0
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { ADMIN_API_URL, getAdminHeaders } from "../proxy";
+import { getOperatorSession } from "../../auth/store";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const session = await getOperatorSession(req);
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (session.role !== "security-admin") {
+    return NextResponse.json(
+      { error: `Forbidden: Role '${session.role}' is not authorized to trigger secret rotation` },
+      { status: 403 }
+    );
+  }
+
+  let body: unknown = {};
   try {
-    const body = await req.json().catch(() => ({}));
+    body = await req.json();
+  } catch {
+    // Empty body is acceptable
+  }
+
+  try {
     const upstream = await fetch(`${ADMIN_API_URL}/v1/secretless/rotate`, {
       method: "POST",
       headers: getAdminHeaders(),
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(1500),
+      signal: AbortSignal.timeout(3000),
     });
 
     if (upstream.ok) {
       const data = await upstream.json();
       return NextResponse.json(data);
     }
-  } catch {
-    // Upstream offline fallback
-  }
 
-  return NextResponse.json({
-    rotation_id: `rot-dual-secret-${Date.now().toString().slice(-5)}`,
-    state_machine: "ZeroDowntimeRotationJob",
-    current_stage: "DualSecretProvisioned",
-    stages: [
-      { stage: 1, name: "DualSecretProvisioned", status: "COMPLETED", duration_ms: 120 },
-      { stage: 2, name: "ConsumerReloadHeartbeats", status: "IN_PROGRESS", duration_ms: 450 },
-      { stage: 3, name: "GraceWindowVerified", status: "PENDING" },
-      { stage: 4, name: "LegacyCredentialRevoked", status: "PENDING" },
-    ],
-    zero_downtime_guaranteed: true,
-  });
+    const errJson = await upstream.json().catch(() => ({}));
+    return NextResponse.json(
+      { error: "Upstream secretless rotation failed", details: errJson },
+      { status: upstream.status }
+    );
+  } catch (err: unknown) {
+    return NextResponse.json(
+      { error: "Upstream control plane unreachable; secret rotation NOT triggered", details: String(err) },
+      { status: 502 }
+    );
+  }
 }

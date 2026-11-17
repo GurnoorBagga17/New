@@ -43,8 +43,10 @@ use axum::{
     Json, Router,
 };
 use extmcp_cedar::{load_snapshot, PolicySnapshotStore};
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
@@ -132,39 +134,80 @@ impl OperatorContext {
     }
 }
 
-pub fn decode_operator_jwt(token: &str) -> Option<OperatorClaims> {
-    if token.is_empty() {
+pub fn decode_operator_jwt(token: &str, secret: &str) -> Option<OperatorClaims> {
+    if token.is_empty() || secret.is_empty() {
         return None;
     }
-    let parts: Vec<&str> = token.split('.').collect();
-    if parts.len() == 3 {
-        use base64::Engine as _;
-        if let Ok(payload_bytes) = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(parts[1]) {
-            if let Ok(claims) = serde_json::from_slice::<OperatorClaims>(&payload_bytes) {
-                let now = chrono::Utc::now().timestamp() as u64;
-                if claims.exp > 0 && claims.exp < now {
-                    return None;
-                }
-                return Some(claims);
+
+    // Check if an RSA public key is configured
+    if let Ok(pubkey_pem) = std::env::var("AXIOM_JWT_PUBLIC_KEY") {
+        if let Ok(key) = DecodingKey::from_rsa_pem(pubkey_pem.as_bytes()) {
+            let mut validation = Validation::new(Algorithm::RS256);
+            if let Ok(iss) = std::env::var("AXIOM_JWT_ISSUER") {
+                validation.set_issuer(&[iss]);
+            }
+            if let Ok(aud) = std::env::var("AXIOM_JWT_AUDIENCE") {
+                validation.set_audience(&[aud]);
+            } else {
+                validation.validate_aud = false;
+            }
+            if let Ok(token_data) = decode::<OperatorClaims>(token, &key, &validation) {
+                return Some(token_data.claims);
             }
         }
     }
-    None
+
+    // Cryptographic signature verification using HMAC-SHA256
+    let jwt_secret = std::env::var("AXIOM_JWT_SECRET").unwrap_or_else(|_| secret.to_string());
+    let key = DecodingKey::from_secret(jwt_secret.as_bytes());
+    let mut validation = Validation::new(Algorithm::HS256);
+    if let Ok(iss) = std::env::var("AXIOM_JWT_ISSUER") {
+        validation.set_issuer(&[iss]);
+    }
+    if let Ok(aud) = std::env::var("AXIOM_JWT_AUDIENCE") {
+        validation.set_audience(&[aud]);
+    } else {
+        validation.validate_aud = false;
+    }
+
+    match decode::<OperatorClaims>(token, &key, &validation) {
+        Ok(token_data) => Some(token_data.claims),
+        Err(e) => {
+            tracing::warn!("Rejected unverified or invalid operator JWT: {e}");
+            None
+        }
+    }
 }
 
 /// Verifies cryptographic WebAuthn or Step-Up signature header on destructive operations.
-pub fn verify_step_up_signature(headers: &axum::http::HeaderMap) -> bool {
+/// Requires an HMAC-SHA256 signature over the canonical payload hash using the configured step-up secret.
+pub fn verify_step_up_signature(
+    headers: &axum::http::HeaderMap,
+    payload_hash: &[u8],
+    secret: &str,
+) -> bool {
     let is_prod = std::env::var("AXIOM_ENV").as_deref() == Ok("production")
-        || std::env::var("NODE_ENV").as_deref() == Ok("production");
-    if !is_prod {
+        || std::env::var("NODE_ENV").as_deref() == Ok("production")
+        || std::env::var("AXIOM_DEV_MODE").as_deref() != Ok("1");
+
+    // Only skip in development mode when anonymous bypass is explicitly enabled
+    if !is_prod && std::env::var("AXIOM_ALLOW_ANONYMOUS_LOCAL").as_deref() == Ok("1") {
         return true;
     }
+
     if let Some(sig) = headers.get("X-Axiom-StepUp-Signature").and_then(|v| v.to_str().ok()) {
-        if sig.starts_with("wa_sig_") && sig.len() >= 32 {
-            return true;
-        }
-        if sig == "valid_stepup_token" || sig.len() == 64 {
-            return true;
+        use hmac::{Hmac, Mac};
+        type HmacSha256 = Hmac<Sha256>;
+
+        let stepup_secret = std::env::var("AXIOM_STEPUP_SECRET").unwrap_or_else(|_| secret.to_string());
+        if let Ok(mut mac) = HmacSha256::new_from_slice(stepup_secret.as_bytes()) {
+            mac.update(payload_hash);
+            let expected = mac.finalize().into_bytes();
+            if let Ok(provided_bytes) = hex::decode(sig) {
+                if constant_time_eq(&provided_bytes, &expected) {
+                    return true;
+                }
+            }
         }
     }
     false
@@ -190,12 +233,12 @@ pub struct AdminApiState {
 // Request & Response DTOs
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PolicyInput {
     pub source: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PolicyRequest {
     #[serde(default)]
     pub policies: Vec<PolicyInput>,
@@ -217,7 +260,7 @@ pub struct PolicyRequest {
     pub sample_requests: Option<Vec<SampleRequest>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[allow(dead_code)]
 pub struct SampleRequest {
     pub principal_uid: Option<String>,
@@ -231,7 +274,7 @@ pub struct PersistedPolicyBundle {
     pub schema: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RevocationRequest {
     pub action: Option<String>,
     pub target_kind: Option<String>,
@@ -389,7 +432,7 @@ async fn require_admin_token(
             tenant_id: "org_default".to_string(),
             role: "security-admin".to_string(),
         });
-    } else if let Some(claims) = decode_operator_jwt(supplied) {
+    } else if let Some(claims) = decode_operator_jwt(supplied, &state.token) {
         authenticated_ctx = Some(OperatorContext {
             user_id: claims.sub,
             tenant_id: claims.tenant_id,
@@ -595,10 +638,12 @@ async fn activate_bundle(
     headers: axum::http::HeaderMap,
     Json(input): Json<PolicyRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    if !verify_step_up_signature(&headers) {
+    let payload_bytes = serde_json::to_vec(&input).unwrap_or_default();
+    let payload_hash = Sha256::digest(&payload_bytes);
+    if !verify_step_up_signature(&headers, &payload_hash, &state.token) {
         return Err(ApiError::new(
             "STEPUP_MFA_REQUIRED",
-            "A valid WebAuthn step-up signature header (X-Axiom-StepUp-Signature) is required for policy bundle activation in production.",
+            "A valid cryptographic step-up signature header (X-Axiom-StepUp-Signature) over the action payload is required in production.",
         ));
     }
     let sources = source_refs(&input.policies);
@@ -728,10 +773,12 @@ async fn update_revocation(
     headers: axum::http::HeaderMap,
     Json(input): Json<RevocationRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    if !verify_step_up_signature(&headers) {
+    let payload_bytes = serde_json::to_vec(&input).unwrap_or_default();
+    let payload_hash = Sha256::digest(&payload_bytes);
+    if !verify_step_up_signature(&headers, &payload_hash, &state.token) {
         return Err(ApiError::new(
             "STEPUP_MFA_REQUIRED",
-            "A valid WebAuthn step-up signature header (X-Axiom-StepUp-Signature) is required for emergency revocation in production.",
+            "A valid cryptographic step-up signature header (X-Axiom-StepUp-Signature) over the revocation payload is required in production.",
         ));
     }
     let target_kind_str = input.target_kind.as_deref().unwrap_or("agent");
@@ -844,7 +891,7 @@ async fn event_stream(
 
         if is_dev_token || constant_time_eq(supplied.as_bytes(), state.token.as_bytes()) {
             "org_default".to_string()
-        } else if let Some(claims) = decode_operator_jwt(supplied) {
+        } else if let Some(claims) = decode_operator_jwt(supplied, &state.token) {
             claims.tenant_id
         } else {
             return Err(ApiError::new(

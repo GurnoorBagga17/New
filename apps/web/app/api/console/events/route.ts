@@ -1,16 +1,26 @@
 // Copyright 2026 Axiom NHI — Licensed under Apache-2.0
+import { NextRequest } from "next/server";
 import { ADMIN_API_URL, ADMIN_TOKEN } from "../proxy";
+import { getOperatorSession } from "../../auth/store";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
+  const session = await getOperatorSession(req);
+  if (!session) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const encoder = new TextEncoder();
 
   // Try upstream connection to live Rust ExtMCP SSE stream
   try {
     let streamUrl = `${ADMIN_API_URL}/v1/local/events/stream`;
 
-    // Attempt to acquire a short-lived single-use SSE ticket nonce
+    // Attempt to acquire a short-lived single-use SSE ticket nonce bound to the session
     try {
       const ticketRes = await fetch(`${ADMIN_API_URL}/v1/local/events/ticket`, {
         method: "POST",
@@ -18,7 +28,12 @@ export async function GET(req: Request) {
           Authorization: `Bearer ${ADMIN_TOKEN}`,
           "Content-Type": "application/json",
         },
-        signal: AbortSignal.timeout(1000),
+        body: JSON.stringify({
+          sub: session.userId,
+          tenant_id: session.tenantId,
+          role: session.role,
+        }),
+        signal: AbortSignal.timeout(1500),
       });
       if (ticketRes.ok) {
         const ticketData = (await ticketRes.json()) as { ticket?: string };
@@ -27,7 +42,7 @@ export async function GET(req: Request) {
         }
       }
     } catch {
-      // Fallback to direct Bearer stream URL
+      // Fallback to direct stream with Bearer header
     }
 
     const upstream = await fetch(streamUrl, {
@@ -48,19 +63,19 @@ export async function GET(req: Request) {
       });
     }
   } catch {
-    // Upstream offline: stream keep-alives and synthetic traffic updates
+    // Upstream offline
   }
 
-  // Fallback SSE stream for offline development / edge preview
+  // Explicitly inform client that upstream control plane is disconnected
   const stream = new ReadableStream({
     start(controller) {
       controller.enqueue(
-        encoder.encode(`event: stream_status\ndata: {"status":"edge_fallback_active"}\n\n`)
+        encoder.encode(`event: stream_status\ndata: {"status":"upstream_offline","connected":false}\n\n`)
       );
 
       const interval = setInterval(() => {
         try {
-          controller.enqueue(encoder.encode(`event: ping\ndata: {}\n\n`));
+          controller.enqueue(encoder.encode(`event: ping\ndata: {"upstream":"offline"}\n\n`));
         } catch {
           clearInterval(interval);
         }

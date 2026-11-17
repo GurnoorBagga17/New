@@ -5,6 +5,20 @@ import type { NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
 
+  // Protect privileged /api/console routes against unauthenticated proxying
+  if (pathname.startsWith("/api/console")) {
+    const sessionCookie =
+      request.cookies.get("axiom_session") || request.cookies.get("axm_session");
+    const authHeader = request.headers.get("authorization");
+
+    if (!sessionCookie?.value && !authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { error: "Unauthorized: Operator session or Bearer token required for control-plane API access" },
+        { status: 401 }
+      );
+    }
+  }
+
   // Protect /console and nested operator routes
   if (pathname.startsWith("/console")) {
     const isProduction = process.env.NODE_ENV === "production" || process.env.AXIOM_ENV === "production";
@@ -35,5 +49,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/console/:path*"],
+  matcher: ["/console/:path*", "/api/console/:path*"],
 };
