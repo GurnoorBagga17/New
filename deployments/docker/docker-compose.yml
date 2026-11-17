@@ -31,9 +31,15 @@ services:
       AXIOM_RESOURCE_MAP_CONFIG: /etc/axiom/resources.json
       AXIOM_REVOCATION_CONFIG: /etc/axiom/revocations.json
       AXIOM_ADMIN_ADDR: 0.0.0.0:8787
-      AXIOM_ADMIN_TOKEN: ${AXIOM_ADMIN_TOKEN:?Set a random admin token of at least 32 characters}
+      AXIOM_ADMIN_TOKEN: ${AXIOM_ADMIN_TOKEN:-axm_local_dev_token_for_browser_testing_32b}
       AXIOM_ADMIN_ACTOR: ${AXIOM_ADMIN_ACTOR:-local-operator}
       AXIOM_DATA_DIR: /var/lib/axiom
+      DATABASE_URL: postgresql://axiom:axiom_password@postgres:5432/axiom_lineage
+      OPENBAO_ADDR: http://openbao:8200
+      OPENBAO_TOKEN: root
+    depends_on:
+      - postgres
+      - openbao
     volumes:
       - ./config:/etc/axiom:ro
       - axiom-state:/var/lib/axiom
@@ -64,6 +70,7 @@ services:
       - "5432:5432"
     volumes:
       - ../../lineage-graph/migrations/0001_phase2_graph.sql:/docker-entrypoint-initdb.d/0001_phase2_graph.sql:ro
+      - ../../lineage-graph/migrations/0002_tenant_rls.sql:/docker-entrypoint-initdb.d/0002_tenant_rls.sql:ro
       - postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
 

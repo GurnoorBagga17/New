@@ -9,9 +9,11 @@ ALTER TABLE nhi_edges ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT '
 CREATE INDEX IF NOT EXISTS idx_nhi_nodes_tenant ON nhi_nodes(tenant_id, entity_uid);
 CREATE INDEX IF NOT EXISTS idx_nhi_edges_tenant ON nhi_edges(tenant_id, source_uid, target_uid);
 
--- 3. Enable Row-Level Security
+-- 3. Enable Row-Level Security & Force on Table Owner
 ALTER TABLE nhi_nodes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE nhi_nodes FORCE ROW LEVEL SECURITY;
 ALTER TABLE nhi_edges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE nhi_edges FORCE ROW LEVEL SECURITY;
 
 -- 4. Multi-Tenant Isolation Policies
 -- If app.current_tenant is set, only rows matching current tenant are accessible.

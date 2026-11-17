@@ -11,6 +11,7 @@ axiom-audit = { path = "../../../observability/audit" }
 axiom-kill-switch = { path = "../../../observability/kill-switch" }
 axiom-lineage-graph = { path = "../../../lineage-graph" }
 axiom-secretless = { path = "../../../secretless" }
+axiom-risk-engine = { path = "../../../risk-engine" }
 chrono = "0.4"
 extmcp-authorization = { path = "../authorization" }
 extmcp-cedar = { path = "../cedar" }

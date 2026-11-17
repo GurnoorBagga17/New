@@ -128,7 +128,7 @@ pub fn exchange_rfc8693_token(
     let mut entropy = [0u8; 16];
     let _ = ring::rand::SystemRandom::new().fill(&mut entropy);
     let mut hasher = Sha256::new();
-    hasher.update(&entropy);
+    hasher.update(entropy);
     hasher.update(
         format!(
             "{}|{}|{}|{}",

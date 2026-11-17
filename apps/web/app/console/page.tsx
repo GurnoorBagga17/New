@@ -150,22 +150,29 @@ export default function ConsolePage() {
           });
         }
       } catch {
-        setIsDemoMode(true);
-        setOperator({
-          authenticated: true,
-          email: "evaluator@security-team.corp",
-          name: "Security Lead Operator",
-          role: "security-admin",
-          tenantId: "org_enterprise_prod_902",
-        });
+        const allowDemo =
+          process.env.NEXT_PUBLIC_DEMO_MODE === "1" ||
+          (typeof window !== "undefined" && window.location.search.includes("demo=true"));
+        if (allowDemo) {
+          setIsDemoMode(true);
+          setOperator({
+            authenticated: true,
+            email: "evaluator@security-team.corp",
+            name: "Security Lead Operator",
+            role: "security-admin",
+            tenantId: "org_enterprise_prod_902",
+          });
+        } else {
+          router.push("/sign-in");
+        }
       }
     }
     loadSession();
 
-    // 1. Live SSE Audit Stream from Rust ExtMCP Engine
+    // 1. Live SSE Audit Stream from Next.js Server-Side ExtMCP Proxy
     let eventSource: EventSource | null = null;
     try {
-      eventSource = new EventSource("http://127.0.0.1:8787/v1/local/events/stream");
+      eventSource = new EventSource("/api/console/events");
       eventSource.onmessage = (event) => {
         try {
           const parsed = JSON.parse(event.data);
@@ -188,10 +195,10 @@ export default function ConsolePage() {
       };
     } catch {}
 
-    // 2. Fetch OWASP scorecard from live Rust engine
+    // 2. Fetch OWASP scorecard from Next.js Server-Side ExtMCP Proxy
     async function loadOwasp() {
       try {
-        const res = await fetch("http://127.0.0.1:8787/v1/owasp/scorecard");
+        const res = await fetch("/api/console/scorecard");
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data.items)) {
@@ -205,7 +212,7 @@ export default function ConsolePage() {
     return () => {
       eventSource?.close();
     };
-  }, []);
+  }, [router]);
 
   const handleLogout = async () => {
     try {
@@ -265,7 +272,7 @@ export default function ConsolePage() {
   const startZeroDowntimeRotation = async () => {
     setRotationStage(1);
     try {
-      await fetch("http://127.0.0.1:8787/v1/secretless/rotate", {
+      await fetch("/api/console/rotate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lease_id: "bao-lease-8902-dynamic" }),
@@ -278,7 +285,7 @@ export default function ConsolePage() {
 
   const handleSimulateRevoke = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8787/v1/lineage/simulate-revoke", {
+      const res = await fetch("/api/console/simulate-revoke", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ target_uid: "agent::reporting-worker-4" }),
@@ -295,7 +302,7 @@ export default function ConsolePage() {
 
   const handleTriggerKillSwitch = async () => {
     try {
-      await fetch("http://127.0.0.1:8787/v1/local/revocations", {
+      await fetch("/api/console/revocations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

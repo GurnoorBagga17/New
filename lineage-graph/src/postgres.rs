@@ -44,27 +44,116 @@ impl PostgresLineageGraph {
         &self.pool
     }
 
-    /// Runs the Phase 2 schema migrations and installs the recursive CTE simulation function.
+    /// Runs the Phase 2 schema migrations and installs the recursive CTE simulation function
+    /// along with multi-tenant Row-Level Security (RLS) enforcement.
     pub async fn run_migrations(&self) -> Result<(), LineageDbError> {
-        let ddl = include_str!("../migrations/0001_phase2_graph.sql");
-        sqlx::raw_sql(ddl).execute(&self.pool).await?;
+        let ddl1 = include_str!("../migrations/0001_phase2_graph.sql");
+        sqlx::raw_sql(ddl1).execute(&self.pool).await?;
+        let ddl2 = include_str!("../migrations/0002_tenant_rls.sql");
+        sqlx::raw_sql(ddl2).execute(&self.pool).await?;
         Ok(())
     }
 
-    /// Inserts or updates an NHI node in the `nhi_nodes` table.
+    /// Lists all nodes for the given tenant (or all if system_admin).
+    pub async fn list_nodes(&self, tenant_id: Option<&str>) -> Result<Vec<GraphNode>, LineageDbError> {
+        let tenant = tenant_id.unwrap_or("org_default");
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("SELECT set_config('app.current_tenant', $1, true)")
+            .bind(tenant)
+            .execute(&mut *tx)
+            .await?;
+
+        let rows = sqlx::query(
+            r#"
+            SELECT entity_uid, entity_kind, display_name, owner_email, blast_radius_score
+            FROM nhi_nodes
+            ORDER BY entity_uid;
+            "#,
+        )
+        .fetch_all(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+
+        let nodes = rows
+            .into_iter()
+            .map(|row| GraphNode {
+                entity_uid: row.get("entity_uid"),
+                entity_kind: row.get("entity_kind"),
+                display_name: row.get("display_name"),
+                owner_email: row.get("owner_email"),
+                privilege_weight: row.get::<i16, _>("blast_radius_score") as u8,
+            })
+            .collect();
+
+        Ok(nodes)
+    }
+
+    /// Lists all directed dependency edges for the given tenant (or all if system_admin).
+    pub async fn list_edges(&self, tenant_id: Option<&str>) -> Result<Vec<GraphEdge>, LineageDbError> {
+        let tenant = tenant_id.unwrap_or("org_default");
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("SELECT set_config('app.current_tenant', $1, true)")
+            .bind(tenant)
+            .execute(&mut *tx)
+            .await?;
+
+        let rows = sqlx::query(
+            r#"
+            SELECT source_uid, target_uid, relation_type, observed_via
+            FROM nhi_edges
+            ORDER BY source_uid, target_uid;
+            "#,
+        )
+        .fetch_all(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+
+        let edges = rows
+            .into_iter()
+            .map(|row| GraphEdge {
+                source_uid: row.get("source_uid"),
+                target_uid: row.get("target_uid"),
+                relation_type: row.get("relation_type"),
+                observed_via: row.get("observed_via"),
+            })
+            .collect();
+
+        Ok(edges)
+    }
+
+    /// Inserts or updates an NHI node in the `nhi_nodes` table under `org_default`.
     pub async fn upsert_node(
         &self,
         node: &GraphNode,
         source_connector: &str,
         fingerprint_sha256: &str,
     ) -> Result<(), LineageDbError> {
+        self.upsert_node_with_tenant(node, source_connector, fingerprint_sha256, "org_default").await
+    }
+
+    /// Inserts or updates an NHI node with explicit tenant isolation and RLS session binding.
+    pub async fn upsert_node_with_tenant(
+        &self,
+        node: &GraphNode,
+        source_connector: &str,
+        fingerprint_sha256: &str,
+        tenant_id: &str,
+    ) -> Result<(), LineageDbError> {
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("SELECT set_config('app.current_tenant', $1, true)")
+            .bind(tenant_id)
+            .execute(&mut *tx)
+            .await?;
+
         sqlx::query(
             r#"
             INSERT INTO nhi_nodes (
                 entity_uid, entity_kind, source_connector, display_name,
-                fingerprint_sha256, owner_email, blast_radius_score, updated_at
+                fingerprint_sha256, owner_email, blast_radius_score, tenant_id, updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
             ON CONFLICT (entity_uid) DO UPDATE SET
                 entity_kind = EXCLUDED.entity_kind,
                 source_connector = EXCLUDED.source_connector,
@@ -72,6 +161,7 @@ impl PostgresLineageGraph {
                 fingerprint_sha256 = EXCLUDED.fingerprint_sha256,
                 owner_email = EXCLUDED.owner_email,
                 blast_radius_score = EXCLUDED.blast_radius_score,
+                tenant_id = EXCLUDED.tenant_id,
                 updated_at = NOW();
             "#,
         )
@@ -82,22 +172,40 @@ impl PostgresLineageGraph {
         .bind(fingerprint_sha256)
         .bind(&node.owner_email)
         .bind(node.privilege_weight as i16)
-        .execute(&self.pool)
+        .bind(tenant_id)
+        .execute(&mut *tx)
         .await?;
 
+        tx.commit().await?;
         Ok(())
     }
 
-    /// Inserts or updates a directed dependency edge in `nhi_edges`.
+    /// Inserts or updates a directed dependency edge in `nhi_edges` under `org_default`.
     pub async fn upsert_edge(&self, edge: &GraphEdge) -> Result<(), LineageDbError> {
+        self.upsert_edge_with_tenant(edge, "org_default").await
+    }
+
+    /// Inserts or updates a directed dependency edge with explicit tenant isolation and RLS session binding.
+    pub async fn upsert_edge_with_tenant(
+        &self,
+        edge: &GraphEdge,
+        tenant_id: &str,
+    ) -> Result<(), LineageDbError> {
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("SELECT set_config('app.current_tenant', $1, true)")
+            .bind(tenant_id)
+            .execute(&mut *tx)
+            .await?;
+
         sqlx::query(
             r#"
             INSERT INTO nhi_edges (
                 source_uid, target_uid, relation_type, observed_via,
-                first_seen_at, last_seen_at, call_count_24h
+                tenant_id, first_seen_at, last_seen_at, call_count_24h
             )
-            VALUES ($1, $2, $3, $4, NOW(), NOW(), 1)
+            VALUES ($1, $2, $3, $4, $5, NOW(), NOW(), 1)
             ON CONFLICT (source_uid, target_uid, relation_type) DO UPDATE SET
+                tenant_id = EXCLUDED.tenant_id,
                 last_seen_at = NOW(),
                 call_count_24h = nhi_edges.call_count_24h + 1;
             "#,
@@ -106,9 +214,11 @@ impl PostgresLineageGraph {
         .bind(&edge.target_uid)
         .bind(&edge.relation_type)
         .bind(&edge.observed_via)
-        .execute(&self.pool)
+        .bind(tenant_id)
+        .execute(&mut *tx)
         .await?;
 
+        tx.commit().await?;
         Ok(())
     }
 
@@ -118,6 +228,21 @@ impl PostgresLineageGraph {
         &self,
         target_uid: &str,
     ) -> Result<RevocationImpactSimulation, LineageDbError> {
+        self.simulate_revocation_with_tenant(target_uid, "org_default").await
+    }
+
+    /// Queries the recursive CTE function with explicit tenant context.
+    pub async fn simulate_revocation_with_tenant(
+        &self,
+        target_uid: &str,
+        tenant_id: &str,
+    ) -> Result<RevocationImpactSimulation, LineageDbError> {
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("SELECT set_config('app.current_tenant', $1, true)")
+            .bind(tenant_id)
+            .execute(&mut *tx)
+            .await?;
+
         let rows = sqlx::query(
             r#"
             SELECT node_uid, distance, impact_type
@@ -125,8 +250,10 @@ impl PostgresLineageGraph {
             "#,
         )
         .bind(target_uid)
-        .fetch_all(&self.pool)
+        .fetch_all(&mut *tx)
         .await?;
+
+        tx.commit().await?;
 
         let mut directly_affected = Vec::new();
         let mut transitively_affected = Vec::new();

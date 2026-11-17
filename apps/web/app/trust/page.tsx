@@ -15,7 +15,7 @@ interface ComplianceControl {
 const CONTROLS: ComplianceControl[] = [
   {
     framework: "soc2",
-    frameworkLabel: "SOC 2 Type II",
+    frameworkLabel: "SOC 2 Type II (Architecture Aligned / Target)",
     controlId: "CC6.1",
     title: "Logical Access Controls & Least Privilege",
     axiomMechanism: "In-process Cedar 3.x policy engine evaluates principal, action, and resource on every MCP tool invocation.",
@@ -23,7 +23,7 @@ const CONTROLS: ComplianceControl[] = [
   },
   {
     framework: "soc2",
-    frameworkLabel: "SOC 2 Type II",
+    frameworkLabel: "SOC 2 Type II (Architecture Aligned / Target)",
     controlId: "CC6.6",
     title: "Boundary Protection & SSRF Prevention",
     axiomMechanism: "DNS-pinned outbound egress firewall blocks loopback (127.0.0.1) and cloud metadata (169.254.169.254) addresses.",
@@ -31,7 +31,7 @@ const CONTROLS: ComplianceControl[] = [
   },
   {
     framework: "soc2",
-    frameworkLabel: "SOC 2 Type II",
+    frameworkLabel: "SOC 2 Type II (Architecture Aligned / Target)",
     controlId: "CC7.2",
     title: "Security Incident Response & Anomaly Revocation",
     axiomMechanism: "Sub-50ms ArcSwap Emergency Kill Switch with InFlightCancellationRegistry aborting active sockets.",
@@ -39,7 +39,7 @@ const CONTROLS: ComplianceControl[] = [
   },
   {
     framework: "iso27001",
-    frameworkLabel: "ISO/IEC 27001:2022",
+    frameworkLabel: "ISO/IEC 27001:2022 (Architecture Aligned / Target)",
     controlId: "A.5.15",
     title: "Access Control for Machine & AI Workloads",
     axiomMechanism: "Cryptographic binding of caller agent_id to ephemeral OpenBao dynamic leases <= 300s TTL.",
@@ -47,7 +47,7 @@ const CONTROLS: ComplianceControl[] = [
   },
   {
     framework: "iso27001",
-    frameworkLabel: "ISO/IEC 27001:2022",
+    frameworkLabel: "ISO/IEC 27001:2022 (Architecture Aligned / Target)",
     controlId: "A.8.15",
     title: "Logging and Monitoring Integrity",
     axiomMechanism: "OCSF v1.3 audit journal with cryptographic SHA-256 hash chaining (prev_hash -> entry_hash) and fsync WAL.",

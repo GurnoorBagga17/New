@@ -90,47 +90,6 @@ fn decode_path(input: &str) -> Result<String, PathValidationError> {
     Ok(value.replace('\\', std::path::MAIN_SEPARATOR_STR))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn accepts_and_normalizes_path_inside_root() {
-        let temp = tempfile::tempdir().unwrap();
-        std::fs::create_dir(temp.path().join("data")).unwrap();
-        let facts = validate_path(temp.path(), "data/report.txt").unwrap();
-        assert!(!facts.traversal_detected);
-        let expected_suffix = format!("data{}report.txt", std::path::MAIN_SEPARATOR);
-        assert!(facts.normalized_path.unwrap().ends_with(&expected_suffix));
-    }
-
-    #[test]
-    fn rejects_plain_and_nested_encoded_parent_segments() {
-        let temp = tempfile::tempdir().unwrap();
-        assert!(matches!(
-            validate_path(temp.path(), "../secret"),
-            Err(PathValidationError::OutsideRoot)
-        ));
-        assert!(matches!(
-            validate_path(temp.path(), "%252e%252e%255csecret"),
-            Err(PathValidationError::OutsideRoot)
-        ));
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn rejects_symlink_escape() {
-        use std::os::unix::fs::symlink;
-        let root = tempfile::tempdir().unwrap();
-        let outside = tempfile::tempdir().unwrap();
-        symlink(outside.path(), root.path().join("escape")).unwrap();
-        assert!(matches!(
-            validate_path(root.path(), "escape/secret"),
-            Err(PathValidationError::OutsideRoot)
-        ));
-    }
-}
-
 /// Opens a file inside `root` using OS-level symlink-rejection (`O_NOFOLLOW` on Unix)
 /// and post-open canonical inode/path verification to close validation-to-use TOCTOU races (AX-014).
 pub fn open_confined_readonly(
@@ -174,4 +133,45 @@ pub fn open_confined_readonly(
     }
 
     Ok((facts, file))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accepts_and_normalizes_path_inside_root() {
+        let temp = tempfile::tempdir().unwrap();
+        std::fs::create_dir(temp.path().join("data")).unwrap();
+        let facts = validate_path(temp.path(), "data/report.txt").unwrap();
+        assert!(!facts.traversal_detected);
+        let expected_suffix = format!("data{}report.txt", std::path::MAIN_SEPARATOR);
+        assert!(facts.normalized_path.unwrap().ends_with(&expected_suffix));
+    }
+
+    #[test]
+    fn rejects_plain_and_nested_encoded_parent_segments() {
+        let temp = tempfile::tempdir().unwrap();
+        assert!(matches!(
+            validate_path(temp.path(), "../secret"),
+            Err(PathValidationError::OutsideRoot)
+        ));
+        assert!(matches!(
+            validate_path(temp.path(), "%252e%252e%255csecret"),
+            Err(PathValidationError::OutsideRoot)
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symlink_escape() {
+        use std::os::unix::fs::symlink;
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        symlink(outside.path(), root.path().join("escape")).unwrap();
+        assert!(matches!(
+            validate_path(root.path(), "escape/secret"),
+            Err(PathValidationError::OutsideRoot)
+        ));
+    }
 }

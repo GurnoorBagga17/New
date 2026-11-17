@@ -64,6 +64,14 @@ impl LineageGraphEngine {
         }
     }
 
+    pub fn nodes(&self) -> &HashMap<String, GraphNode> {
+        &self.nodes
+    }
+
+    pub fn edges(&self) -> &[GraphEdge] {
+        &self.edges
+    }
+
     /// Simulates revoking `target_uid` using breadth-first dependency & sibling traversal.
     pub fn simulate_revocation(&self, target_uid: &str) -> RevocationImpactSimulation {
         let mut direct_agents = Vec::new();

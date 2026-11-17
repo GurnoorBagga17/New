@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let compile_result = tonic_build::configure()
         .build_server(true)
         .build_client(false)
-        .compile_protos(&[proto.clone()], &[include, google_include]);
+        .compile_protos(std::slice::from_ref(&proto), &[include, google_include]);
     if let Err(err) = compile_result {
         let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR")?);
         let fallback = std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR")?).join("src/generated_proto.rs");

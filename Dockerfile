@@ -25,22 +25,26 @@ FROM node:22-bookworm-slim AS web-builder
 WORKDIR /web
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json turbo.json tokens.json ./
+COPY docs/architecture ./docs/architecture
 COPY packages ./packages
 COPY apps/gateway-ui ./apps/gateway-ui
-RUN pnpm install --frozen-lockfile && pnpm --filter @axiom/cedar-editor build && pnpm --filter @axiom/gateway-ui build
+COPY apps/web ./apps/web
+RUN pnpm install --frozen-lockfile && \
+    pnpm --filter @axiom/cedar-editor build && \
+    pnpm --filter @axiom/gateway-ui build
 
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 RUN groupadd -g 65532 axiom && useradd -u 65532 -g 65532 -s /usr/sbin/nologin -M axiom
-COPY --from=rust-builder /build/target/release/axiom-extmcp-runtime /usr/local/bin/axiom-extmcp-runtime
+COPY --from=rust-builder /build/target/release/extmcp-runtime /usr/local/bin/extmcp-runtime
 COPY --from=web-builder /web/apps/gateway-ui/dist /app/apps/gateway-ui/dist
-COPY gateway/local-admin-api /app/gateway/local-admin-api
 COPY gateway/mcp-interceptor /app/gateway/mcp-interceptor
 ENV NODE_ENV=production
 ENV PORT=8080
-ENV AXIOM_ALLOWED_ORIGINS=http://localhost:8080
+ENV AXIOM_ADMIN_ADDR=127.0.0.1:8787
+ENV AXIOM_EXTMCP_ADDR=0.0.0.0:9001
 USER 65532:65532
-EXPOSE 8080 9001
+EXPOSE 8080 8787 9001
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:8080/healthz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
-CMD ["node", "/app/gateway/local-admin-api/server.cjs"]
+  CMD node -e "fetch('http://127.0.0.1:8787/healthz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+CMD ["extmcp-runtime"]

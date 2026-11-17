@@ -158,6 +158,7 @@ impl DiscoveryOrchestrator {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn normalize_k8s_service_account(
         &self,
         cluster: &str,
@@ -189,6 +190,7 @@ impl DiscoveryOrchestrator {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn normalize_github_app(
         &self,
         app_id: u64,
@@ -216,6 +218,7 @@ impl DiscoveryOrchestrator {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn normalize_slack_bot(
         &self,
         team_id: &str,
