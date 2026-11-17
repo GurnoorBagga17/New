@@ -1,16 +1,46 @@
 global:
-  airGappedMode: true
-  edition: "ultimate" # community | essentials | enterprise | ultimate
+  airGappedMode: false
+  edition: "enterprise" # community | essentials | enterprise | ultimate
   zeroSecretBrowserInvariant: true
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+
+runtime:
+  replicaCount: 3
+  image:
+    repository: ghcr.io/axiomnhi/extmcp-runtime
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  mode: "enforce"
+  resources:
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
 
 gateway:
   replicaCount: 3
   image:
     repository: ghcr.io/agentgateway/agentgateway
     tag: "v1.7.0"
+    pullPolicy: IfNotPresent
   runtimeMode: "enforce"
   calloutTimeoutMs: 15
   killSwitchOverridesObserveOnly: true
+  resources:
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
 
 extmcp:
   replicaCount: 3
@@ -20,16 +50,106 @@ extmcp:
 postgresLineage:
   enabled: true
   version: "16"
-  storageSize: "100Gi"
+  storageSize: "20Gi"
+  user: "axiom"
+  database: "axiom_lineage"
+  resources:
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
 
 openbao:
   enabled: true
   license: "MPL-2.0-unmodified"
   maxEphemeralLeaseTtlSeconds: 300
 
-spicedb:
-  enabled: true
-  replicas: 3
+spiffe:
+  enabled: false
+
+security:
+  secretManagement:
+    enabled: false
+    externalSecretName: "axiom-nhi-external-secrets"
+    refreshInterval: "1h"
+    secretStoreRef: "axiom-cluster-secrets"
+
+secrets:
+  adminToken: ""
+  postgresPassword: ""
+  sessionSecret: ""
 
 networkPolicy:
   enforceAirGapEgressBlock: true
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: axiom.local
+      paths:
+        - path: /
+          pathType: Prefix
+          service:
+            name: gateway
+            port: 8080
+  tls: []
+
+config:
+  identity: |
+    {
+      "issuers": [
+        {
+          "issuer": "https://issuer.example.invalid",
+          "jwks_url": "https://issuer.example.invalid/.well-known/jwks.json"
+        }
+      ],
+      "canonical_resources": ["mcp://prod-db"]
+    }
+  resources: |
+    {
+      "mcp-backend-default": "mcp://prod-db"
+    }
+  validationProfiles: |
+    {
+      "profiles": [
+        {
+          "target_server": "mcp://prod-db",
+          "tool_name": "execute_sql",
+          "tool_definition": {
+            "description": "Execute a SQL query against the database",
+            "inputSchema": {
+              "properties": {
+                "query": { "type": "string" }
+              },
+              "type": "object"
+            },
+            "name": "execute_sql"
+          },
+          "expected_tool_sha256": "c1ad10d22fad9fd86bd258a8652dde6699e2431146c9b4b8cb6ad0cba3e0954f",
+          "sql_argument": "query",
+          "sql_dialect": "postgresql",
+          "allowed_sql_functions": ["avg", "count", "lower", "max", "min", "sum", "upper"],
+          "path_arguments": [],
+          "egress_arguments": []
+        }
+      ]
+    }
+  revocations: |
+    {
+      "state": "available",
+      "version": 1,
+      "freshness_ttl_seconds": 300,
+      "global": false,
+      "servers": [],
+      "tools": [],
+      "agents": []
+    }
+  policies: |
+    {
+      "version": "1.0",
+      "policies": []
+    }

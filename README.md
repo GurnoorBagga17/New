@@ -1,9 +1,198 @@
 # Axiom NHI — Identity Intelligence & Runtime Security for Autonomous Systems
 
-**Target Positioning:** Discover every identity. Understand every relationship. Govern every action.  
-**License Boundary:** Apache-2.0 Open-Core Community Runtime (`gateway/`, `services/extmcp/`, `identity/`, `validators/`, `observability/`, `packages/ui/`, `packages/cedar-editor/`, `apps/gateway-ui/`) + Enterprise Control Plane (`connectors/`, `attribution/`, `lineage-graph/`, `risk-engine/`, `alerts/`, `secretless/`, `approvals/`, `siem-soar/`, `fleet-control/`, `apps/console/`, `deployments/helm/axiom-nhi/`).
+> **Discover every identity. Understand every relationship. Govern every action.**
 
-## Full-Stack Architecture Across Phases 1–4
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)](https://nodejs.org)
+[![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org)
+
+Axiom NHI is a comprehensive identity intelligence and MCP (Model Context Protocol) runtime security platform for autonomous AI systems.
+
+## 🚀 Quick Start
+
+```powershell
+# 1. First-time setup
+.\start.ps1 -Setup
+
+# 2. Start development
+.\start.ps1
+
+# 3. Open browser to http://localhost:3000
+```
+
+That's it! See [GETTING-STARTED.md](GETTING-STARTED.md) for detailed instructions.
+
+## 📋 Prerequisites
+
+- **Node.js 20+** - https://nodejs.org
+- **Rust 1.75+** - https://rustup.rs  
+- **Docker Desktop** - https://www.docker.com/products/docker-desktop/
+- **pnpm** (auto-installed during setup)
+
+## 🏗️ Architecture
+
+**License Boundary:** Apache-2.0 Open-Core Community Runtime + Enterprise Control Plane
+
+## 🏗️ Architecture
+
+**License Boundary:** Apache-2.0 Open-Core Community Runtime + Enterprise Control Plane
+
+### System Components
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Axiom Control Plane                       │
+│  (Tenant Management, Integrations, Policy, Billing)         │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                      Outbound mTLS
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│                Customer VPC / Kubernetes                     │
+│                                                              │
+│  ┌─────────┐       ┌──────────┐       ┌──────────┐        │
+│  │ MCP     │──────▶│  Axiom   │──────▶│ Approved │        │
+│  │ Client  │       │  Gateway │       │ MCP      │        │
+│  │ / Agent │◀──────│ (ExtMCP) │◀──────│ Server   │        │
+│  └─────────┘       └──────────┘       └──────────┘        │
+│                          │                                  │
+│                    Policy Cache                             │
+│                    Audit Buffer                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Development Phases
+
+| Phase | Focus | Status |
+|-------|-------|--------|
+| **Phase 0** | Foundation & Security | ✅ **Completed** |
+| **Phase 1** | Secure Identity (MFA, CSRF) | 🔄 **In Progress** |
+| **Phase 2** | Billing Integration (Stripe) | 🔄 **In Progress** |
+| **Phase 3** | Real Integrations (AWS, GitHub) | ⏳ Next |
+| **Phase 4** | Runtime Deployment | ⏳ Planned |
+| **Phase 5** | Production Hardening | ⏳ Planned |
+| **Phase 6** | Commercial Launch | ⏳ Goal |
+
+## ✨ Features
+
+### Current (Phase 0-1)
+
+- ✅ Multi-tenant architecture with PostgreSQL RLS
+- ✅ Session-based authentication with CSRF protection
+- ✅ TOTP/MFA enrollment
+- ✅ Stripe billing integration (ready for testing)
+- ✅ Docker Compose development environment
+- ✅ Database migrations
+- ✅ Security test suite
+
+### Coming Soon (Phase 2-3)
+
+- ⏳ AWS IAM discovery connector
+- ⏳ GitHub App integration
+- ⏳ Identity lineage graph
+- ⏳ Risk scoring engine
+- ⏳ MCP gateway enrollment
+
+## 📚 Documentation
+
+- **[START HERE](START-HERE.md)** - Quick start guide with paths to choose ⭐
+- **[Getting Started Guide](GETTING-STARTED.md)** - Complete setup and development workflow
+- **[Engineering Brief](AXIOM_NHI_ENGINEERING_BRIEF.md)** - Strategic research and competitive analysis
+- **[Engineering Integration Plan](ENGINEERING-INTEGRATION-PLAN.md)** - Connects brief to implementation
+- **[Architecture Blueprint](AXIOM-CUSTOMER-JOURNEY-AND-SYSTEM-ARCHITECTURE.md)** - Full system design
+- **[Implementation Checklist](IMPLEMENTATION-CHECKLIST.md)** - Development roadmap (150+ tasks)
+- **[Gap Analysis](docs/architecture/IMPLEMENTATION-GAP-ANALYSIS.md)** - Security review
+- **[Review Summary](REVIEW-SUMMARY.md)** - Current state assessment
+- **[Findings](docs/findings/)** - Engineering task results (T1-T12)
+
+## 🎯 Current Status
+
+**Overall Completion:** 15% (Foundation phase complete, Identity phase in progress)
+
+**What Works Now:**
+- ✅ Development environment with Docker Compose
+- ✅ Multi-tenant PostgreSQL with RLS policies
+- ✅ Authentication with sessions and CSRF protection
+- ✅ Billing integration (Stripe checkout + webhooks)
+- ✅ MFA/TOTP enrollment
+- ✅ Security test suite (20+ tests)
+- ✅ Database migrations
+
+**Next Priorities (This Week):**
+1. 🔄 Task T1: Set up SPIRE on kind cluster
+2. 🔄 Task T9: Integrate tenant isolation tests into CI
+3. 🔄 Complete Phase 1: Secure Identity
+4. 🔄 Document Cedar vs OPA policy choice
+
+**See:** `ENGINEERING-INTEGRATION-PLAN.md` for detailed task mapping
+
+## 🧪 Testing
+
+```powershell
+# Run all tests
+pnpm test
+
+# Run security tests
+pnpm test tests/security/
+
+# Run Rust tests
+cargo test --workspace
+
+# Run E2E tests
+python tests/run_tests.py
+```
+
+## 🛠️ Development
+
+### Project Structure
+
+```
+Axiom/
+├── apps/
+│   ├── web/              # Next.js public web app
+│   ├── console/          # Enterprise control plane
+│   └── gateway-ui/       # Gateway admin UI
+├── services/extmcp/      # Rust MCP gateway
+├── connectors/           # Discovery connectors
+├── identity/             # JWT verification
+├── validators/           # Security validators
+├── migrations/           # Database schema
+└── tests/                # Test suites
+```
+
+### Tech Stack
+
+- **Frontend:** Next.js 16, React 19, TypeScript, Tailwind CSS
+- **Backend:** Rust (Tokio, Axum), Node.js (Next.js API routes)
+- **Database:** PostgreSQL 16 with RLS
+- **Cache:** Redis 7
+- **Billing:** Stripe
+- **Secrets:** OpenBao (optional)
+
+## 🔐 Security
+
+### Security Features
+
+- Multi-tenant isolation with Row-Level Security (RLS)
+- CSRF protection on all mutating endpoints
+- Server-side session management
+- HMAC-SHA256 credential fingerprinting
+- Zero-secret browser invariant
+- Signed policy distribution (planned)
+
+### Reporting Security Issues
+
+Email: security@axiom.io
+
+See [SECURITY.md](SECURITY.md) for our security policy.
+
+## 📄 License
+
+Apache License 2.0 - see [LICENSE](LICENSE) for details.
+
+**Open-Core Model:**
+- **Community Edition:** Gateway, runtime, validators, UI packages (Apache 2.0)
+- **Enterprise Edition:** Connectors, lineage graph, risk engine, control plane (Commercial)
 
 | Phase | Gate | Core Engineering Deliverables & Crate Locations |
 | --- | --- | --- |

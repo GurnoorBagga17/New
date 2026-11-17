@@ -86,8 +86,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ../../lineage-graph/migrations/0001_phase2_graph.sql:/docker-entrypoint-initdb.d/0001_phase2_graph.sql:ro
-      - ../../lineage-graph/migrations/0002_tenant_rls.sql:/docker-entrypoint-initdb.d/0002_tenant_rls.sql:ro
+      - ../../lineage-graph/migrations:/docker-entrypoint-initdb.d:ro
       - postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
 

@@ -45,8 +45,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       data-theme="light"
       className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} ${inter.variable} light`}
       style={{ colorScheme: "light" }}
+      suppressHydrationWarning
     >
-      <body className="antialiased">
+      <body className="antialiased" suppressHydrationWarning>
         {children}
         <CookieConsent />
       </body>

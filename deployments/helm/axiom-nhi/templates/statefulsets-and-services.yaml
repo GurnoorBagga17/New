@@ -26,7 +26,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: extmcp-runtime
-          image: "ghcr.io/axiom-nhi/extmcp-runtime:v1.0.0"
+          image: "{{ .Values.runtime.image.repository }}:{{ .Values.runtime.image.tag }}"
           ports:
             - name: grpc-h2c
               containerPort: 9001
@@ -100,11 +100,15 @@ spec:
             - name: pg
               containerPort: 5432
           env:
-            - name: DATABASE_URL
+            - name: POSTGRES_USER
+              value: {{ .Values.postgresLineage.user | default "axiom" | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.postgresLineage.database | default "axiom_lineage" | quote }}
+            - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.security.secretManagement.externalSecretName }}
-                  key: DATABASE_URL
+                  name: {{ include "axiom-nhi.fullname" . }}-credentials
+                  key: postgres-password
           readinessProbe:
             tcpSocket:
               port: pg

@@ -1,0 +1,124 @@
+name: axiom-nhi-prod
+
+# Axiom NHI — Production Docker Compose Deployment
+# Enforces:
+# - Fail-closed security architecture
+# - Zero default credentials (required environment variables)
+# - PostgreSQL 16 schema migrations & connection health checks
+# - Persistent volumes for runtime state and database
+# - Isolated internal network
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: axiom-prod-postgres
+    environment:
+      POSTGRES_USER: axiom
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_DB: axiom_prod
+    volumes:
+      - ../../lineage-graph/migrations:/docker-entrypoint-initdb.d:ro
+      - postgres-prod-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U axiom -d axiom_prod"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+    networks:
+      - axiom-internal
+
+  extmcp-service:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.extmcp
+    container_name: axiom-prod-extmcp
+    environment:
+      AXIOM_ENV: production
+      AXIOM_RUNTIME_MODE: enforce
+      AXIOM_EXTMCP_ADDR: 0.0.0.0:9001
+      AXIOM_ADMIN_ADDR: 0.0.0.0:8787
+      AXIOM_IDENTITY_CONFIG: /etc/axiom/identity.json
+      AXIOM_VALIDATION_CONFIG: /etc/axiom/validation-profiles.json
+      AXIOM_RESOURCE_MAP_CONFIG: /etc/axiom/resources.json
+      AXIOM_REVOCATION_CONFIG: /etc/axiom/revocations.json
+      AXIOM_DATA_DIR: /var/lib/axiom
+      AXIOM_ADMIN_TOKEN: ${AXIOM_ADMIN_TOKEN:?AXIOM_ADMIN_TOKEN must be set (min 32 chars)}
+      AXIOM_ADMIN_ACTOR: ${AXIOM_ADMIN_ACTOR:-prod-operator}
+      DATABASE_URL: postgresql://axiom:${POSTGRES_PASSWORD}@postgres:5432/axiom_prod
+      OPENBAO_ADDR: ${OPENBAO_ADDR:-}
+      OPENBAO_TOKEN: ${OPENBAO_TOKEN:-}
+    volumes:
+      - ./config:/etc/axiom:ro
+      - axiom-prod-state:/var/lib/axiom
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8787/v1/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    expose:
+      - "9001"
+      - "8787"
+    restart: always
+    networks:
+      - axiom-internal
+
+  axiom-web:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.web
+    container_name: axiom-prod-web
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      AXIOM_ENV: production
+      PORT: 3000
+      AXIOM_ADMIN_ADDR: http://extmcp-service:8787
+      AXIOM_ADMIN_TOKEN: ${AXIOM_ADMIN_TOKEN}
+      DATABASE_URL: postgresql://axiom:${POSTGRES_PASSWORD}@postgres:5432/axiom_prod
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set (min 32 chars)}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      extmcp-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: always
+    networks:
+      - axiom-internal
+
+  axiom-gateway:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.agentgateway
+    container_name: axiom-prod-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      RUST_LOG: info
+      AXIOM_RUNTIME_MODE: enforce
+    depends_on:
+      extmcp-service:
+        condition: service_healthy
+    restart: always
+    networks:
+      - axiom-internal
+
+networks:
+  axiom-internal:
+    driver: bridge
+
+volumes:
+  postgres-prod-data:
+  axiom-prod-state:

@@ -212,7 +212,7 @@ export default function ExecutiveReportPage() {
             <h2 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center justify-between">
               <span>3. Enterprise Regulatory Compliance Mapping</span>
               <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                Auditor-Certified Mappings
+                Auditor-Ready Control Mappings
               </span>
             </h2>
             <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">

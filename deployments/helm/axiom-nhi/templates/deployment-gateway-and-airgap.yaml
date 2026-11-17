@@ -42,4 +42,9 @@ spec:
   egress:
     - to:
         - podSelector: {}
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
 {{- end }}

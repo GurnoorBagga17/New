@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "axiom-nhi.fullname" . }}-runtime-config
+  labels:
+    {{- include "axiom-nhi.labels" . | nindent 4 }}
+data:
+  identity.json: |
+{{ .Values.config.identity | indent 4 }}
+  resources.json: |
+{{ .Values.config.resources | indent 4 }}
+  tool-validation.json: |
+{{ .Values.config.validationProfiles | indent 4 }}
+  revocations.json: |
+{{ .Values.config.revocations | indent 4 }}
+  policies.json: |
+{{ .Values.config.policies | indent 4 }}

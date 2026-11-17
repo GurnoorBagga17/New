@@ -38,10 +38,10 @@ const SECURITY_INVARIANTS = [
 ];
 
 const COMPLIANCE_FRAMEWORKS = [
-  { name: "SOC 2 Type II", status: "Audit Ready / Continuous Monitoring", icon: "🛡️" },
+  { name: "SOC 2 Type II", status: "Readiness / Continuous Monitoring", icon: "🛡️" },
   { name: "ISO / IEC 27001:2022", status: "Controls Aligned", icon: "🔒" },
   { name: "OWASP NHI & MCP Top 10", status: "100% Rule Coverage", icon: "📋" },
-  { name: "NIST SP 800-207 (Zero Trust)", status: "Architecture Certified", icon: "🏛️" },
+  { name: "NIST SP 800-207 (Zero Trust)", status: "Architecture Aligned", icon: "🏛️" },
   { name: "FedRAMP High Baseline", status: "Sovereign Deploy Compatible", icon: "🇺🇸" },
   { name: "GDPR / CCPA / CPRA", status: "Zero PII Retention Verified", icon: "🇪🇺" },
 ];
@@ -137,7 +137,7 @@ export default function SecurityPage() {
                 Request Our Third-Party Penetration Test &amp; Architecture Audit
               </h2>
               <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Receive our complete SOC 2 bridge letter, red-team penetration test report, and Cedar formal verification proofs under NDA.
+                Receive our complete SOC 2 readiness report, red-team penetration test report, and Cedar formal verification proofs under NDA.
               </p>
             </div>
             <div className="shrink-0">

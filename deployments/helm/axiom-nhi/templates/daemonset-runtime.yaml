@@ -76,9 +76,11 @@ spec:
             - name: config-volume
               mountPath: /etc/axiom
               readOnly: true
+            {{- if .Values.spiffe.enabled }}
             - name: spiffe-workload-api
               mountPath: /spiffe-workload-api
               readOnly: true
+            {{- end }}
           resources:
             limits:
               cpu: "2"
@@ -90,7 +92,9 @@ spec:
         - name: config-volume
           configMap:
             name: {{ include "axiom-nhi.fullname" . }}-runtime-config
+        {{- if .Values.spiffe.enabled }}
         - name: spiffe-workload-api
           csi:
             driver: "csi.spiffe.io"
             readOnly: true
+        {{- end }}
