@@ -51,6 +51,7 @@ struct Segment {
 }
 
 pub struct AuditRing {
+    #[allow(dead_code)]
     root: PathBuf,
     segments_dir: PathBuf,
     inflight_dir: PathBuf,
@@ -115,14 +116,17 @@ impl AuditRing {
         })
     }
 
+    #[allow(dead_code)]
     pub fn max_bytes(&self) -> u64 {
         self.max_bytes
     }
 
+    #[allow(dead_code)]
     pub fn root(&self) -> &Path {
         &self.root
     }
 
+    #[allow(dead_code)]
     pub fn total_bytes(&self) -> u64 {
         self.lock().total_bytes
     }

@@ -475,7 +475,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
             if let Ok(meta) = tokio::fs::metadata(&cedar_file_path).await {
                 if let Ok(mtime) = meta.modified() {
-                    if last_cedar_mtime.map_or(false, |prev| mtime > prev) {
+                    if last_cedar_mtime.is_some_and(|prev| mtime > prev) {
                         if let Ok(content) = tokio::fs::read_to_string(&cedar_file_path).await {
                             if let Ok(new_snapshot) =
                                 extmcp_cedar::load_snapshot(&[&content], AXIOM_SCHEMA_SRC)
@@ -494,7 +494,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             if let Ok(meta) = tokio::fs::metadata(&bundle_file_path).await {
                 if let Ok(mtime) = meta.modified() {
-                    if last_bundle_mtime.map_or(false, |prev| mtime > prev) {
+                    if last_bundle_mtime.is_some_and(|prev| mtime > prev) {
                         if let Ok((new_snapshot, _)) = admin::load_policy_bundle(
                             &bundle_file_path,
                             DEFAULT_POLICY_BUNDLE,

@@ -65,6 +65,7 @@ impl ControlPlaneClient {
         Ok(Self { base_url, http })
     }
 
+    #[allow(dead_code)]
     pub fn base_url(&self) -> &str {
         &self.base_url
     }

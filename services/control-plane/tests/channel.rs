@@ -118,9 +118,7 @@ async fn connect_channel(base: &str, agent_id: Uuid, secret: &str) -> Ws {
 
 async fn send(socket: &mut Ws, message: &AgentMessage) {
     socket
-        .send(Message::Text(
-            serde_json::to_string(message).unwrap().into(),
-        ))
+        .send(Message::Text(serde_json::to_string(message).unwrap()))
         .await
         .unwrap();
 }

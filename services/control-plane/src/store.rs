@@ -20,6 +20,7 @@ use axiom_agent_protocol::{
     sha256_hex, AgentStatus, AuditEventEnvelope, PolicyBundle, RevocationState,
 };
 use chrono::{DateTime, Utc};
+#[allow(deprecated)]
 use ring::constant_time::verify_slices_are_equal;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -103,6 +104,7 @@ pub struct EnrollmentView {
 #[derive(Debug, Clone)]
 struct EnrollmentRecord {
     tenant_id: String,
+    #[allow(dead_code)]
     created_by: String,
     expires_at: DateTime<Utc>,
     consumed_at: Option<DateTime<Utc>>,
@@ -334,6 +336,7 @@ impl Store {
 
     // -- agent identity -----------------------------------------------------
 
+    #[allow(deprecated)]
     pub fn authenticate_agent(&self, agent_id: Uuid, secret: &str) -> bool {
         let inner = self.lock();
         let Some(agent) = inner.agents.get(&agent_id) else {
@@ -359,7 +362,7 @@ impl Store {
             .filter(|agent| agent.tenant_id == tenant_id)
             .cloned()
             .collect();
-        items.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+        items.sort_by_key(|a| a.created_at);
         items
     }
 
@@ -616,7 +619,7 @@ impl Store {
             .filter(|record| record.tenant_id == tenant_id)
             .cloned()
             .collect();
-        items.sort_by(|a, b| b.occurred_at.cmp(&a.occurred_at));
+        items.sort_by_key(|a| std::cmp::Reverse(a.occurred_at));
         items.truncate(limit.min(MAX_AUDIT_EVENTS));
         items
     }

@@ -428,7 +428,7 @@ async fn drain_audit(ring: &AuditRing, sink: &mut WsSink, seq: &mut u64) -> Resu
 
 async fn send(sink: &mut WsSink, message: &AgentMessage) -> Result<()> {
     let encoded = serde_json::to_string(message).context("encode agent message")?;
-    timeout(SEND_TIMEOUT, sink.send(Message::Text(encoded.into())))
+    timeout(SEND_TIMEOUT, sink.send(Message::Text(encoded)))
         .await
         .context("timed out sending to control plane")?
         .context("send to control plane failed")

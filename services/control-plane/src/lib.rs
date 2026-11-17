@@ -31,6 +31,7 @@ use axum::{
     Json, Router,
 };
 use chrono::{DateTime, Utc};
+#[allow(deprecated)]
 use ring::constant_time::verify_slices_are_equal;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -263,6 +264,7 @@ fn bearer(headers: &HeaderMap) -> Option<&str> {
         .strip_prefix("Bearer ")
 }
 
+#[allow(deprecated)]
 fn constant_time_eq(left: &str, right: &str) -> bool {
     verify_slices_are_equal(left.as_bytes(), right.as_bytes()).is_ok()
 }

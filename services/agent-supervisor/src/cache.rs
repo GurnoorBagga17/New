@@ -86,6 +86,7 @@ impl AgentCache {
         Ok(Self { dir, public_key })
     }
 
+    #[allow(dead_code)]
     pub fn dir(&self) -> &Path {
         &self.dir
     }
@@ -94,6 +95,7 @@ impl AgentCache {
         self.dir.join(IDENTITY_FILE)
     }
 
+    #[allow(dead_code)]
     pub fn load_identity(&self) -> Result<Option<AgentIdentity>> {
         read_json(&self.identity_path())
     }
@@ -151,6 +153,7 @@ impl AgentCache {
         atomic_write_json(&self.dir.join(REVOCATIONS_FILE), state)
     }
 
+    #[allow(dead_code)]
     pub fn load_revocations(&self) -> Result<RevocationState> {
         Ok(read_json(&self.dir.join(REVOCATIONS_FILE))?.unwrap_or_default())
     }
@@ -172,6 +175,7 @@ impl AgentCache {
         )
     }
 
+    #[allow(dead_code)]
     pub fn kill_switch(&self) -> Result<Option<StoredKillSwitch>> {
         read_json(&self.dir.join(KILL_SWITCH_FILE))
     }

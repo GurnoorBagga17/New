@@ -479,6 +479,7 @@ impl PostgresLineageGraph {
     }
 
     /// Creates a new integration for a tenant.
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_integration(
         &self,
         id: &str,
