@@ -7,10 +7,10 @@
 //! - Never extracts or stores raw secret payloads; computes HMAC-SHA256 fingerprints of
 //!   credential identifiers (`fingerprint_credential_id`).
 
-use std::collections::HashMap;
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
+use std::collections::HashMap;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -184,7 +184,10 @@ impl DiscoveryOrchestrator {
             perms.push("k8s:cluster-admin:*".to_owned());
         }
         let mut meta = annotations;
-        meta.insert("automountServiceAccountToken".to_owned(), automount_token.to_string());
+        meta.insert(
+            "automountServiceAccountToken".to_owned(),
+            automount_token.to_string(),
+        );
         DiscoveredNode {
             entity_uid: uid.clone(),
             entity_kind: "k8s_service_account".to_owned(),
@@ -255,21 +258,21 @@ impl DiscoveryOrchestrator {
     }
 }
 
-pub mod saas_oauth;
 pub mod discovery;
 pub mod enterprise;
+pub mod saas_oauth;
+#[cfg(feature = "aws")]
+pub use discovery::AwsIamDiscoveryWorker;
+#[cfg(feature = "github")]
+pub use discovery::GithubDiscoveryWorker;
+#[cfg(feature = "k8s")]
+pub use discovery::K8sDiscoveryWorker;
 pub use discovery::{DiscoveryError, SlackDiscoveryWorker};
 pub use enterprise::{
     AiGatewaysDiscoveryWorker, AzureEntraDiscoveryWorker, DatabricksDiscoveryWorker,
     GcpIamDiscoveryWorker, GitlabDiscoveryWorker, OktaDiscoveryWorker, SnowflakeDiscoveryWorker,
     TerraformStateDiscoveryWorker,
 };
-#[cfg(feature = "aws")]
-pub use discovery::AwsIamDiscoveryWorker;
-#[cfg(feature = "k8s")]
-pub use discovery::K8sDiscoveryWorker;
-#[cfg(feature = "github")]
-pub use discovery::GithubDiscoveryWorker;
 
 #[cfg(test)]
 mod tests {
@@ -333,7 +336,9 @@ mod tests {
         );
         assert_eq!(k8s_node.source_connector, ConnectorKind::Kubernetes);
         assert_eq!(k8s_node.created_at_unix, Some(1701000000));
-        assert!(k8s_node.raw_permissions.contains(&"k8s:cluster-admin:*".to_string()));
+        assert!(k8s_node
+            .raw_permissions
+            .contains(&"k8s:cluster-admin:*".to_string()));
 
         // GitHub
         let gh_node = orch.normalize_github_app(
@@ -359,7 +364,10 @@ mod tests {
             Some(1704000100),
         );
         assert_eq!(slack_node.source_connector, ConnectorKind::Slack);
-        assert_eq!(slack_node.metadata_tags.get("installed_by").unwrap(), "U99999");
+        assert_eq!(
+            slack_node.metadata_tags.get("installed_by").unwrap(),
+            "U99999"
+        );
     }
 
     #[test]
@@ -394,7 +402,10 @@ mod tests {
             Some(1710000500),
         );
         assert_eq!(sp.source_connector, ConnectorKind::AzureEntra);
-        assert_eq!(sp.metadata_tags.get("risk_tag").unwrap(), "NHI4:PrivilegeOverprovisioning");
+        assert_eq!(
+            sp.metadata_tags.get("risk_tag").unwrap(),
+            "NHI4:PrivilegeOverprovisioning"
+        );
         assert!(sp.fingerprint_sha256.starts_with("hmac-sha256:"));
 
         // 2. GCP IAM
@@ -410,7 +421,10 @@ mod tests {
             None,
         );
         assert_eq!(sa.source_connector, ConnectorKind::GcpIam);
-        assert_eq!(sa.metadata_tags.get("risk_tag").unwrap(), "NHI2:LongLivedUserManagedKey");
+        assert_eq!(
+            sa.metadata_tags.get("risk_tag").unwrap(),
+            "NHI2:LongLivedUserManagedKey"
+        );
 
         // 3. Okta
         let okta = OktaDiscoveryWorker::new();
@@ -437,7 +451,10 @@ mod tests {
             None,
         );
         assert_eq!(sf.source_connector, ConnectorKind::Snowflake);
-        assert_eq!(sf.metadata_tags.get("risk_tag").unwrap(), "NHI3:PasswordWithoutKeyPairAuth");
+        assert_eq!(
+            sf.metadata_tags.get("risk_tag").unwrap(),
+            "NHI3:PasswordWithoutKeyPairAuth"
+        );
 
         // 5. Databricks
         let dbx = DatabricksDiscoveryWorker::new();
@@ -451,7 +468,10 @@ mod tests {
             1710000000,
         );
         assert_eq!(pat.source_connector, ConnectorKind::Databricks);
-        assert_eq!(pat.metadata_tags.get("risk_tag").unwrap(), "NHI3:IndefiniteTokenLifetime");
+        assert_eq!(
+            pat.metadata_tags.get("risk_tag").unwrap(),
+            "NHI3:IndefiniteTokenLifetime"
+        );
 
         // 6. GitLab
         let gitlab = GitlabDiscoveryWorker::new();
@@ -466,7 +486,10 @@ mod tests {
             None,
         );
         assert_eq!(gl.source_connector, ConnectorKind::Gitlab);
-        assert_eq!(gl.metadata_tags.get("risk_tag").unwrap(), "NHI4:GitLabMaintainerTokenScope");
+        assert_eq!(
+            gl.metadata_tags.get("risk_tag").unwrap(),
+            "NHI4:GitLabMaintainerTokenScope"
+        );
 
         // 7. AI Gateways
         let ai = AiGatewaysDiscoveryWorker::new();
@@ -480,7 +503,10 @@ mod tests {
             None,
         );
         assert_eq!(llm.source_connector, ConnectorKind::AiGateways);
-        assert_eq!(llm.metadata_tags.get("risk_tag").unwrap(), "MCP09:ShadowAiKeyExposure");
+        assert_eq!(
+            llm.metadata_tags.get("risk_tag").unwrap(),
+            "MCP09:ShadowAiKeyExposure"
+        );
 
         // 8. Terraform State
         let tf = TerraformStateDiscoveryWorker::new();

@@ -20,10 +20,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .compile_protos(std::slice::from_ref(&proto), &[include, google_include]);
     if let Err(err) = compile_result {
         let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR")?);
-        let fallback = std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR")?).join("src/generated_proto.rs");
+        let fallback = std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR")?)
+            .join("src/generated_proto.rs");
         if fallback.exists() {
             std::fs::copy(&fallback, out_dir.join("agentgateway.dev.ext_mcp.rs"))?;
-            eprintln!("cargo:warning=protoc invocation failed ({}); used cached generated_proto.rs", err);
+            eprintln!(
+                "cargo:warning=protoc invocation failed ({}); used cached generated_proto.rs",
+                err
+            );
         } else {
             return Err(err.into());
         }

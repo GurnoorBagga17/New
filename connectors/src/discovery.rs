@@ -5,11 +5,11 @@
 //! - Strictly queries read-only discovery endpoints.
 //! - Computes HMAC-SHA256 credential fingerprints; never persists or logs raw API keys.
 
-use std::time::Duration;
+use crate::{DiscoveredNode, DiscoveryOrchestrator};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use serde::Deserialize;
+use std::time::Duration;
 use thiserror::Error;
-use crate::{DiscoveredNode, DiscoveryOrchestrator};
 
 #[derive(Debug, Error)]
 pub enum DiscoveryError {
@@ -74,15 +74,22 @@ impl SlackDiscoveryWorker {
         }
 
         let body: AuthTestResponse = resp.json().await.map_err(|e| {
-            DiscoveryError::MalformedPayload(format!("Failed to parse Slack auth.test response: {e}"))
+            DiscoveryError::MalformedPayload(format!(
+                "Failed to parse Slack auth.test response: {e}"
+            ))
         })?;
 
         if !body.ok {
-            return Err(DiscoveryError::Api(body.error.unwrap_or_else(|| "auth.test failed".into())));
+            return Err(DiscoveryError::Api(
+                body.error.unwrap_or_else(|| "auth.test failed".into()),
+            ));
         }
 
         let team_id = body.team_id.unwrap_or_else(|| "T_UNKNOWN".into());
-        let bot_user_id = body.user_id.or(body.bot_id).unwrap_or_else(|| "B_UNKNOWN".into());
+        let bot_user_id = body
+            .user_id
+            .or(body.bot_id)
+            .unwrap_or_else(|| "B_UNKNOWN".into());
         let app_name = body.user.unwrap_or_else(|| "SlackBot".into());
 
         // Standard read-only permissions for bot identity
@@ -136,14 +143,10 @@ impl AwsIamDiscoveryWorker {
             let created = role.create_date().secs();
             let actions = vec!["sts:AssumeRole".to_string()];
 
-            discovered.push(orchestrator.normalize_aws_role(
-                account_id,
-                role_name,
-                actions,
-                tags,
-                created,
-                None,
-            ));
+            discovered.push(
+                orchestrator
+                    .normalize_aws_role(account_id, role_name, actions, tags, created, None),
+            );
         }
 
         Ok(discovered)
@@ -219,12 +222,10 @@ impl GithubDiscoveryWorker {
         app_id: u64,
         app_slug: &str,
     ) -> Result<Vec<DiscoveredNode>, DiscoveryError> {
-        let installations = octocrab
-            .apps()
-            .installations()
-            .send()
-            .await
-            .map_err(|e| DiscoveryError::Api(format!("GitHub list installations failed: {e}")))?;
+        let installations =
+            octocrab.apps().installations().send().await.map_err(|e| {
+                DiscoveryError::Api(format!("GitHub list installations failed: {e}"))
+            })?;
 
         let mut discovered = Vec::new();
         let now = std::time::SystemTime::now()

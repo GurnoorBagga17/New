@@ -91,7 +91,10 @@ pub(crate) async fn handle_socket(state: AppState, socket: WebSocket, auth: Chan
     tracing::info!(%agent_id, %tenant_id, "agent channel connected");
 
     if let Some(policy) = state.store.latest_policy(&tenant_id) {
-        if send_control(&mut sink, &ControlMessage::Policy(policy)).await.is_err() {
+        if send_control(&mut sink, &ControlMessage::Policy(policy))
+            .await
+            .is_err()
+        {
             state.unregister_connection(agent_id);
             state.store.mark_offline(agent_id);
             return;
@@ -100,9 +103,12 @@ pub(crate) async fn handle_socket(state: AppState, socket: WebSocket, auth: Chan
 
     let revocations = state.store.revocations(&tenant_id);
     if revocations.version > 0
-        && send_control(&mut sink, &ControlMessage::Revocations { state: revocations })
-            .await
-            .is_err()
+        && send_control(
+            &mut sink,
+            &ControlMessage::Revocations { state: revocations },
+        )
+        .await
+        .is_err()
     {
         state.unregister_connection(agent_id);
         state.store.mark_offline(agent_id);

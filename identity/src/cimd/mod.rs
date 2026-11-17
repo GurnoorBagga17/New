@@ -177,7 +177,8 @@ impl CimdValidator {
                 actual: doc.client_id,
             });
         }
-        self.cache.insert(expected_client_id.to_owned(), doc.clone());
+        self.cache
+            .insert(expected_client_id.to_owned(), doc.clone());
         Ok(doc)
     }
 
@@ -267,7 +268,10 @@ mod tests {
             r#"{"client_id":"https://agents.example.com/oauth/finance-agent.json","client_name":"Finance Agent"}"#,
         );
         let validator = CimdValidator::new(Duration::from_secs(300), 64).with_transport(transport);
-        let doc = validator.resolve_or_fetch(url).await.expect("must resolve CIMD");
+        let doc = validator
+            .resolve_or_fetch(url)
+            .await
+            .expect("must resolve CIMD");
         assert_eq!(doc.client_name, "Finance Agent");
         assert!(validator.resolve_cached(url).unwrap().is_some());
     }

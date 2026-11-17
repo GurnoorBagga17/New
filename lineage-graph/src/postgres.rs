@@ -4,12 +4,12 @@
 //! Executes recursive CTE graph traversals (`simulate_revocation`) and
 //! maintains the identity inventory database using connection-pooled `sqlx::PgPool`.
 
-use sqlx::{postgres::PgPoolOptions, PgPool, Row};
-use thiserror::Error;
 use crate::{
     GraphEdge, GraphNode, IntegrationRecord, OperatorRecord, OperatorSessionRecord,
     RevocationImpactSimulation, SyncRunRecord, TenantRecord,
 };
+use sqlx::{postgres::PgPoolOptions, PgPool, Row};
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum LineageDbError {
@@ -64,7 +64,10 @@ impl PostgresLineageGraph {
     }
 
     /// Fetches a tenant by tenant_id.
-    pub async fn get_tenant(&self, tenant_id: &str) -> Result<Option<TenantRecord>, LineageDbError> {
+    pub async fn get_tenant(
+        &self,
+        tenant_id: &str,
+    ) -> Result<Option<TenantRecord>, LineageDbError> {
         let row = sqlx::query(
             r#"
             SELECT tenant_id, organization_name, enforce_sso, sso_issuer_url
@@ -85,7 +88,10 @@ impl PostgresLineageGraph {
     }
 
     /// Fetches an operator by email.
-    pub async fn get_operator_by_email(&self, email: &str) -> Result<Option<OperatorRecord>, LineageDbError> {
+    pub async fn get_operator_by_email(
+        &self,
+        email: &str,
+    ) -> Result<Option<OperatorRecord>, LineageDbError> {
         let row = sqlx::query(
             r#"
             SELECT user_id, tenant_id, email, display_name, role, is_active, webauthn_credential_id
@@ -172,7 +178,10 @@ impl PostgresLineageGraph {
     }
 
     /// Fetches an active session by session_id.
-    pub async fn get_session(&self, session_id: &str) -> Result<Option<OperatorSessionRecord>, LineageDbError> {
+    pub async fn get_session(
+        &self,
+        session_id: &str,
+    ) -> Result<Option<OperatorSessionRecord>, LineageDbError> {
         let row = sqlx::query(
             r#"
             SELECT session_id, user_id, tenant_id, csrf_token, expires_at, revoked
@@ -211,7 +220,10 @@ impl PostgresLineageGraph {
     }
 
     /// Lists all nodes for the given tenant (or all if system_admin).
-    pub async fn list_nodes(&self, tenant_id: Option<&str>) -> Result<Vec<GraphNode>, LineageDbError> {
+    pub async fn list_nodes(
+        &self,
+        tenant_id: Option<&str>,
+    ) -> Result<Vec<GraphNode>, LineageDbError> {
         let tenant = tenant_id.unwrap_or("org_default");
         let mut tx = self.pool.begin().await?;
         sqlx::query("SELECT set_config('app.current_tenant', $1, true)")
@@ -246,7 +258,10 @@ impl PostgresLineageGraph {
     }
 
     /// Lists all directed dependency edges for the given tenant (or all if system_admin).
-    pub async fn list_edges(&self, tenant_id: Option<&str>) -> Result<Vec<GraphEdge>, LineageDbError> {
+    pub async fn list_edges(
+        &self,
+        tenant_id: Option<&str>,
+    ) -> Result<Vec<GraphEdge>, LineageDbError> {
         let tenant = tenant_id.unwrap_or("org_default");
         let mut tx = self.pool.begin().await?;
         sqlx::query("SELECT set_config('app.current_tenant', $1, true)")
@@ -286,7 +301,8 @@ impl PostgresLineageGraph {
         source_connector: &str,
         fingerprint_sha256: &str,
     ) -> Result<(), LineageDbError> {
-        self.upsert_node_with_tenant(node, source_connector, fingerprint_sha256, "org_default").await
+        self.upsert_node_with_tenant(node, source_connector, fingerprint_sha256, "org_default")
+            .await
     }
 
     /// Inserts or updates an NHI node with explicit tenant isolation and RLS session binding.
@@ -384,7 +400,8 @@ impl PostgresLineageGraph {
         &self,
         target_uid: &str,
     ) -> Result<RevocationImpactSimulation, LineageDbError> {
-        self.simulate_revocation_with_tenant(target_uid, "org_default").await
+        self.simulate_revocation_with_tenant(target_uid, "org_default")
+            .await
     }
 
     /// Queries the recursive CTE function with explicit tenant context.
@@ -432,7 +449,8 @@ impl PostgresLineageGraph {
 
         let total_impacted = directly_affected.len() + transitively_affected.len();
         let safe_to_revoke = total_impacted == 0;
-        let blast_radius_score = ((total_impacted as u32 * 20) + (shared_siblings.len() as u32 * 25)).min(100) as u8;
+        let blast_radius_score =
+            ((total_impacted as u32 * 20) + (shared_siblings.len() as u32 * 25)).min(100) as u8;
 
         let recommended_action = if safe_to_revoke {
             "Safe for immediate causal session revocation via `axiom kill`.".to_owned()
@@ -503,7 +521,10 @@ impl PostgresLineageGraph {
     }
 
     /// Lists all integrations for a tenant.
-    pub async fn list_integrations(&self, tenant_id: &str) -> Result<Vec<IntegrationRecord>, LineageDbError> {
+    pub async fn list_integrations(
+        &self,
+        tenant_id: &str,
+    ) -> Result<Vec<IntegrationRecord>, LineageDbError> {
         let rows = sqlx::query(
             r#"
             SELECT id, tenant_id, provider, display_name, credential_ref, external_id, status, last_sync_at, last_error, created_at
@@ -535,7 +556,11 @@ impl PostgresLineageGraph {
     }
 
     /// Gets a single integration by ID for a tenant.
-    pub async fn get_integration(&self, tenant_id: &str, id: &str) -> Result<Option<IntegrationRecord>, LineageDbError> {
+    pub async fn get_integration(
+        &self,
+        tenant_id: &str,
+        id: &str,
+    ) -> Result<Option<IntegrationRecord>, LineageDbError> {
         let row = sqlx::query(
             r#"
             SELECT id, tenant_id, provider, display_name, credential_ref, external_id, status, last_sync_at, last_error, created_at
@@ -591,7 +616,11 @@ impl PostgresLineageGraph {
     }
 
     /// Deletes an integration and marks associated discovered nodes as stale.
-    pub async fn delete_integration(&self, tenant_id: &str, id: &str) -> Result<bool, LineageDbError> {
+    pub async fn delete_integration(
+        &self,
+        tenant_id: &str,
+        id: &str,
+    ) -> Result<bool, LineageDbError> {
         // Mark nodes stale first
         sqlx::query(
             r#"

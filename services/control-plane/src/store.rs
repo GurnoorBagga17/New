@@ -183,7 +183,9 @@ impl Store {
     fn lock(&self) -> MutexGuard<'_, Inner> {
         // A poisoned lock means a handler panicked mid-mutation. Recovering keeps
         // an agent fleet enforcing rather than turning a panic into an outage.
-        self.inner.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+        self.inner
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
     // -- entitlements -------------------------------------------------------
@@ -536,9 +538,7 @@ impl Store {
     // -- kill switch / revocations -----------------------------------------
 
     pub fn set_revocations(&self, tenant_id: &str, state: RevocationState) {
-        self.lock()
-            .revocations
-            .insert(tenant_id.to_string(), state);
+        self.lock().revocations.insert(tenant_id.to_string(), state);
     }
 
     pub fn revocations(&self, tenant_id: &str) -> RevocationState {

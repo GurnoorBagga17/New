@@ -270,6 +270,9 @@ mod tests {
             .check_permission("grant", "grant-1", "use", "agent", "subagent-1")
             .await;
         // MUST fail with error (fail-closed)
-        assert!(result.is_err(), "Expected fail-closed error on unreachable SpiceDB endpoint");
+        assert!(
+            result.is_err(),
+            "Expected fail-closed error on unreachable SpiceDB endpoint"
+        );
     }
 }

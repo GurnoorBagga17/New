@@ -21,9 +21,9 @@ use std::{
 
 use axiom_audit::SystemClock;
 use axiom_kill_switch::{
-    persistence::load_snapshot as load_revocations,
-    AdminSource, KillSwitchService, RevocationAction, RevocationCommand, RevocationSnapshot,
-    RevocationStore, RevocationTarget, RevocationTargetKind,
+    persistence::load_snapshot as load_revocations, AdminSource, KillSwitchService,
+    RevocationAction, RevocationCommand, RevocationSnapshot, RevocationStore, RevocationTarget,
+    RevocationTargetKind,
 };
 use axiom_lineage_graph::{GraphEdge, GraphNode, LineageGraphEngine};
 use axiom_secretless::{
@@ -72,7 +72,10 @@ impl SseTicketStore {
         let mut map = self.tickets.lock().unwrap();
         let now = Instant::now();
         map.retain(|_, (_, exp)| *exp > now);
-        map.insert(ticket.clone(), (tenant_id, now + std::time::Duration::from_secs(30)));
+        map.insert(
+            ticket.clone(),
+            (tenant_id, now + std::time::Duration::from_secs(30)),
+        );
         ticket
     }
 
@@ -126,7 +129,9 @@ impl OperatorContext {
     }
 
     pub fn can_dry_run(&self) -> bool {
-        self.role == "security-admin" || self.role == "platform-engineer" || self.role == "soc-operator"
+        self.role == "security-admin"
+            || self.role == "platform-engineer"
+            || self.role == "soc-operator"
     }
 
     pub fn can_read(&self) -> bool {
@@ -195,11 +200,15 @@ pub fn verify_step_up_signature(
         return true;
     }
 
-    if let Some(sig) = headers.get("X-Axiom-StepUp-Signature").and_then(|v| v.to_str().ok()) {
+    if let Some(sig) = headers
+        .get("X-Axiom-StepUp-Signature")
+        .and_then(|v| v.to_str().ok())
+    {
         use hmac::{Hmac, Mac};
         type HmacSha256 = Hmac<Sha256>;
 
-        let stepup_secret = std::env::var("AXIOM_STEPUP_SECRET").unwrap_or_else(|_| secret.to_string());
+        let stepup_secret =
+            std::env::var("AXIOM_STEPUP_SECRET").unwrap_or_else(|_| secret.to_string());
         if let Ok(mut mac) = HmacSha256::new_from_slice(stepup_secret.as_bytes()) {
             mac.update(payload_hash);
             let expected = mac.finalize().into_bytes();
@@ -295,7 +304,10 @@ pub struct ApiError {
 
 impl ApiError {
     pub fn new(code: &'static str, message: impl Into<String>) -> Self {
-        Self { code, message: message.into() }
+        Self {
+            code,
+            message: message.into(),
+        }
     }
 }
 
@@ -310,23 +322,30 @@ impl IntoResponse for ApiError {
 // ---------------------------------------------------------------------------
 
 pub fn router(state: AdminApiState) -> Router {
-    let allowed_origins: Vec<header::HeaderValue> = if let Ok(origins_str) = std::env::var("AXIOM_ALLOWED_ORIGINS") {
-        origins_str
-            .split(',')
-            .filter_map(|s| s.trim().parse::<header::HeaderValue>().ok())
-            .collect()
-    } else {
-        vec![
-            header::HeaderValue::from_static("http://localhost:3000"),
-            header::HeaderValue::from_static("http://127.0.0.1:3000"),
-            header::HeaderValue::from_static("http://localhost:5173"),
-            header::HeaderValue::from_static("http://127.0.0.1:5173"),
-        ]
-    };
+    let allowed_origins: Vec<header::HeaderValue> =
+        if let Ok(origins_str) = std::env::var("AXIOM_ALLOWED_ORIGINS") {
+            origins_str
+                .split(',')
+                .filter_map(|s| s.trim().parse::<header::HeaderValue>().ok())
+                .collect()
+        } else {
+            vec![
+                header::HeaderValue::from_static("http://localhost:3000"),
+                header::HeaderValue::from_static("http://127.0.0.1:3000"),
+                header::HeaderValue::from_static("http://localhost:5173"),
+                header::HeaderValue::from_static("http://127.0.0.1:5173"),
+            ]
+        };
 
     let cors = CorsLayer::new()
         .allow_origin(allowed_origins)
-        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
         .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE, header::ACCEPT])
         .allow_credentials(true);
 
@@ -334,7 +353,10 @@ pub fn router(state: AdminApiState) -> Router {
         .route("/v1/local/policies/version", get(policy_version))
         .route("/v1/local/policies/dry-run", post(policy_dry_run))
         .route("/v1/local/policies/bundle", put(activate_bundle))
-        .route("/v1/local/revocations", get(list_revocations).post(update_revocation))
+        .route(
+            "/v1/local/revocations",
+            get(list_revocations).post(update_revocation),
+        )
         .route("/v1/local/sessions/:id/revoke", post(revoke_session_direct))
         .route("/v1/local/events/ticket", post(create_sse_ticket))
         .route("/v1/local/events/stream", get(event_stream))
@@ -344,14 +366,28 @@ pub fn router(state: AdminApiState) -> Router {
         .route("/v1/secretless/leases", get(list_secretless_leases))
         .route("/v1/secretless/attest-and-lease", post(attest_and_lease))
         .route("/v1/secretless/rotate", post(trigger_secretless_rotation))
-        .route("/v1/integrations", get(list_integrations_handler).post(create_integration_handler))
-        .route("/v1/integrations/:id", get(get_integration_handler).delete(delete_integration_handler))
+        .route(
+            "/v1/integrations",
+            get(list_integrations_handler).post(create_integration_handler),
+        )
+        .route(
+            "/v1/integrations/:id",
+            get(get_integration_handler).delete(delete_integration_handler),
+        )
         .route("/v1/integrations/:id/test", post(test_integration_handler))
         .route("/v1/integrations/:id/sync", post(sync_integration_handler))
-        .route_layer(middleware::from_fn_with_state(state.clone(), require_admin_token));
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            require_admin_token,
+        ));
 
     Router::new()
-        .route("/healthz", get(|| async { Json(json!({"status":"ok","engine":"axiom-rust-runtime","version":"1.0.0"})) }))
+        .route(
+            "/healthz",
+            get(|| async {
+                Json(json!({"status":"ok","engine":"axiom-rust-runtime","version":"1.0.0"}))
+            }),
+        )
         .merge(protected)
         .layer(cors)
         .with_state(state)
@@ -446,12 +482,18 @@ async fn require_admin_token(
             ("PUT", "/v1/local/policies/bundle") => ctx.is_security_admin(),
             ("POST", "/v1/secretless/rotate") => ctx.is_security_admin(),
             ("POST", "/v1/local/revocations") => ctx.can_revoke(),
-            ("POST", p) if p.starts_with("/v1/local/sessions/") && p.ends_with("/revoke") => ctx.can_revoke(),
+            ("POST", p) if p.starts_with("/v1/local/sessions/") && p.ends_with("/revoke") => {
+                ctx.can_revoke()
+            }
             ("POST", "/v1/local/policies/dry-run") => ctx.can_dry_run(),
             ("POST", "/v1/integrations") => ctx.is_security_admin(),
             ("DELETE", p) if p.starts_with("/v1/integrations") => ctx.is_security_admin(),
-            ("POST", p) if p.starts_with("/v1/integrations") && p.ends_with("/sync") => ctx.can_revoke(),
-            ("POST", p) if p.starts_with("/v1/integrations") && p.ends_with("/test") => ctx.can_dry_run(),
+            ("POST", p) if p.starts_with("/v1/integrations") && p.ends_with("/sync") => {
+                ctx.can_revoke()
+            }
+            ("POST", p) if p.starts_with("/v1/integrations") && p.ends_with("/test") => {
+                ctx.can_dry_run()
+            }
             _ => ctx.can_read(),
         };
 
@@ -460,7 +502,10 @@ async fn require_admin_token(
                 StatusCode::FORBIDDEN,
                 Json(ApiError::new(
                     "FORBIDDEN",
-                    format!("Role '{}' is not authorized for {} {}", ctx.role, method, path),
+                    format!(
+                        "Role '{}' is not authorized for {} {}",
+                        ctx.role, method, path
+                    ),
                 )),
             )
                 .into_response();
@@ -515,7 +560,14 @@ async fn policy_dry_run(
         .or(input.policy)
         .or_else(|| {
             if !input.policies.is_empty() {
-                Some(input.policies.iter().map(|p| p.source.as_str()).collect::<Vec<_>>().join("\n\n"))
+                Some(
+                    input
+                        .policies
+                        .iter()
+                        .map(|p| p.source.as_str())
+                        .collect::<Vec<_>>()
+                        .join("\n\n"),
+                )
             } else {
                 None
             }
@@ -559,8 +611,15 @@ async fn policy_dry_run(
 
     // Extract tool and arguments from either sample_requests or direct fields
     let sample = input.sample_requests.as_ref().and_then(|r| r.first());
-    let tool_name = input.tool.as_deref().or_else(|| sample.and_then(|s| s.tool_name.as_deref())).unwrap_or("");
-    let args_val = input.arguments.as_ref().or_else(|| sample.and_then(|s| s.raw_arguments.as_ref()));
+    let tool_name = input
+        .tool
+        .as_deref()
+        .or_else(|| sample.and_then(|s| s.tool_name.as_deref()))
+        .unwrap_or("");
+    let args_val = input
+        .arguments
+        .as_ref()
+        .or_else(|| sample.and_then(|s| s.raw_arguments.as_ref()));
 
     if let Some(args) = args_val {
         let query_str = args.get("query").and_then(|q| q.as_str()).unwrap_or("");
@@ -569,7 +628,10 @@ async fn policy_dry_run(
                 Ok(facts) => {
                     let has_destructive = facts.verbs.iter().any(|v| {
                         let upper = v.to_uppercase();
-                        upper == "DROP" || upper == "TRUNCATE" || upper == "ALTER" || upper == "DELETE"
+                        upper == "DROP"
+                            || upper == "TRUNCATE"
+                            || upper == "ALTER"
+                            || upper == "DELETE"
                     });
 
                     ast_verdict = json!({
@@ -605,7 +667,8 @@ async fn policy_dry_run(
     if !valid {
         decision = "DENY";
         display_verdict = "SYNTAX_ERROR";
-        reason = "Candidate Cedar policy bundle failed validation against Axiom schema.".to_string();
+        reason =
+            "Candidate Cedar policy bundle failed validation against Axiom schema.".to_string();
     }
 
     let elapsed = start_time.elapsed().as_secs_f64() * 1000.0;
@@ -752,7 +815,10 @@ fn replace_file(temp: &std::path::Path, destination: &std::path::Path) -> std::i
 }
 
 fn source_refs(policies: &[PolicyInput]) -> Vec<&str> {
-    policies.iter().map(|policy| policy.source.as_str()).collect()
+    policies
+        .iter()
+        .map(|policy| policy.source.as_str())
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -783,7 +849,10 @@ async fn update_revocation(
     }
     let target_kind_str = input.target_kind.as_deref().unwrap_or("agent");
     let target_id_str = input.target_id.as_deref().unwrap_or("default");
-    let reason_str = input.reason.as_deref().unwrap_or("Manual operator revocation via Axiom Console");
+    let reason_str = input
+        .reason
+        .as_deref()
+        .unwrap_or("Manual operator revocation via Axiom Console");
 
     let kind = RevocationTargetKind::from_contract_str(target_kind_str)
         .map_err(|error| ApiError::new("INVALID_TARGET", error.to_string()))?;
@@ -794,7 +863,12 @@ async fn update_revocation(
     let action = match input.action.as_deref().unwrap_or("revoke") {
         "revoke" => RevocationAction::Revoke,
         "clear" => RevocationAction::Clear,
-        _ => return Err(ApiError::new("INVALID_ACTION", "Action must be 'revoke' or 'clear'.")),
+        _ => {
+            return Err(ApiError::new(
+                "INVALID_ACTION",
+                "Action must be 'revoke' or 'clear'.",
+            ))
+        }
     };
 
     let command = RevocationCommand::new(target, action, reason_str.to_string());
@@ -807,7 +881,9 @@ async fn update_revocation(
     let state_entry = snapshot.entries.get(&target_key);
     let status = match &result.outcome {
         axiom_kill_switch::UpdateOutcome::Applied { .. } => "applied",
-        axiom_kill_switch::UpdateOutcome::AlreadyInDesiredState { .. } => "already_in_desired_state",
+        axiom_kill_switch::UpdateOutcome::AlreadyInDesiredState { .. } => {
+            "already_in_desired_state"
+        }
     };
 
     // Broadcast kill switch event to real-time SSE stream
@@ -839,7 +915,9 @@ async fn revoke_session_direct(
     headers: axum::http::HeaderMap,
     Json(input): Json<RevocationRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    let reason = input.reason.unwrap_or_else(|| format!("Direct revocation of session/agent {}", id));
+    let reason = input
+        .reason
+        .unwrap_or_else(|| format!("Direct revocation of session/agent {}", id));
     update_revocation(
         State(state),
         headers,
@@ -867,7 +945,8 @@ async fn event_stream(
     State(state): State<AdminApiState>,
     Query(query): Query<EventStreamQuery>,
     headers: axum::http::HeaderMap,
-) -> Result<Sse<impl futures_util::Stream<Item = Result<Event, std::convert::Infallible>>>, ApiError> {
+) -> Result<Sse<impl futures_util::Stream<Item = Result<Event, std::convert::Infallible>>>, ApiError>
+{
     let tenant = if let Some(ticket) = query.ticket {
         if let Some(t) = state.ticket_store.consume_ticket(&ticket) {
             t
@@ -938,7 +1017,11 @@ async fn event_stream(
         },
     );
 
-    Ok(Sse::new(stream).keep_alive(KeepAlive::new().interval(std::time::Duration::from_secs(15)).text("keep-alive")))
+    Ok(Sse::new(stream).keep_alive(
+        KeepAlive::new()
+            .interval(std::time::Duration::from_secs(15))
+            .text("keep-alive"),
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -954,7 +1037,10 @@ async fn get_lineage_graph(
     if let Some(pg) = &state.postgres_lineage {
         match pg.list_nodes(Some(&ctx.tenant_id)).await {
             Ok(nodes) => {
-                let edges = pg.list_edges(Some(&ctx.tenant_id)).await.unwrap_or_default();
+                let edges = pg
+                    .list_edges(Some(&ctx.tenant_id))
+                    .await
+                    .unwrap_or_default();
                 let nodes_json: Vec<Value> = nodes
                     .iter()
                     .map(|n| {
@@ -980,7 +1066,10 @@ async fn get_lineage_graph(
                     })
                     .collect();
 
-                let shared_clusters = edges.iter().filter(|e| e.relation_type == "shares_credential").count();
+                let shared_clusters = edges
+                    .iter()
+                    .filter(|e| e.relation_type == "shares_credential")
+                    .count();
 
                 return Ok(Json(json!({
                     "status": "ok",
@@ -1056,7 +1145,10 @@ async fn simulate_revocation(
     let is_dev_mode = std::env::var("AXIOM_DEV_MODE").as_deref() == Ok("1");
 
     if let Some(pg) = &state.postgres_lineage {
-        match pg.simulate_revocation_with_tenant(&input.target_uid, &ctx.tenant_id).await {
+        match pg
+            .simulate_revocation_with_tenant(&input.target_uid, &ctx.tenant_id)
+            .await
+        {
             Ok(sim) => {
                 return Ok(Json(json!({
                     "target_uid": sim.target_uid,
@@ -1113,23 +1205,34 @@ async fn get_owasp_scorecard(
     Extension(ctx): Extension<OperatorContext>,
 ) -> Result<Json<Value>, ApiError> {
     // Derive telemetry from real tenant nodes in PostgreSQL or in-memory graph
-    let (node_count, unassigned_owner_count, high_privilege_count, max_privilege) = if let Some(pg) = &state.postgres_lineage {
-        if let Ok(nodes) = pg.list_nodes(Some(&ctx.tenant_id)).await {
-            let unassigned = nodes.iter().filter(|n| n.owner_email.is_none() || n.owner_email.as_deref() == Some("")).count();
-            let high_priv = nodes.iter().filter(|n| n.privilege_weight >= 8).count();
-            let max_p = nodes.iter().map(|n| n.privilege_weight).max().unwrap_or(0);
-            (nodes.len(), unassigned, high_priv, max_p)
+    let (node_count, unassigned_owner_count, high_privilege_count, max_privilege) =
+        if let Some(pg) = &state.postgres_lineage {
+            if let Ok(nodes) = pg.list_nodes(Some(&ctx.tenant_id)).await {
+                let unassigned = nodes
+                    .iter()
+                    .filter(|n| n.owner_email.is_none() || n.owner_email.as_deref() == Some(""))
+                    .count();
+                let high_priv = nodes.iter().filter(|n| n.privilege_weight >= 8).count();
+                let max_p = nodes.iter().map(|n| n.privilege_weight).max().unwrap_or(0);
+                (nodes.len(), unassigned, high_priv, max_p)
+            } else {
+                (0, 0, 0, 0)
+            }
         } else {
-            (0, 0, 0, 0)
-        }
-    } else {
-        let engine = state.lineage.lock().unwrap();
-        let nodes = engine.nodes();
-        let unassigned = nodes.values().filter(|n| n.owner_email.is_none() || n.owner_email.as_deref() == Some("")).count();
-        let high_priv = nodes.values().filter(|n| n.privilege_weight >= 8).count();
-        let max_p = nodes.values().map(|n| n.privilege_weight).max().unwrap_or(0);
-        (nodes.len(), unassigned, high_priv, max_p)
-    };
+            let engine = state.lineage.lock().unwrap();
+            let nodes = engine.nodes();
+            let unassigned = nodes
+                .values()
+                .filter(|n| n.owner_email.is_none() || n.owner_email.as_deref() == Some(""))
+                .count();
+            let high_priv = nodes.values().filter(|n| n.privilege_weight >= 8).count();
+            let max_p = nodes
+                .values()
+                .map(|n| n.privilege_weight)
+                .max()
+                .unwrap_or(0);
+            (nodes.len(), unassigned, high_priv, max_p)
+        };
 
     let has_unassigned_owners = unassigned_owner_count > 0;
     let has_overprivileged = high_privilege_count > 0;
@@ -1241,7 +1344,10 @@ async fn attest_and_lease(
 
     let lease = if let Some(client) = &state.openbao_client {
         // Attempt live OpenBao dynamic credential creation
-        match client.request_dynamic_credential("database", "analyst", &claim.spiffe_id).await {
+        match client
+            .request_dynamic_credential("database", "analyst", &claim.spiffe_id)
+            .await
+        {
             Ok(live_lease) => live_lease,
             Err(e) => {
                 if !is_dev_mode {
@@ -1297,7 +1403,10 @@ async fn attest_and_lease(
 async fn trigger_secretless_rotation(
     State(state): State<AdminApiState>,
 ) -> Result<Json<Value>, ApiError> {
-    let rotation_id = format!("rot-dual-secret-{}", chrono::Utc::now().timestamp_millis() % 100000);
+    let rotation_id = format!(
+        "rot-dual-secret-{}",
+        chrono::Utc::now().timestamp_millis() % 100000
+    );
     let is_dev_mode = std::env::var("AXIOM_DEV_MODE").as_deref() == Ok("1");
 
     let mut stages = vec![
@@ -1439,21 +1548,28 @@ async fn create_integration_handler(
     let bytes = axum::body::to_bytes(request.into_body(), 1024 * 64)
         .await
         .map_err(|e| ApiError::new("INVALID_BODY", e.to_string()))?;
-    let input: CreateIntegrationRequest = serde_json::from_slice(&bytes)
-        .map_err(|e| ApiError::new("INVALID_JSON", e.to_string()))?;
+    let input: CreateIntegrationRequest =
+        serde_json::from_slice(&bytes).map_err(|e| ApiError::new("INVALID_JSON", e.to_string()))?;
 
-    let id = format!("intg-{}-{}", input.provider, &uuid::Uuid::new_v4().to_string()[..8]);
+    let id = format!(
+        "intg-{}-{}",
+        input.provider,
+        &uuid::Uuid::new_v4().to_string()[..8]
+    );
 
     if let Some(pg) = &state.postgres_lineage {
-        match pg.create_integration(
-            &id,
-            &ctx.tenant_id,
-            &input.provider,
-            &input.display_name,
-            &input.credential_ref,
-            input.external_id.as_deref(),
-            Some(&ctx.user_id),
-        ).await {
+        match pg
+            .create_integration(
+                &id,
+                &ctx.tenant_id,
+                &input.provider,
+                &input.display_name,
+                &input.credential_ref,
+                input.external_id.as_deref(),
+                Some(&ctx.user_id),
+            )
+            .await
+        {
             Ok(record) => return Ok(Json(json!({ "status": "created", "integration": record }))),
             Err(e) => return Err(ApiError::new("CREATE_FAILED", e.to_string())),
         }
@@ -1551,8 +1667,12 @@ async fn sync_integration_handler(
 
     if let Some(pg) = &state.postgres_lineage {
         let _ = pg.create_sync_run(&run_id, &id, &ctx.tenant_id).await;
-        let _ = pg.complete_sync_run(&run_id, "success", 3, 3, 0, None).await;
-        let _ = pg.update_integration_status(&ctx.tenant_id, &id, "connected", None).await;
+        let _ = pg
+            .complete_sync_run(&run_id, "success", 3, 3, 0, None)
+            .await;
+        let _ = pg
+            .update_integration_status(&ctx.tenant_id, &id, "connected", None)
+            .await;
     }
 
     let _ = state.events.send(json!({

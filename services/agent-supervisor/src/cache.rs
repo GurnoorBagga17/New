@@ -18,9 +18,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
-use axiom_agent_protocol::{
-    policy_signing_payload, sha256_hex, PolicyBundle, RevocationState,
-};
+use axiom_agent_protocol::{policy_signing_payload, sha256_hex, PolicyBundle, RevocationState};
 use chrono::{DateTime, Utc};
 use ring::signature::{UnparsedPublicKey, ED25519};
 use serde::{Deserialize, Serialize};
@@ -114,7 +112,10 @@ impl AgentCache {
             bundle: bundle.clone(),
         };
         atomic_write_json(&self.dir.join(POLICY_FILE), &stored)?;
-        atomic_write(&self.dir.join(POLICY_SOURCE_FILE), bundle.cedar_source.as_bytes())?;
+        atomic_write(
+            &self.dir.join(POLICY_SOURCE_FILE),
+            bundle.cedar_source.as_bytes(),
+        )?;
 
         // A verified policy is authoritative: any previous fail-closed marker
         // is now obsolete.
@@ -126,8 +127,8 @@ impl AgentCache {
         if sha256_hex(&bundle.cedar_source) != bundle.sha256 {
             bail!("policy bundle content hash does not match its sha256 field");
         }
-        let signature = hex::decode(&bundle.signature)
-            .context("policy signature is not valid hex")?;
+        let signature =
+            hex::decode(&bundle.signature).context("policy signature is not valid hex")?;
         UnparsedPublicKey::new(&ED25519, &self.public_key)
             .verify(&policy_signing_payload(bundle), &signature)
             .map_err(|_| anyhow::anyhow!("policy signature does not verify against pinned key"))?;
@@ -141,9 +142,7 @@ impl AgentCache {
     pub fn freshness(&self, max_age: chrono::Duration) -> Result<PolicyFreshness> {
         match self.load_policy()? {
             None => Ok(PolicyFreshness::Missing),
-            Some(stored) if Utc::now() - stored.received_at > max_age => {
-                Ok(PolicyFreshness::Stale)
-            }
+            Some(stored) if Utc::now() - stored.received_at > max_age => Ok(PolicyFreshness::Stale),
             Some(_) => Ok(PolicyFreshness::Fresh),
         }
     }
@@ -261,7 +260,9 @@ mod tests {
         let rng = SystemRandom::new();
         let pkcs8 = Ed25519KeyPair::generate_pkcs8(&rng).unwrap();
         let key = Ed25519KeyPair::from_pkcs8(pkcs8.as_ref()).unwrap();
-        let source = format!("permit(principal, action, resource) when {{ resource.version == {version} }};");
+        let source = format!(
+            "permit(principal, action, resource) when {{ resource.version == {version} }};"
+        );
         let mut bundle = PolicyBundle {
             bundle_id: Uuid::new_v4(),
             tenant_id: "tenant-a".into(),
@@ -292,9 +293,7 @@ mod tests {
         assert!(cache.dir().join(POLICY_SOURCE_FILE).exists());
         assert!(cache.fail_closed().unwrap().is_none());
         assert_eq!(
-            cache
-                .freshness(chrono::Duration::seconds(60))
-                .unwrap(),
+            cache.freshness(chrono::Duration::seconds(60)).unwrap(),
             PolicyFreshness::Fresh
         );
     }

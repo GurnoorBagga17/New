@@ -34,10 +34,17 @@ pub fn evaluate_nhi_lifecycle(record: &NhiLifecycleRecord) -> LifecycleGovernanc
             entity_uid: record.entity_uid.clone(),
             action: "AUTO_DEPROVISION_STALE_NHI".into(),
             posture_score: 35,
-            reason: format!("NHI inactive for {} days (>= 90d threshold)", record.inactive_days),
+            reason: format!(
+                "NHI inactive for {} days (>= 90d threshold)",
+                record.inactive_days
+            ),
         };
     }
-    let base_score: u8 = if record.has_ephemeral_attestation { 95 } else { 70 };
+    let base_score: u8 = if record.has_ephemeral_attestation {
+        95
+    } else {
+        70
+    };
     LifecycleGovernanceDecision {
         entity_uid: record.entity_uid.clone(),
         action: "MAINTAIN_ACTIVE_LEASE".into(),

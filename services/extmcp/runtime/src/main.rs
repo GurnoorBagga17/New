@@ -16,12 +16,12 @@ use std::{
 mod admin;
 
 use axiom_audit::{AuditBus, AuditBusConfig, AuditSink, AuditWriterConfig, SystemClock};
-use axiom_kill_switch::{
-    persistence::save_snapshot as save_revocation_snapshot, KillSwitchService,
-    RevocationDecision, RevocationSnapshot, RevocationStore, RevocationTarget,
-};
-use axiom_kill_switch::sync::RevocationChecker as KillSwitchRevocationChecker;
 use axiom_identity::{IdentityVerifier as _, OidcIdentityVerifier, TrustedIssuer};
+use axiom_kill_switch::sync::RevocationChecker as KillSwitchRevocationChecker;
+use axiom_kill_switch::{
+    persistence::save_snapshot as save_revocation_snapshot, KillSwitchService, RevocationDecision,
+    RevocationSnapshot, RevocationStore, RevocationTarget,
+};
 use axiom_validators::{
     adapter::{EgressArgumentSpec, PathArgumentSpec, ToolValidationProfile},
     sql::DialectKind,
@@ -109,37 +109,71 @@ impl RevocationChecker for SharedRevocationChecker {
         map_revocation_decision(self.0.check_pre_identity(server, Some(tool_name)))
     }
 
-    fn check_post_identity(&self, agent_id: &str, server: &str, tool_name: &str) -> RevocationOutcome {
-        map_revocation_decision(self.0.check_post_identity(agent_id, server, Some(tool_name)))
+    fn check_post_identity(
+        &self,
+        agent_id: &str,
+        server: &str,
+        tool_name: &str,
+    ) -> RevocationOutcome {
+        map_revocation_decision(
+            self.0
+                .check_post_identity(agent_id, server, Some(tool_name)),
+        )
     }
 }
 
 fn map_revocation_decision(decision: RevocationDecision) -> RevocationOutcome {
     match decision {
         RevocationDecision::Active { .. } => RevocationOutcome::Active,
-        RevocationDecision::Revoked { primary, .. } => RevocationOutcome::Revoked { reason: primary.reason },
-        RevocationDecision::Stale { primary: Some(primary), .. } => RevocationOutcome::Revoked { reason: primary.reason },
-        RevocationDecision::Stale { .. } => RevocationOutcome::Revoked { reason: "revocation state is stale".into() },
+        RevocationDecision::Revoked { primary, .. } => RevocationOutcome::Revoked {
+            reason: primary.reason,
+        },
+        RevocationDecision::Stale {
+            primary: Some(primary),
+            ..
+        } => RevocationOutcome::Revoked {
+            reason: primary.reason,
+        },
+        RevocationDecision::Stale { .. } => RevocationOutcome::Revoked {
+            reason: "revocation state is stale".into(),
+        },
         RevocationDecision::Unavailable { reason } => RevocationOutcome::Revoked { reason },
     }
 }
 
-fn seed_revocation_snapshot(config: &RevocationConfig) -> Result<RevocationSnapshot, Box<dyn std::error::Error>> {
-    if config.state != "available" || config.version == 0 || !(1..=300).contains(&config.freshness_ttl_seconds) {
+fn seed_revocation_snapshot(
+    config: &RevocationConfig,
+) -> Result<RevocationSnapshot, Box<dyn std::error::Error>> {
+    if config.state != "available"
+        || config.version == 0
+        || !(1..=300).contains(&config.freshness_ttl_seconds)
+    {
         return Err("revocation config must be available, versioned, and have freshness TTL from 1 to 300 seconds".into());
     }
     let clock = SystemClock;
     let now = axiom_audit::Clock::now_unix_ms(&clock);
-    let mut snapshot = RevocationSnapshot::empty(format!("axiom-runtime-{}", std::process::id()), now);
+    let mut snapshot =
+        RevocationSnapshot::empty(format!("axiom-runtime-{}", std::process::id()), now);
     snapshot.version = config.version;
     let mut add = |target: RevocationTarget| {
-        snapshot.entries.insert(target.canonical_key(), target.to_state(true, config.version, now, "Configured startup revocation"));
+        snapshot.entries.insert(
+            target.canonical_key(),
+            target.to_state(true, config.version, now, "Configured startup revocation"),
+        );
     };
-    if config.global { add(RevocationTarget::global()); }
-    for server in &config.servers { add(RevocationTarget::server(server.clone())?); }
-    for agent in &config.agents { add(RevocationTarget::agent(agent.clone())?); }
+    if config.global {
+        add(RevocationTarget::global());
+    }
+    for server in &config.servers {
+        add(RevocationTarget::server(server.clone())?);
+    }
+    for agent in &config.agents {
+        add(RevocationTarget::agent(agent.clone())?);
+    }
     for tool in &config.tools {
-        let (server, name) = tool.split_once('/').ok_or("revocation tool IDs must use server/tool form")?;
+        let (server, name) = tool
+            .split_once('/')
+            .ok_or("revocation tool IDs must use server/tool form")?;
         add(RevocationTarget::tool(server, name)?);
     }
     Ok(snapshot)
@@ -309,11 +343,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         for resource in &canonical_resources {
             let mut warmed = false;
             for attempt in 1..=5 {
-                if identity_verifier
-                    .warm_cache(issuer, resource)
-                    .await
-                    .is_ok()
-                {
+                if identity_verifier.warm_cache(issuer, resource).await.is_ok() {
                     warmed = true;
                     break;
                 }
@@ -349,17 +379,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let revocation_path = data_dir.join("revocations.snapshot.json");
     let seed_snapshot = seed_revocation_snapshot(&revocation_config)?;
     let revocation_store = admin::load_revocation_store(&revocation_path, seed_snapshot.clone())?;
-    if !revocation_path.exists() { save_revocation_snapshot(&revocation_path, &seed_snapshot)?; }
+    if !revocation_path.exists() {
+        save_revocation_snapshot(&revocation_path, &seed_snapshot)?;
+    }
     let audit_bus = AuditBus::new(AuditBusConfig::default())?;
     let audit_path = data_dir.join("audit.jsonl");
-    let _audit_writer = axiom_audit::spawn_file_writer(audit_bus.subscribe(), AuditWriterConfig::new(&audit_path))?;
+    let _audit_writer =
+        axiom_audit::spawn_file_writer(audit_bus.subscribe(), AuditWriterConfig::new(&audit_path))?;
     let audit_sink: Arc<dyn AuditSink> = Arc::new(audit_bus.emitter());
-    let revocation_service = Arc::new(KillSwitchService::new(revocation_store.clone())
-        .with_audit(audit_sink)
-        .with_persistence(&revocation_path));
+    let revocation_service = Arc::new(
+        KillSwitchService::new(revocation_store.clone())
+            .with_audit(audit_sink)
+            .with_persistence(&revocation_path),
+    );
 
     let policy_path = data_dir.join("policy-bundle.json");
-    let (snapshot, _policy_bundle) = admin::load_policy_bundle(&policy_path, DEFAULT_POLICY_BUNDLE, AXIOM_SCHEMA_SRC)?;
+    let (snapshot, _policy_bundle) =
+        admin::load_policy_bundle(&policy_path, DEFAULT_POLICY_BUNDLE, AXIOM_SCHEMA_SRC)?;
     if !policy_path.exists() {
         fs::write(&policy_path, serde_json::to_vec_pretty(&_policy_bundle)?)?;
     }
@@ -369,17 +405,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // M-06: Connect AuditBus events to the SSE event sender so that audit records stream to subscribers
     let audit_sub = audit_bus.subscribe();
     let audit_event_sender = event_sender.clone();
-    tokio::task::spawn_blocking(move || {
-        loop {
-            match audit_sub.next_timeout(std::time::Duration::from_millis(500)) {
-                axiom_audit::ReceiverOutcome::Record(record) => {
-                    if let Ok(val) = serde_json::to_value(&record) {
-                        let _ = audit_event_sender.send(val);
-                    }
+    tokio::task::spawn_blocking(move || loop {
+        match audit_sub.next_timeout(std::time::Duration::from_millis(500)) {
+            axiom_audit::ReceiverOutcome::Record(record) => {
+                if let Ok(val) = serde_json::to_value(&record) {
+                    let _ = audit_event_sender.send(val);
                 }
-                axiom_audit::ReceiverOutcome::Timeout => {}
-                axiom_audit::ReceiverOutcome::Disconnected => break,
             }
+            axiom_audit::ReceiverOutcome::Timeout => {}
+            axiom_audit::ReceiverOutcome::Disconnected => break,
         }
     });
 
@@ -398,9 +432,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         buffer.push(line);
                     }
                 }
-                axiom_audit::ReceiverOutcome::Timeout | axiom_audit::ReceiverOutcome::Disconnected => {}
+                axiom_audit::ReceiverOutcome::Timeout
+                | axiom_audit::ReceiverOutcome::Disconnected => {}
             }
-            if (!buffer.is_empty() && last_flush.elapsed() >= std::time::Duration::from_secs(5)) || buffer.len() >= 50 {
+            if (!buffer.is_empty() && last_flush.elapsed() >= std::time::Duration::from_secs(5))
+                || buffer.len() >= 50
+            {
                 let now_ms = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default()
@@ -440,9 +477,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if let Ok(mtime) = meta.modified() {
                     if last_cedar_mtime.map_or(false, |prev| mtime > prev) {
                         if let Ok(content) = tokio::fs::read_to_string(&cedar_file_path).await {
-                            if let Ok(new_snapshot) = extmcp_cedar::load_snapshot(&[&content], AXIOM_SCHEMA_SRC) {
+                            if let Ok(new_snapshot) =
+                                extmcp_cedar::load_snapshot(&[&content], AXIOM_SCHEMA_SRC)
+                            {
                                 let v = policy_watcher_store.swap(new_snapshot);
-                                println!("Live hot-reload: updated Cedar policy v{} from {}", v, cedar_file_path.display());
+                                println!(
+                                    "Live hot-reload: updated Cedar policy v{} from {}",
+                                    v,
+                                    cedar_file_path.display()
+                                );
                             }
                         }
                     }
@@ -452,9 +495,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Ok(meta) = tokio::fs::metadata(&bundle_file_path).await {
                 if let Ok(mtime) = meta.modified() {
                     if last_bundle_mtime.map_or(false, |prev| mtime > prev) {
-                        if let Ok((new_snapshot, _)) = admin::load_policy_bundle(&bundle_file_path, DEFAULT_POLICY_BUNDLE, AXIOM_SCHEMA_SRC) {
+                        if let Ok((new_snapshot, _)) = admin::load_policy_bundle(
+                            &bundle_file_path,
+                            DEFAULT_POLICY_BUNDLE,
+                            AXIOM_SCHEMA_SRC,
+                        ) {
                             let v = policy_watcher_store.swap(new_snapshot);
-                            println!("Live hot-reload: updated Cedar policy bundle v{} from {}", v, bundle_file_path.display());
+                            println!(
+                                "Live hot-reload: updated Cedar policy bundle v{} from {}",
+                                v,
+                                bundle_file_path.display()
+                            );
                         }
                     }
                     last_bundle_mtime = Some(mtime);
@@ -480,15 +531,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "axm_local_dev_token_for_browser_testing".to_string()
         }
         Err(_) => {
-            return Err("AXIOM_ADMIN_TOKEN must be set to a high-entropy local admin secret (>=32 bytes)".into());
+            return Err(
+                "AXIOM_ADMIN_TOKEN must be set to a high-entropy local admin secret (>=32 bytes)"
+                    .into(),
+            );
         }
     };
     if !is_dev_mode && token.len() < 32 {
         return Err("AXIOM_ADMIN_TOKEN must contain at least 32 bytes in production mode".into());
     }
     let actor = std::env::var("AXIOM_ADMIN_ACTOR").unwrap_or_else(|_| "local-operator".into());
-    if actor.trim().is_empty() { return Err("AXIOM_ADMIN_ACTOR cannot be empty".into()); }
-    let admin_addr: SocketAddr = std::env::var("AXIOM_ADMIN_ADDR").unwrap_or_else(|_| "127.0.0.1:8787".into()).parse()?;
+    if actor.trim().is_empty() {
+        return Err("AXIOM_ADMIN_ACTOR cannot be empty".into());
+    }
+    let admin_addr: SocketAddr = std::env::var("AXIOM_ADMIN_ADDR")
+        .unwrap_or_else(|_| "127.0.0.1:8787".into())
+        .parse()?;
     let lineage_engine = Arc::new(std::sync::Mutex::new(admin::create_seeded_lineage_engine()));
 
     // Automatic Embedded PostgreSQL 16 Lineage Migration Boot Hook & Connection Retain
@@ -499,7 +557,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             match axiom_lineage_graph::PostgresLineageGraph::connect(&database_url).await {
                 Ok(postgres_graph) => {
                     if let Err(migration_err) = postgres_graph.run_migrations().await {
-                        eprintln!("Error: Failed to run PostgreSQL lineage migrations: {migration_err}");
+                        eprintln!(
+                            "Error: Failed to run PostgreSQL lineage migrations: {migration_err}"
+                        );
                         if !is_dev_mode {
                             return Err(format!("Fatal: Production mode failed to execute lineage migrations: {migration_err}").into());
                         }
@@ -519,7 +579,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if !is_dev_mode && postgres_lineage_opt.is_none() {
-        return Err("Fatal: Production mode requires DATABASE_URL to be set and connected (fail-closed)".into());
+        return Err(
+            "Fatal: Production mode requires DATABASE_URL to be set and connected (fail-closed)"
+                .into(),
+        );
     }
 
     // OpenBao Client Initialization
@@ -576,8 +639,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         active_leases,
         ticket_store: admin::SseTicketStore::default(),
     };
-    let grpc = async { adapter.serve(bind_addr).await.map_err(|error| -> Box<dyn std::error::Error> { Box::new(error) }) };
-    let http = async { admin::serve(admin_state, admin_addr).await.map_err(|error| -> Box<dyn std::error::Error> { Box::new(error) }) };
+    let grpc = async {
+        adapter
+            .serve(bind_addr)
+            .await
+            .map_err(|error| -> Box<dyn std::error::Error> { Box::new(error) })
+    };
+    let http = async {
+        admin::serve(admin_state, admin_addr)
+            .await
+            .map_err(|error| -> Box<dyn std::error::Error> { Box::new(error) })
+    };
     tokio::try_join!(grpc, http)?;
     Ok(())
 }

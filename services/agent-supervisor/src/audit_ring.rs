@@ -143,7 +143,13 @@ impl AuditRing {
 
         let mut files: Vec<PathBuf> = fs::read_dir(spool_dir)?
             .filter_map(|entry| entry.ok())
-            .filter(|entry| entry.path().extension().map(|ext| ext == "jsonl").unwrap_or(false))
+            .filter(|entry| {
+                entry
+                    .path()
+                    .extension()
+                    .map(|ext| ext == "jsonl")
+                    .unwrap_or(false)
+            })
             .map(|entry| entry.path())
             .collect();
         files.sort();
@@ -217,7 +223,10 @@ impl AuditRing {
                 );
                 return Ok(false);
             };
-            let evicted = state.segments.remove(index).expect("index came from position");
+            let evicted = state
+                .segments
+                .remove(index)
+                .expect("index came from position");
             remove_file(&evicted.path)?;
             state.total_bytes = state.total_bytes.saturating_sub(evicted.size);
             tracing::warn!(
@@ -333,9 +342,9 @@ impl AuditRing {
     pub fn ack(&self, batch: &AuditBatch) -> Result<()> {
         let mut state = self.lock();
         for file in &batch.files {
-            let inflight = self.inflight_dir.join(
-                file.file_name().context("segment path has no file name")?,
-            );
+            let inflight = self
+                .inflight_dir
+                .join(file.file_name().context("segment path has no file name")?);
             remove_file(&inflight)?;
         }
         state.total_bytes = state.total_bytes.saturating_sub(batch.bytes);

@@ -86,8 +86,10 @@ pub fn evaluate_entity_risk(
             control_id: "NHI1:2025".into(),
             title: "Improper Offboarding / Dormant NHI".into(),
             severity: FindingSeverity::High,
-            description: "Entity has departed or unverified owner, or has been dormant for >90 days.".into(),
-            remediation: "Revoke credentials or assign to an active identity provider owner.".into(),
+            description:
+                "Entity has departed or unverified owner, or has been dormant for >90 days.".into(),
+            remediation: "Revoke credentials or assign to an active identity provider owner."
+                .into(),
         };
         nhi.push(format!("{}: {}", f.control_id, f.title));
         detailed.push(f);
@@ -97,8 +99,10 @@ pub fn evaluate_entity_risk(
             control_id: "NHI2:2025".into(),
             title: "Secret Leakage in Plaintext Configuration".into(),
             severity: FindingSeverity::Critical,
-            description: "Static API keys or tokens found in repository configs or env files.".into(),
-            remediation: "Rotate secret immediately and migrate to dynamic OpenBao lease broker.".into(),
+            description: "Static API keys or tokens found in repository configs or env files."
+                .into(),
+            remediation: "Rotate secret immediately and migrate to dynamic OpenBao lease broker."
+                .into(),
         };
         nhi.push(format!("{}: {}", f.control_id, f.title));
         detailed.push(f);
@@ -108,7 +112,8 @@ pub fn evaluate_entity_risk(
             control_id: "NHI3:2025".into(),
             title: "Vulnerable Third-Party NHI".into(),
             severity: FindingSeverity::High,
-            description: "Third-party OAuth integration holds administrative or destructive scopes.".into(),
+            description:
+                "Third-party OAuth integration holds administrative or destructive scopes.".into(),
             remediation: "Attenuate OAuth scopes to read-only least-privilege.".into(),
         };
         nhi.push(format!("{}: {}", f.control_id, f.title));
@@ -119,7 +124,8 @@ pub fn evaluate_entity_risk(
             control_id: "NHI4:2025".into(),
             title: "Insecure Authentication (Missing OAuth 2.1)".into(),
             severity: FindingSeverity::Medium,
-            description: "Workload uses static bearer tokens without RFC 8707 or mTLS binding.".into(),
+            description: "Workload uses static bearer tokens without RFC 8707 or mTLS binding."
+                .into(),
             remediation: "Adopt OAuth 2.1 ephemeral tokens with short TTLs.".into(),
         };
         nhi.push(format!("{}: {}", f.control_id, f.title));
@@ -130,8 +136,10 @@ pub fn evaluate_entity_risk(
             control_id: "NHI5:2025".into(),
             title: "Overprivileged NHI (Wildcard Actions)".into(),
             severity: FindingSeverity::High,
-            description: "IAM policy contains wildcard actions (*:*) granting excessive reach.".into(),
-            remediation: "Replace wildcard actions with right-sized Cedar least-privilege policies.".into(),
+            description: "IAM policy contains wildcard actions (*:*) granting excessive reach."
+                .into(),
+            remediation:
+                "Replace wildcard actions with right-sized Cedar least-privilege policies.".into(),
         };
         nhi.push(format!("{}: {}", f.control_id, f.title));
         detailed.push(f);
@@ -141,8 +149,10 @@ pub fn evaluate_entity_risk(
             control_id: "NHI6:2025".into(),
             title: "Insecure Cloud Deployment (Cluster Admin Bound)".into(),
             severity: FindingSeverity::Critical,
-            description: "K8s service account with cluster-admin rights automounts default token.".into(),
-            remediation: "Disable automountServiceAccountToken and narrow RBAC role bindings.".into(),
+            description: "K8s service account with cluster-admin rights automounts default token."
+                .into(),
+            remediation: "Disable automountServiceAccountToken and narrow RBAC role bindings."
+                .into(),
         };
         nhi.push(format!("{}: {}", f.control_id, f.title));
         detailed.push(f);
@@ -153,7 +163,8 @@ pub fn evaluate_entity_risk(
             title: "Long-Lived Secrets Exceeding 90-Day Policy".into(),
             severity: FindingSeverity::Medium,
             description: "Static credentials have not rotated in over 90 days.".into(),
-            remediation: "Execute zero-downtime rotation job or switch to ephemeral dynamic secrets.".into(),
+            remediation:
+                "Execute zero-downtime rotation job or switch to ephemeral dynamic secrets.".into(),
         };
         nhi.push(format!("{}: {}", f.control_id, f.title));
         detailed.push(f);
@@ -163,7 +174,8 @@ pub fn evaluate_entity_risk(
             control_id: "NHI8:2025".into(),
             title: "Cross-Environment Isolation Failure".into(),
             severity: FindingSeverity::High,
-            description: "Credential is used simultaneously across development and production.".into(),
+            description: "Credential is used simultaneously across development and production."
+                .into(),
             remediation: "Issue distinct isolated credentials per environment boundary.".into(),
         };
         nhi.push(format!("{}: {}", f.control_id, f.title));
@@ -174,7 +186,8 @@ pub fn evaluate_entity_risk(
             control_id: "NHI9:2025".into(),
             title: "NHI Credential Reuse Across Workloads".into(),
             severity: FindingSeverity::High,
-            description: "Same credential fingerprint detected across multiple disjoint workloads.".into(),
+            description: "Same credential fingerprint detected across multiple disjoint workloads."
+                .into(),
             remediation: "Enforce 1:1 workload-to-identity binding with SPIFFE SVIDs.".into(),
         };
         nhi.push(format!("{}: {}", f.control_id, f.title));
@@ -185,8 +198,11 @@ pub fn evaluate_entity_risk(
             control_id: "NHI10:2025".into(),
             title: "Human Interactive Use of NHI Token".into(),
             severity: FindingSeverity::Medium,
-            description: "Non-human service identity invoked from an interactive developer IP address.".into(),
-            remediation: "Require human SSO for interactive sessions; restrict NHI to VPC subnets.".into(),
+            description:
+                "Non-human service identity invoked from an interactive developer IP address."
+                    .into(),
+            remediation: "Require human SSO for interactive sessions; restrict NHI to VPC subnets."
+                .into(),
         };
         nhi.push(format!("{}: {}", f.control_id, f.title));
         detailed.push(f);
@@ -220,7 +236,8 @@ pub fn evaluate_entity_risk(
             control_id: "MCP03:2025".into(),
             title: "Tool Poisoning / Definition Tampering".into(),
             severity: FindingSeverity::Critical,
-            description: "Live MCP tool schema hash differs from approved RFC 8785 golden definition.".into(),
+            description:
+                "Live MCP tool schema hash differs from approved RFC 8785 golden definition.".into(),
             remediation: "Quarantine tool server and re-verify tool definitions.".into(),
         };
         mcp.push(format!("{}: {}", f.control_id, f.title));
@@ -242,7 +259,8 @@ pub fn evaluate_entity_risk(
             control_id: "MCP05:2025".into(),
             title: "Command or SQL Injection via Tool Arguments".into(),
             severity: FindingSeverity::Critical,
-            description: "Destructive DDL, unescaped SQL syntax, or command injection detected.".into(),
+            description: "Destructive DDL, unescaped SQL syntax, or command injection detected."
+                .into(),
             remediation: "Enforce strict AST validator and parameterized queries.".into(),
         };
         mcp.push(format!("{}: {}", f.control_id, f.title));
@@ -276,7 +294,8 @@ pub fn evaluate_entity_risk(
             title: "Lack of Audit & Telemetry".into(),
             severity: FindingSeverity::Medium,
             description: "MCP tool executions bypass deterministic audit logging.".into(),
-            remediation: "Route all executions through Axiom inline OpenTelemetry audit bus.".into(),
+            remediation: "Route all executions through Axiom inline OpenTelemetry audit bus."
+                .into(),
         };
         mcp.push(format!("{}: {}", f.control_id, f.title));
         detailed.push(f);
@@ -287,7 +306,8 @@ pub fn evaluate_entity_risk(
             title: "Shadow / Unregistered MCP Server".into(),
             severity: FindingSeverity::Critical,
             description: "Workload attempted connection to unapproved external MCP server.".into(),
-            remediation: "Block connection and register server through fleet governance catalog.".into(),
+            remediation: "Block connection and register server through fleet governance catalog."
+                .into(),
         };
         mcp.push(format!("{}: {}", f.control_id, f.title));
         detailed.push(f);
@@ -305,22 +325,36 @@ pub fn evaluate_entity_risk(
     }
 
     // Coherent scoring:
-    let max_finding_severity = detailed.iter().map(|f| f.severity).max().unwrap_or(FindingSeverity::Low);
-    let total_weight: u32 = detailed.iter().map(|f| match f.severity {
-        FindingSeverity::Critical => 30,
-        FindingSeverity::High => 18,
-        FindingSeverity::Medium => 8,
-        FindingSeverity::Low | FindingSeverity::Info => 3,
-    }).sum();
+    let max_finding_severity = detailed
+        .iter()
+        .map(|f| f.severity)
+        .max()
+        .unwrap_or(FindingSeverity::Low);
+    let total_weight: u32 = detailed
+        .iter()
+        .map(|f| match f.severity {
+            FindingSeverity::Critical => 30,
+            FindingSeverity::High => 18,
+            FindingSeverity::Medium => 8,
+            FindingSeverity::Low | FindingSeverity::Info => 3,
+        })
+        .sum();
 
     let exposure_score = (total_weight.min(100)) as u8;
-    let exposure_or_owner = if !telemetry.has_active_owner { exposure_score.max(75) } else { exposure_score };
+    let exposure_or_owner = if !telemetry.has_active_owner {
+        exposure_score.max(75)
+    } else {
+        exposure_score
+    };
 
     // Composite combines exposure and blast radius, but respects minimum severity floor from critical findings
-    let raw_composite = ((u16::from(exposure_or_owner) * 6 + u16::from(blast_radius_score) * 4) / 10) as u8;
+    let raw_composite =
+        ((u16::from(exposure_or_owner) * 6 + u16::from(blast_radius_score) * 4) / 10) as u8;
 
     let composite_severity = match max_finding_severity {
-        FindingSeverity::Critical if exposure_or_owner >= 50 || blast_radius_score >= 40 => "CRITICAL",
+        FindingSeverity::Critical if exposure_or_owner >= 50 || blast_radius_score >= 40 => {
+            "CRITICAL"
+        }
         FindingSeverity::Critical => "HIGH",
         FindingSeverity::High if raw_composite >= 50 || exposure_or_owner >= 60 => "HIGH",
         FindingSeverity::High => "MEDIUM",

@@ -60,8 +60,9 @@ struct Config {
 
 impl Config {
     fn from_env() -> Result<Self> {
-        let control_plane_url = std::env::var("AXIOM_CONTROL_PLANE_URL")
-            .context("AXIOM_CONTROL_PLANE_URL must be set (for example https://control.axiom.example)")?;
+        let control_plane_url = std::env::var("AXIOM_CONTROL_PLANE_URL").context(
+            "AXIOM_CONTROL_PLANE_URL must be set (for example https://control.axiom.example)",
+        )?;
         let config_dir = std::env::var("AXIOM_CONFIG_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(|_| PathBuf::from("./axiom-agent"));
@@ -69,8 +70,7 @@ impl Config {
         Ok(Self {
             control_plane_url,
             enrollment_token: std::env::var("AXIOM_ENROLLMENT_TOKEN").ok(),
-            agent_name: std::env::var("AXIOM_AGENT_NAME")
-                .unwrap_or_else(|_| hostname_fallback()),
+            agent_name: std::env::var("AXIOM_AGENT_NAME").unwrap_or_else(|_| hostname_fallback()),
             environment: std::env::var("AXIOM_AGENT_ENV").unwrap_or_else(|_| "production".into()),
             agent_version: std::env::var("AXIOM_AGENT_VERSION")
                 .unwrap_or_else(|_| env!("CARGO_PKG_VERSION").to_string()),
@@ -473,9 +473,7 @@ fn hostname_fallback() -> String {
 }
 
 fn is_loopback(url: &str) -> bool {
-    url.contains("://127.0.0.1")
-        || url.contains("://localhost")
-        || url.contains("://[::1]")
+    url.contains("://127.0.0.1") || url.contains("://localhost") || url.contains("://[::1]")
 }
 
 fn env_u64(key: &str, default: u64) -> u64 {

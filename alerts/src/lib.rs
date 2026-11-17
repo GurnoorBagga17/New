@@ -2,10 +2,10 @@
 //! Team 5 — Automated 30-Minute Shadow-NHI Audit Report Generator &
 //! Deduplicated Slack Block Kit / Jira REST v3 Alerting.
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ShadowAuditSummary {
@@ -59,7 +59,8 @@ impl AlertDeduplicator {
         // Bounded capacity prune
         if self.last_sent_by_fingerprint.len() >= self.max_capacity {
             let cutoff = now_unix - self.suppression_window_secs;
-            self.last_sent_by_fingerprint.retain(|_, &mut ts| ts >= cutoff);
+            self.last_sent_by_fingerprint
+                .retain(|_, &mut ts| ts >= cutoff);
         }
 
         self.last_sent_by_fingerprint.insert(fp, now_unix);
@@ -158,7 +159,10 @@ pub fn build_jira_issue_payload(
 }
 
 /// Dispatches an interactive Slack Block Kit alert to an incoming webhook URL.
-pub async fn dispatch_slack_alert(webhook_url: &str, payload: &serde_json::Value) -> Result<(), String> {
+pub async fn dispatch_slack_alert(
+    webhook_url: &str,
+    payload: &serde_json::Value,
+) -> Result<(), String> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()

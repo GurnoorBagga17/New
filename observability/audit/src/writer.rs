@@ -106,7 +106,11 @@ pub fn run_file_writer(
                 }
 
                 if stats.written > 0 && stats.written % flush_every == 0 && dirty {
-                    if writer.flush().and_then(|_| writer.get_ref().sync_data()).is_ok() {
+                    if writer
+                        .flush()
+                        .and_then(|_| writer.get_ref().sync_data())
+                        .is_ok()
+                    {
                         dirty = false;
                     } else {
                         stats.failed += 1;
@@ -115,7 +119,11 @@ pub fn run_file_writer(
             }
             ReceiverOutcome::Timeout => {
                 if dirty {
-                    if writer.flush().and_then(|_| writer.get_ref().sync_data()).is_ok() {
+                    if writer
+                        .flush()
+                        .and_then(|_| writer.get_ref().sync_data())
+                        .is_ok()
+                    {
                         dirty = false;
                     } else {
                         stats.failed += 1;
@@ -123,7 +131,11 @@ pub fn run_file_writer(
                 }
             }
             ReceiverOutcome::Disconnected => {
-                if writer.flush().and_then(|_| writer.get_ref().sync_data()).is_err() {
+                if writer
+                    .flush()
+                    .and_then(|_| writer.get_ref().sync_data())
+                    .is_err()
+                {
                     stats.failed += 1;
                 }
                 break;
@@ -259,7 +271,6 @@ mod tests {
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // AX-011 Remediation: Tamper-Evident SHA-256 Hash Chain & Checkpoint Verifier
 // ---------------------------------------------------------------------------
@@ -281,7 +292,7 @@ pub fn compute_chain_digest_hex(prev_hash: &str, seq_no: u64, canonical_json: &s
 
 /// Appends a hash-chained JSONL record and fsyncs the underlying file descriptor.
 pub fn append_hash_chained_record(
-    path: & std::path::Path,
+    path: &std::path::Path,
     seq_no: u64,
     prev_hash: &str,
     canonical_record_json: &str,
@@ -300,7 +311,10 @@ pub fn append_hash_chained_record(
 }
 
 /// Verifies a hash-chained JSONL audit log for truncation, reordering, deletion, or tampering.
-pub fn verify_chained_audit_log(path: &std::path::Path, expected_count: Option<u64>) -> Result<String, String> {
+pub fn verify_chained_audit_log(
+    path: &std::path::Path,
+    expected_count: Option<u64>,
+) -> Result<String, String> {
     let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
     let reader = BufReader::new(file);
     let mut expected_prev = "0".repeat(64);
@@ -312,14 +326,25 @@ pub fn verify_chained_audit_log(path: &std::path::Path, expected_count: Option<u
             continue;
         }
         let parsed: serde_json::Value = serde_json::from_str(&line).map_err(|e| e.to_string())?;
-        let seq_no = parsed.get("seq_no").and_then(|v| v.as_u64()).ok_or("missing seq_no")?;
-        let prev_hash = parsed.get("prev_hash").and_then(|v| v.as_str()).ok_or("missing prev_hash")?;
-        let entry_hash = parsed.get("entry_hash").and_then(|v| v.as_str()).ok_or("missing entry_hash")?;
+        let seq_no = parsed
+            .get("seq_no")
+            .and_then(|v| v.as_u64())
+            .ok_or("missing seq_no")?;
+        let prev_hash = parsed
+            .get("prev_hash")
+            .and_then(|v| v.as_str())
+            .ok_or("missing prev_hash")?;
+        let entry_hash = parsed
+            .get("entry_hash")
+            .and_then(|v| v.as_str())
+            .ok_or("missing entry_hash")?;
         let record_val = parsed.get("record").ok_or("missing record")?;
 
         count += 1;
         if seq_no != count {
-            return Err(format!("sequence gap or reordering at seq_no {seq_no}, expected {count}"));
+            return Err(format!(
+                "sequence gap or reordering at seq_no {seq_no}, expected {count}"
+            ));
         }
         if prev_hash != expected_prev {
             return Err(format!("broken prev_hash link at seq_no {seq_no}"));
@@ -334,7 +359,9 @@ pub fn verify_chained_audit_log(path: &std::path::Path, expected_count: Option<u
 
     if let Some(exp) = expected_count {
         if count != exp {
-            return Err(format!("truncation detected: expected {exp} records, found {count}"));
+            return Err(format!(
+                "truncation detected: expected {exp} records, found {count}"
+            ));
         }
     }
     Ok(expected_prev)
@@ -346,15 +373,21 @@ mod ax011_tests {
 
     #[test]
     fn detects_tampering_and_truncation_in_chained_audit_log() {
-        let tmp = std::env::temp_dir().join(format!("axiom_chain_test_{}.jsonl", std::process::id()));
+        let tmp =
+            std::env::temp_dir().join(format!("axiom_chain_test_{}.jsonl", std::process::id()));
         let _ = std::fs::remove_file(&tmp);
 
-        let h1 = append_hash_chained_record(&tmp, 1, &"0".repeat(64), r#"{"decision":"ALLOW"}"#).unwrap();
+        let h1 = append_hash_chained_record(&tmp, 1, &"0".repeat(64), r#"{"decision":"ALLOW"}"#)
+            .unwrap();
         let h2 = append_hash_chained_record(&tmp, 2, &h1, r#"{"decision":"DENY"}"#).unwrap();
 
-        let verified_head = verify_chained_audit_log(&tmp, Some(2)).expect("intact chain must pass");
+        let verified_head =
+            verify_chained_audit_log(&tmp, Some(2)).expect("intact chain must pass");
         assert_eq!(verified_head, h2);
-        assert!(verify_chained_audit_log(&tmp, Some(3)).is_err(), "truncation must fail");
+        assert!(
+            verify_chained_audit_log(&tmp, Some(3)).is_err(),
+            "truncation must fail"
+        );
 
         let _ = std::fs::remove_file(&tmp);
     }

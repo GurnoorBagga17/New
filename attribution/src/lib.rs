@@ -8,8 +8,8 @@
 //! 4. Git blame / Terraform PR commit author (<180 days) -> 0.60 confidence (decays to 0.35 if >180 days)
 //! 5. Departed employee or zero signals -> 0.00 (`Unowned / Shadow NHI`)
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AttributionInput {
@@ -248,7 +248,10 @@ mod tests {
         let res_fresh = resolve_ownership(&fresh_input);
         assert_eq!(res_fresh.confidence_score, 0.60);
         assert!(!res_fresh.is_shadow_nhi);
-        assert_eq!(res_fresh.primary_owner_email.as_deref(), Some("alice@example.com"));
+        assert_eq!(
+            res_fresh.primary_owner_email.as_deref(),
+            Some("alice@example.com")
+        );
 
         let stale_input = AttributionInput {
             git_commit_age_days: Some(250), // > 180 days stale
@@ -274,7 +277,10 @@ mod tests {
         let res = resolve_ownership(&input);
         assert_eq!(res.confidence_score, 0.0);
         assert!(res.is_shadow_nhi);
-        assert_eq!(res.evidence_sources[0], "idp:creator_departed_or_unverified");
+        assert_eq!(
+            res.evidence_sources[0],
+            "idp:creator_departed_or_unverified"
+        );
     }
 
     #[test]
@@ -284,10 +290,14 @@ mod tests {
         tags.insert("path".into(), "services/api/handler.rs".into());
 
         let co = CodeownersFile::parse("* @global-sec\nservices/* @platform-team");
-        let result = attribute_discovered_entity("role:arn:aws:iam::123:role/ApiRole", &tags, Some(&co));
+        let result =
+            attribute_discovered_entity("role:arn:aws:iam::123:role/ApiRole", &tags, Some(&co));
 
         assert!(!result.is_shadow_nhi);
-        assert_eq!(result.primary_owner_email.as_deref(), Some("platform-lead@corp.com"));
+        assert_eq!(
+            result.primary_owner_email.as_deref(),
+            Some("platform-lead@corp.com")
+        );
         assert_eq!(result.owning_team.as_deref(), Some("@platform-team"));
         assert_eq!(result.confidence_score, 0.88);
     }

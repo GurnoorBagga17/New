@@ -56,7 +56,10 @@ impl ControlPlaneClient {
         }
         let http = reqwest::Client::builder()
             .timeout(Duration::from_secs(30))
-            .user_agent(concat!("axiom-agent-supervisor/", env!("CARGO_PKG_VERSION")))
+            .user_agent(concat!(
+                "axiom-agent-supervisor/",
+                env!("CARGO_PKG_VERSION")
+            ))
             .build()
             .context("build control-plane HTTP client")?;
         Ok(Self { base_url, http })
@@ -150,10 +153,7 @@ mod tests {
         );
 
         let local = ControlPlaneClient::new("http://127.0.0.1:8090").unwrap();
-        assert_eq!(
-            local.channel_url(),
-            "ws://127.0.0.1:8090/v1/agents/channel"
-        );
+        assert_eq!(local.channel_url(), "ws://127.0.0.1:8090/v1/agents/channel");
     }
 
     #[test]

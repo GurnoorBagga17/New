@@ -215,7 +215,8 @@ impl KillSwitchService {
 
         // Immediately cancel any in-flight requests running for this revoked target (AX-010).
         if command.action == RevocationAction::Revoke {
-            self.cancellations.cancel_target(&command.target.canonical_key());
+            self.cancellations
+                .cancel_target(&command.target.canonical_key());
             self.cancellations.cancel_target(command.target.id());
         }
 
@@ -486,7 +487,6 @@ mod tests {
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // AX-010 Remediation: In-Flight Request Cancellation & Durable Receipt
 // ---------------------------------------------------------------------------
@@ -532,7 +532,10 @@ impl InFlightCancellationRegistry {
     pub fn register(&self, target_id: impl Into<String>) -> Arc<CancellationToken> {
         let token = CancellationToken::new();
         let mut guard = self.active.lock().expect("in-flight registry lock");
-        guard.entry(target_id.into()).or_default().push(token.clone());
+        guard
+            .entry(target_id.into())
+            .or_default()
+            .push(token.clone());
         token
     }
 

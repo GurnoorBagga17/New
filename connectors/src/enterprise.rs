@@ -17,12 +17,12 @@
 //! - Computes deterministic HMAC-SHA256 fingerprints of identifiers with `fingerprint_credential_id`.
 //! - Never stores or logs raw secrets, private keys, or passwords.
 
+use crate::{
+    fingerprint_credential_id, ConnectorKind, DiscoveredNode, DiscoveredRelation, RateLimitPolicy,
+    TokenBucketLimiter,
+};
 use std::collections::HashMap;
 use std::time::Duration;
-use crate::{
-    fingerprint_credential_id, ConnectorKind, DiscoveredNode, DiscoveredRelation,
-    RateLimitPolicy, TokenBucketLimiter,
-};
 
 // ---------------------------------------------------------------------------
 // 1. Azure Entra ID Discovery Worker
@@ -76,9 +76,14 @@ impl AzureEntraDiscoveryWorker {
         meta.insert("service_principal_type".to_owned(), sp_type.to_owned());
 
         // OWASP NHI Check: Directory.ReadWrite.All or Application.ReadWrite.All
-        let is_high_priv = roles.iter().any(|r| r.contains("Directory.ReadWrite.All") || r.contains("RoleManagement.ReadWrite"));
+        let is_high_priv = roles.iter().any(|r| {
+            r.contains("Directory.ReadWrite.All") || r.contains("RoleManagement.ReadWrite")
+        });
         if is_high_priv {
-            meta.insert("risk_tag".to_owned(), "NHI4:PrivilegeOverprovisioning".to_owned());
+            meta.insert(
+                "risk_tag".to_owned(),
+                "NHI4:PrivilegeOverprovisioning".to_owned(),
+            );
         }
 
         DiscoveredNode {
@@ -145,13 +150,25 @@ impl GcpIamDiscoveryWorker {
         let mut meta = HashMap::new();
         meta.insert("project_id".to_owned(), project_id.to_owned());
         meta.insert("unique_id".to_owned(), unique_id.to_owned());
-        meta.insert("has_user_managed_key".to_owned(), has_user_managed_key.to_string());
+        meta.insert(
+            "has_user_managed_key".to_owned(),
+            has_user_managed_key.to_string(),
+        );
 
         if has_user_managed_key {
-            meta.insert("risk_tag".to_owned(), "NHI2:LongLivedUserManagedKey".to_owned());
+            meta.insert(
+                "risk_tag".to_owned(),
+                "NHI2:LongLivedUserManagedKey".to_owned(),
+            );
         }
-        if iam_roles.iter().any(|r| r == "roles/owner" || r == "roles/editor") {
-            meta.insert("risk_tag_priv".to_owned(), "NHI4:GcpExcessiveRole".to_owned());
+        if iam_roles
+            .iter()
+            .any(|r| r == "roles/owner" || r == "roles/editor")
+        {
+            meta.insert(
+                "risk_tag_priv".to_owned(),
+                "NHI4:GcpExcessiveRole".to_owned(),
+            );
         }
 
         DiscoveredNode {
@@ -262,13 +279,25 @@ impl SnowflakeDiscoveryWorker {
         let uid = format!("snowflake:{account}:user/{username}");
         let mut meta = HashMap::new();
         meta.insert("account".to_owned(), account.to_owned());
-        meta.insert("has_rsa_public_key".to_owned(), has_rsa_public_key.to_string());
+        meta.insert(
+            "has_rsa_public_key".to_owned(),
+            has_rsa_public_key.to_string(),
+        );
 
         if !has_rsa_public_key {
-            meta.insert("risk_tag".to_owned(), "NHI3:PasswordWithoutKeyPairAuth".to_owned());
+            meta.insert(
+                "risk_tag".to_owned(),
+                "NHI3:PasswordWithoutKeyPairAuth".to_owned(),
+            );
         }
-        if roles.iter().any(|r| r == "ACCOUNTADMIN" || r == "SECURITYADMIN") {
-            meta.insert("risk_tag_priv".to_owned(), "NHI4:SnowflakeAccountAdmin".to_owned());
+        if roles
+            .iter()
+            .any(|r| r == "ACCOUNTADMIN" || r == "SECURITYADMIN")
+        {
+            meta.insert(
+                "risk_tag_priv".to_owned(),
+                "NHI4:SnowflakeAccountAdmin".to_owned(),
+            );
         }
 
         DiscoveredNode {
@@ -328,7 +357,10 @@ impl DatabricksDiscoveryWorker {
         meta.insert("lifetime_seconds".to_owned(), lifetime_seconds.to_string());
 
         if lifetime_seconds <= 0 {
-            meta.insert("risk_tag".to_owned(), "NHI3:IndefiniteTokenLifetime".to_owned());
+            meta.insert(
+                "risk_tag".to_owned(),
+                "NHI3:IndefiniteTokenLifetime".to_owned(),
+            );
         }
 
         DiscoveredNode {
@@ -388,7 +420,10 @@ impl GitlabDiscoveryWorker {
         meta.insert("access_level".to_owned(), access_level.to_string());
 
         if access_level >= 40 {
-            meta.insert("risk_tag".to_owned(), "NHI4:GitLabMaintainerTokenScope".to_owned());
+            meta.insert(
+                "risk_tag".to_owned(),
+                "NHI4:GitLabMaintainerTokenScope".to_owned(),
+            );
         }
 
         DiscoveredNode {
@@ -445,7 +480,10 @@ impl AiGatewaysDiscoveryWorker {
         let mut meta = HashMap::new();
         meta.insert("provider".to_owned(), provider.to_owned());
         meta.insert("created_by".to_owned(), created_by.to_owned());
-        meta.insert("risk_tag".to_owned(), "MCP09:ShadowAiKeyExposure".to_owned());
+        meta.insert(
+            "risk_tag".to_owned(),
+            "MCP09:ShadowAiKeyExposure".to_owned(),
+        );
 
         DiscoveredNode {
             entity_uid: uid.clone(),
@@ -491,7 +529,10 @@ impl TerraformStateDiscoveryWorker {
                 let res_name = res.get("name").and_then(|n| n.as_str()).unwrap_or("");
 
                 // Match IAM roles, service accounts, and API keys
-                if res_type.contains("iam_role") || res_type.contains("service_account") || res_type.contains("api_key") {
+                if res_type.contains("iam_role")
+                    || res_type.contains("service_account")
+                    || res_type.contains("api_key")
+                {
                     let uid = format!("terraform:{git_repo}:{res_type}/{res_name}");
                     let mut meta = HashMap::new();
                     meta.insert("git_repo".to_owned(), git_repo.to_owned());

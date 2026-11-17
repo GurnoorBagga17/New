@@ -7,11 +7,11 @@
 //! - Enforces Zero Raw Token Exposure: dynamically fetched database/cloud credentials
 //!   are scrubbed and bound to ephemeral `SecretlessLeaseMetadata` browser pills.
 
-use std::time::Duration;
+use crate::SecretlessLeaseMetadata;
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use thiserror::Error;
-use crate::SecretlessLeaseMetadata;
 
 #[derive(Debug, Error)]
 pub enum OpenBaoError {
@@ -95,11 +95,9 @@ impl OpenBaoClient {
     fn auth_headers(&self) -> Result<HeaderMap, OpenBaoError> {
         let mut headers = HeaderMap::new();
         if let Some(tok) = &self.token {
-            let mut val = HeaderValue::from_str(tok).map_err(|_| {
-                OpenBaoError::Api {
-                    status: 400,
-                    message: "Invalid characters in token".into(),
-                }
+            let mut val = HeaderValue::from_str(tok).map_err(|_| OpenBaoError::Api {
+                status: 400,
+                message: "Invalid characters in token".into(),
             })?;
             val.set_sensitive(true);
             headers.insert("X-Vault-Token", val);
@@ -117,7 +115,12 @@ impl OpenBaoClient {
         role: &str,
         workload_uid: &str,
     ) -> Result<SecretlessLeaseMetadata, OpenBaoError> {
-        let url = format!("{}/v1/{}/creds/{}", self.base_url, mount.trim_matches('/'), role);
+        let url = format!(
+            "{}/v1/{}/creds/{}",
+            self.base_url,
+            mount.trim_matches('/'),
+            role
+        );
         let resp = self
             .client
             .get(&url)
@@ -222,14 +225,22 @@ impl crate::CredentialBrokerProvider for OpenBaoClient {
         "openbao"
     }
 
-    async fn attest_workload(&self, attestation_token: &str) -> Result<crate::WorkloadClaims, crate::SecretlessError> {
+    async fn attest_workload(
+        &self,
+        attestation_token: &str,
+    ) -> Result<crate::WorkloadClaims, crate::SecretlessError> {
         if attestation_token.trim().is_empty() {
-            return Err(crate::SecretlessError::AttestationFailed("Attestation token cannot be empty".into()));
+            return Err(crate::SecretlessError::AttestationFailed(
+                "Attestation token cannot be empty".into(),
+            ));
         }
 
         Ok(crate::WorkloadClaims {
             workload_uid: format!("vault://openbao/workload/{}", attestation_token.trim()),
-            spiffe_id: Some(format!("spiffe://axiom.internal/ns/prod/sa/{}", attestation_token.trim())),
+            spiffe_id: Some(format!(
+                "spiffe://axiom.internal/ns/prod/sa/{}",
+                attestation_token.trim()
+            )),
             account_id: Some("openbao-vault-engine".into()),
             tenant_id: "org_default".into(),
             namespace: Some("default".into()),
@@ -245,7 +256,9 @@ impl crate::CredentialBrokerProvider for OpenBaoClient {
         requested_scopes: &[String],
     ) -> Result<crate::EphemeralLease, crate::SecretlessError> {
         if requested_scopes.is_empty() {
-            return Err(crate::SecretlessError::AcquisitionFailed("Requested scopes cannot be empty".into()));
+            return Err(crate::SecretlessError::AcquisitionFailed(
+                "Requested scopes cannot be empty".into(),
+            ));
         }
 
         use sha2::Digest;
@@ -259,7 +272,7 @@ impl crate::CredentialBrokerProvider for OpenBaoClient {
         let now = chrono::Utc::now().timestamp() as u64;
         let ttl_seconds = 300u32;
         let expires_at = now + (ttl_seconds as u64);
-        let masked_token = format!("vault_token_{}****{}", &hash[..4], &hash[hash.len()-4..]);
+        let masked_token = format!("vault_token_{}****{}", &hash[..4], &hash[hash.len() - 4..]);
 
         Ok(crate::EphemeralLease {
             lease_id,
@@ -285,10 +298,15 @@ mod tests {
             timeout: Duration::from_millis(500),
         };
         let client = OpenBaoClient::new(config);
-        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
 
         rt.block_on(async {
-            let result = client.request_dynamic_credential("database", "readonly", "agent:1").await;
+            let result = client
+                .request_dynamic_credential("database", "readonly", "agent:1")
+                .await;
             assert!(matches!(result, Err(OpenBaoError::Unauthenticated)));
         });
     }

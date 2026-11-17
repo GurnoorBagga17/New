@@ -6,8 +6,8 @@
 //! Slack delivers the button's action payload containing `payload_sha256` back
 //! to Axiom's webhook to prevent argument tampering (TOCTOU attacks).
 
-use serde_json::{json, Value};
 use crate::PendingApprovalTicket;
+use serde_json::{json, Value};
 
 pub struct SlackApprovalCardBuilder;
 
@@ -106,7 +106,12 @@ impl SlackApprovalCardBuilder {
     }
 
     /// Verifies Slack's HMAC-SHA256 signature (`X-Slack-Signature`) to prevent webhook forgery (INT-01).
-    pub fn verify_slack_signature(signing_secret: &str, timestamp: &str, body: &str, expected_signature: &str) -> bool {
+    pub fn verify_slack_signature(
+        signing_secret: &str,
+        timestamp: &str,
+        body: &str,
+        expected_signature: &str,
+    ) -> bool {
         use hmac::{Hmac, Mac};
         use sha2::Sha256;
 
@@ -133,7 +138,10 @@ impl SlackApprovalCardBuilder {
     }
 
     /// Dispatches an interactive Slack Block Kit approval card to an incoming webhook or channel endpoint.
-    pub async fn dispatch_slack_approval_card(webhook_url: &str, card: &Value) -> Result<(), String> {
+    pub async fn dispatch_slack_approval_card(
+        webhook_url: &str,
+        card: &Value,
+    ) -> Result<(), String> {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
@@ -174,7 +182,8 @@ mod tests {
             status: ApprovalStatus::Pending,
         };
 
-        let card = SlackApprovalCardBuilder::build_interactive_card(&ticket, Some("#security-approvals"));
+        let card =
+            SlackApprovalCardBuilder::build_interactive_card(&ticket, Some("#security-approvals"));
         assert_eq!(card["channel"], "#security-approvals");
 
         let blocks = card["blocks"].as_array().expect("Blocks must be an array");
@@ -205,9 +214,26 @@ mod tests {
         mac.update(format!("v0:{timestamp}:{body}").as_bytes());
         let valid_sig = format!("v0={}", hex::encode(mac.finalize().into_bytes()));
 
-        assert!(SlackApprovalCardBuilder::verify_slack_signature(secret, timestamp, body, &valid_sig));
-        assert!(!SlackApprovalCardBuilder::verify_slack_signature("wrong_secret", timestamp, body, &valid_sig));
-        assert!(!SlackApprovalCardBuilder::verify_slack_signature(secret, "1700000001", body, &valid_sig));
-        assert!(!SlackApprovalCardBuilder::verify_slack_signature(secret, timestamp, "tampered_body", &valid_sig));
+        assert!(SlackApprovalCardBuilder::verify_slack_signature(
+            secret, timestamp, body, &valid_sig
+        ));
+        assert!(!SlackApprovalCardBuilder::verify_slack_signature(
+            "wrong_secret",
+            timestamp,
+            body,
+            &valid_sig
+        ));
+        assert!(!SlackApprovalCardBuilder::verify_slack_signature(
+            secret,
+            "1700000001",
+            body,
+            &valid_sig
+        ));
+        assert!(!SlackApprovalCardBuilder::verify_slack_signature(
+            secret,
+            timestamp,
+            "tampered_body",
+            &valid_sig
+        ));
     }
 }

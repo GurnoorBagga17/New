@@ -1,6 +1,9 @@
 //! HTTPS egress URL validation with a host allowlist and DNS address checks.
 
-use std::{collections::BTreeSet, net::{IpAddr, SocketAddr}};
+use std::{
+    collections::BTreeSet,
+    net::{IpAddr, SocketAddr},
+};
 
 use tokio::net::lookup_host;
 use url::Url;
@@ -196,7 +199,10 @@ pub struct PinnedEgressConnectTarget {
 impl EgressValidator {
     /// Resolves DNS once, validates that all returned addresses are public unicast IPs,
     /// and returns a `PinnedEgressConnectTarget` for direct socket dialing without re-lookup.
-    pub async fn validate_and_pin(&self, input: &str) -> Result<PinnedEgressConnectTarget, EgressFacts> {
+    pub async fn validate_and_pin(
+        &self,
+        input: &str,
+    ) -> Result<PinnedEgressConnectTarget, EgressFacts> {
         let Ok(url) = Url::parse(input) else {
             return Err(failed(None, false, "INVALID_EGRESS_URL"));
         };
@@ -229,7 +235,13 @@ impl EgressValidator {
                 let host_port = format!("{}:{}", normalized, port);
                 let addrs = match lookup_host(&host_port).await {
                     Ok(results) => results.collect(),
-                    Err(_) => return Err(failed(Some(normalized.clone()), false, "EGRESS_DNS_FAILURE")),
+                    Err(_) => {
+                        return Err(failed(
+                            Some(normalized.clone()),
+                            false,
+                            "EGRESS_DNS_FAILURE",
+                        ))
+                    }
                 };
                 addrs
             }
@@ -238,7 +250,11 @@ impl EgressValidator {
             return Err(failed(Some(normalized.clone()), false, "EGRESS_DNS_EMPTY"));
         }
         if pinned_addrs.iter().any(|sa| !is_public_unicast(sa.ip())) {
-            return Err(failed(Some(normalized.clone()), true, "EGRESS_NON_PUBLIC_ADDRESS"));
+            return Err(failed(
+                Some(normalized.clone()),
+                true,
+                "EGRESS_NON_PUBLIC_ADDRESS",
+            ));
         }
 
         Ok(PinnedEgressConnectTarget {

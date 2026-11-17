@@ -31,7 +31,9 @@ pub fn verify_intent_alignment(
         return IntentValidationOutcome {
             aligned: false,
             drift_score: 100,
-            violation_reason: Some("INTENT_VIOLATION: Exploit payload (traversal/SSRF) contradicts task intent".into()),
+            violation_reason: Some(
+                "INTENT_VIOLATION: Exploit payload (traversal/SSRF) contradicts task intent".into(),
+            ),
         };
     }
 

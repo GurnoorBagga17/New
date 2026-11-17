@@ -5,9 +5,9 @@
 //! fetches the secret into an isolated in-memory envelope, injects it at the ExtMCP/Envoy
 //! egress boundary, and strips it from all agent responses, audit logs, and UI states.
 
+use crate::{CredentialBrokerProvider, EphemeralLease, SecretlessError, WorkloadClaims};
 use async_trait::async_trait;
 use sha2::{Digest, Sha256};
-use crate::{CredentialBrokerProvider, EphemeralLease, SecretlessError, WorkloadClaims};
 
 #[derive(Debug, Clone)]
 pub struct ApiKeyVaultInjector {
@@ -18,7 +18,11 @@ pub struct ApiKeyVaultInjector {
 }
 
 impl ApiKeyVaultInjector {
-    pub fn new(vault_secret_path: impl Into<String>, header_name: impl Into<String>, key_prefix: impl Into<String>) -> Self {
+    pub fn new(
+        vault_secret_path: impl Into<String>,
+        header_name: impl Into<String>,
+        key_prefix: impl Into<String>,
+    ) -> Self {
         Self {
             vault_secret_path: vault_secret_path.into(),
             header_name: header_name.into(),
@@ -34,9 +38,14 @@ impl CredentialBrokerProvider for ApiKeyVaultInjector {
         "api_key_vault_injector"
     }
 
-    async fn attest_workload(&self, attestation_token: &str) -> Result<WorkloadClaims, SecretlessError> {
+    async fn attest_workload(
+        &self,
+        attestation_token: &str,
+    ) -> Result<WorkloadClaims, SecretlessError> {
         if attestation_token.trim().is_empty() {
-            return Err(SecretlessError::AttestationFailed("Attestation token cannot be empty".into()));
+            return Err(SecretlessError::AttestationFailed(
+                "Attestation token cannot be empty".into(),
+            ));
         }
 
         Ok(WorkloadClaims {
@@ -57,7 +66,9 @@ impl CredentialBrokerProvider for ApiKeyVaultInjector {
         requested_scopes: &[String],
     ) -> Result<EphemeralLease, SecretlessError> {
         if requested_scopes.is_empty() {
-            return Err(SecretlessError::AcquisitionFailed("Requested scopes cannot be empty".into()));
+            return Err(SecretlessError::AcquisitionFailed(
+                "Requested scopes cannot be empty".into(),
+            ));
         }
 
         let mut hasher = Sha256::new();
@@ -72,7 +83,7 @@ impl CredentialBrokerProvider for ApiKeyVaultInjector {
         let expires_at = now + (self.injection_ttl_seconds as u64);
 
         // Zero-Secret Invariant: never leak the actual raw secret key in the lease
-        let masked_token = format!("{}-****{}", self.key_prefix, &hash[hash.len()-4..]);
+        let masked_token = format!("{}-****{}", self.key_prefix, &hash[hash.len() - 4..]);
 
         Ok(EphemeralLease {
             lease_id,

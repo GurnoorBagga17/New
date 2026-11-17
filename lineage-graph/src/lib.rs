@@ -5,8 +5,8 @@
 //! and executes recursive traversal to identify every dependent agent, workload,
 //! and shared-credential sibling (`NHI9:2025`) before a secret or server is revoked.
 
-use std::collections::{HashMap, HashSet, VecDeque};
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 pub mod postgres;
 pub use postgres::{LineageDbError, PostgresLineageGraph};
@@ -261,20 +261,29 @@ mod tests {
 
         // Revoking the shared secret affects both services directly
         assert_eq!(sim.directly_affected_agents.len(), 2);
-        assert!(sim.directly_affected_agents.contains(&"agent:service-a".to_owned()));
-        assert!(sim.directly_affected_agents.contains(&"agent:service-b".to_owned()));
+        assert!(sim
+            .directly_affected_agents
+            .contains(&"agent:service-a".to_owned()));
+        assert!(sim
+            .directly_affected_agents
+            .contains(&"agent:service-b".to_owned()));
 
         // Sibling workloads detected (NHI9:2025 violation)
         assert_eq!(sim.shared_credential_siblings.len(), 2);
 
         // Transitive caller identified
         assert_eq!(sim.transitively_affected_workloads.len(), 1);
-        assert_eq!(sim.transitively_affected_workloads[0], "workload:orchestrator");
+        assert_eq!(
+            sim.transitively_affected_workloads[0],
+            "workload:orchestrator"
+        );
 
         // High blast radius, not safe to revoke immediately without rotation
         assert!(!sim.safe_to_revoke_immediately);
         assert!(sim.blast_radius_score > 50);
-        assert!(sim.recommended_action.contains("Shared credential impact detected"));
+        assert!(sim
+            .recommended_action
+            .contains("Shared credential impact detected"));
     }
 
     #[test]

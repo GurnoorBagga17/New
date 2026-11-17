@@ -6,26 +6,26 @@
 //! `SecretlessLeaseMetadata` pills (`vault://openbao/... • TTL • Lease Active`),
 //! never raw secret values.
 
-use std::collections::HashSet;
-use std::time::{Duration, Instant};
 use ring::rand::SecureRandom;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::HashSet;
+use std::time::{Duration, Instant};
 use thiserror::Error;
 
-pub mod openbao;
-pub mod aws_sts;
-pub mod gcp_sts;
-pub mod azure_entra;
-pub mod oauth2_client_credentials;
 pub mod api_key_vault_injector;
+pub mod aws_sts;
+pub mod azure_entra;
+pub mod gcp_sts;
+pub mod oauth2_client_credentials;
+pub mod openbao;
 
-pub use openbao::{OpenBaoClient, OpenBaoConfig, OpenBaoError};
-pub use aws_sts::AwsStsBroker;
-pub use gcp_sts::GcpStsBroker;
-pub use azure_entra::AzureEntraBroker;
-pub use oauth2_client_credentials::OAuth2ClientCredentialsBroker;
 pub use api_key_vault_injector::ApiKeyVaultInjector;
+pub use aws_sts::AwsStsBroker;
+pub use azure_entra::AzureEntraBroker;
+pub use gcp_sts::GcpStsBroker;
+pub use oauth2_client_credentials::OAuth2ClientCredentialsBroker;
+pub use openbao::{OpenBaoClient, OpenBaoConfig, OpenBaoError};
 
 /// Workload claims resulting from workload attestation (SVID, OIDC, STS).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -71,7 +71,10 @@ pub trait CredentialBrokerProvider: Send + Sync {
     fn provider_id(&self) -> &'static str;
 
     /// Verify workload attestation (e.g., K8s SVID, AWS IMDSv2 / STS identity, GCP OIDC)
-    async fn attest_workload(&self, attestation_token: &str) -> Result<WorkloadClaims, SecretlessError>;
+    async fn attest_workload(
+        &self,
+        attestation_token: &str,
+    ) -> Result<WorkloadClaims, SecretlessError>;
 
     /// Mint or retrieve an ephemeral credential for the upstream MCP server or API
     async fn acquire_ephemeral_credential(
@@ -144,9 +147,13 @@ pub struct Rfc8693ExchangedTokenMetadata {
 pub enum TokenExchangeError {
     #[error("RFC 8693 requested scopes cannot be empty")]
     EmptyScopes,
-    #[error("RFC 8693 scope escalation denied: requested scope '{0}' is not a subset of parent scopes")]
+    #[error(
+        "RFC 8693 scope escalation denied: requested scope '{0}' is not a subset of parent scopes"
+    )]
     ScopeEscalation(String),
-    #[error("RFC 8707 resource indicator invalid: '{0}' must be a canonical URI (mcp:// or https://)")]
+    #[error(
+        "RFC 8707 resource indicator invalid: '{0}' must be a canonical URI (mcp:// or https://)"
+    )]
     InvalidResourceIndicator(String),
     #[error("RFC 8707 resource indicator cannot contain userinfo credentials: '{0}'")]
     UserinfoForbidden(String),
@@ -176,7 +183,9 @@ pub fn exchange_rfc8693_token(
         ));
     }
     if req.requested_ttl_seconds > 300 {
-        return Err(TokenExchangeError::TtlExceedsCeiling(req.requested_ttl_seconds));
+        return Err(TokenExchangeError::TtlExceedsCeiling(
+            req.requested_ttl_seconds,
+        ));
     }
     for scope in &req.requested_scopes {
         if !req.parent_granted_scopes.contains(scope) {
@@ -276,10 +285,15 @@ pub fn mint_rfc8693_signed_jwt(
 pub enum RotationPhase {
     Idle,
     DualSecretProvisioned,
-    ConsumerReloadHeartbeats { verified_consumers: u32, total_consumers: u32 },
+    ConsumerReloadHeartbeats {
+        verified_consumers: u32,
+        total_consumers: u32,
+    },
     GraceWindowVerified,
     LegacyCredentialRevoked,
-    RolledBack { reason: String },
+    RolledBack {
+        reason: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -312,7 +326,9 @@ impl ZeroDowntimeRotationJob {
     /// Deduplicates duplicate heartbeats so counts cannot be artificially inflated.
     pub fn record_workload_heartbeat(&mut self, workload_uid: &str) {
         if self.error_spike_detected {
-            self.trigger_rollback("Auth error spike detected on new secret; rolled back to primary credential");
+            self.trigger_rollback(
+                "Auth error spike detected on new secret; rolled back to primary credential",
+            );
             return;
         }
 
@@ -389,7 +405,9 @@ pub fn issue_attested_openbao_lease(
         return Err("UNTRUSTED_SPIFFE_ID: must start with spiffe://".into());
     }
     if !claim.air_gapped_vpc_verified {
-        return Err("ATTESTATION_FAILED: workload is not inside verified air-gapped VPC enclave".into());
+        return Err(
+            "ATTESTATION_FAILED: workload is not inside verified air-gapped VPC enclave".into(),
+        );
     }
     if !trusted_binary_digests.contains(&claim.binary_sha256.as_str()) {
         return Err(format!(
@@ -413,7 +431,8 @@ mod attestation_tests {
     fn issues_lease_only_for_attested_airgapped_workload() {
         let claim = WorkloadAttestationClaim {
             spiffe_id: "spiffe://axiom.internal/ns/prod/sa/finance-agent".into(),
-            binary_sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".into(),
+            binary_sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                .into(),
             k8s_namespace: "prod".into(),
             k8s_service_account: "finance-agent".into(),
             air_gapped_vpc_verified: true,
@@ -435,7 +454,10 @@ mod attestation_tests {
             subject_token_jti: "jti-parent-123".into(),
             actor_agent_spiffe_id: "spiffe://axiom.internal/agent/analyst".into(),
             parent_delegator_id: "spiffe://axiom.internal/agent/coordinator".into(),
-            parent_act_chain: vec!["spiffe://axiom.internal/agent/root".into(), "spiffe://axiom.internal/agent/coordinator".into()],
+            parent_act_chain: vec![
+                "spiffe://axiom.internal/agent/root".into(),
+                "spiffe://axiom.internal/agent/coordinator".into(),
+            ],
             requested_resource_indicator: "https://api.github.com".into(),
             requested_scopes: vec!["repo:read".into()],
             parent_granted_scopes: vec!["repo:read".into(), "repo:write".into()],
@@ -451,7 +473,10 @@ mod attestation_tests {
         // Empty scopes rejected
         let mut empty_scopes = base_req.clone();
         empty_scopes.requested_scopes = vec![];
-        assert_eq!(exchange_rfc8693_token(&empty_scopes), Err(TokenExchangeError::EmptyScopes));
+        assert_eq!(
+            exchange_rfc8693_token(&empty_scopes),
+            Err(TokenExchangeError::EmptyScopes)
+        );
 
         // Scope escalation rejected
         let mut escalated = base_req.clone();
@@ -466,7 +491,9 @@ mod attestation_tests {
         userinfo_uri.requested_resource_indicator = "https://user:password@api.internal.com".into();
         assert_eq!(
             exchange_rfc8693_token(&userinfo_uri),
-            Err(TokenExchangeError::UserinfoForbidden("https://user:password@api.internal.com".into()))
+            Err(TokenExchangeError::UserinfoForbidden(
+                "https://user:password@api.internal.com".into()
+            ))
         );
     }
 
@@ -484,7 +511,9 @@ mod attestation_tests {
         job.record_workload_heartbeat("workload-k8s-pod-1");
         assert_eq!(job.verified_workloads.len(), 1);
         match &job.phase {
-            RotationPhase::ConsumerReloadHeartbeats { verified_consumers, .. } => {
+            RotationPhase::ConsumerReloadHeartbeats {
+                verified_consumers, ..
+            } => {
                 assert_eq!(*verified_consumers, 1);
             }
             _ => panic!("Expected ConsumerReloadHeartbeats phase"),

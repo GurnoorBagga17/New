@@ -4,11 +4,11 @@
 //! Streams injection-escaped CEF events and OCSF v1.3 records to customer SIEMs
 //! with automatic batching, exponential retry backoff, and dead-letter queues.
 
-use std::time::Duration;
+use crate::{format_cef_record, OcsfAuthorizationEvent};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use thiserror::Error;
-use crate::{format_cef_record, OcsfAuthorizationEvent};
 
 #[derive(Debug, Error)]
 pub enum SiemDispatchError {
@@ -53,7 +53,10 @@ impl SplunkHecDispatcher {
             hv.set_sensitive(true);
             headers.insert(AUTHORIZATION, hv);
         }
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"));
+        headers.insert(
+            CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        );
 
         let resp = self
             .client
@@ -65,7 +68,10 @@ impl SplunkHecDispatcher {
 
         let status = resp.status();
         if !status.is_success() {
-            let msg = resp.text().await.unwrap_or_else(|_| format!("HTTP {status}"));
+            let msg = resp
+                .text()
+                .await
+                .unwrap_or_else(|_| format!("HTTP {status}"));
             return Err(SiemDispatchError::Endpoint {
                 status: status.as_u16(),
                 message: msg,
@@ -76,7 +82,10 @@ impl SplunkHecDispatcher {
     }
 
     /// Batches multiple CEF events separated by newlines.
-    pub async fn dispatch_cef_batch(&self, events: &[OcsfAuthorizationEvent]) -> Result<usize, SiemDispatchError> {
+    pub async fn dispatch_cef_batch(
+        &self,
+        events: &[OcsfAuthorizationEvent],
+    ) -> Result<usize, SiemDispatchError> {
         if events.is_empty() {
             return Ok(0);
         }
@@ -115,7 +124,10 @@ impl AzureSentinelDispatcher {
     }
 
     /// Dispatches OCSF v1.3 JSON event records to Azure Sentinel / Log Analytics.
-    pub async fn dispatch_ocsf_event(&self, event: &OcsfAuthorizationEvent) -> Result<(), SiemDispatchError> {
+    pub async fn dispatch_ocsf_event(
+        &self,
+        event: &OcsfAuthorizationEvent,
+    ) -> Result<(), SiemDispatchError> {
         let mut headers = HeaderMap::new();
         if let Ok(mut hv) = HeaderValue::from_str(&self.config.authorization_header) {
             hv.set_sensitive(true);
@@ -126,8 +138,8 @@ impl AzureSentinelDispatcher {
         }
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
-        let body = serde_json::to_string(&event.to_ocsf_json())
-            .unwrap_or_else(|_| "{}".to_string());
+        let body =
+            serde_json::to_string(&event.to_ocsf_json()).unwrap_or_else(|_| "{}".to_string());
         let resp = self
             .client
             .post(&self.config.endpoint_url)
@@ -138,7 +150,10 @@ impl AzureSentinelDispatcher {
 
         let status = resp.status();
         if !status.is_success() {
-            let msg = resp.text().await.unwrap_or_else(|_| format!("HTTP {status}"));
+            let msg = resp
+                .text()
+                .await
+                .unwrap_or_else(|_| format!("HTTP {status}"));
             return Err(SiemDispatchError::Endpoint {
                 status: status.as_u16(),
                 message: msg,

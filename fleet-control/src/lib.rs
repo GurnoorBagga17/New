@@ -3,9 +3,9 @@
 //! Least-Privilege Cloud IAM Rightsizing, Distributed Spend Circuit Breakers,
 //! Signed AI-BOM Compliance Packs, and $0-Discovery Usage Metering Engine.
 
-use std::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::{HashMap, HashSet};
 
 // ---------------------------------------------------------------------------
 // 1. SpiceDB Multi-Hop Delegation Graph & Causal Chain Revocation
@@ -194,8 +194,8 @@ pub struct SignedAiBomManifest {
     pub ed25519_signature: String,
 }
 
-use ring::signature::{Ed25519KeyPair, KeyPair};
 use ring::rand::SystemRandom;
+use ring::signature::{Ed25519KeyPair, KeyPair};
 
 pub fn generate_signed_ai_bom(
     tenant_id: &str,
@@ -269,7 +269,9 @@ mod tests {
         let digest = manifest.content_sha256.strip_prefix("sha256:").unwrap();
 
         let peer_public_key = UnparsedPublicKey::new(&ring::signature::ED25519, pubkey_bytes);
-        assert!(peer_public_key.verify(digest.as_bytes(), &sig_bytes).is_ok());
+        assert!(peer_public_key
+            .verify(digest.as_bytes(), &sig_bytes)
+            .is_ok());
     }
 }
 

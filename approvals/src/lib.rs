@@ -11,9 +11,9 @@
 //! 4. Delimiter-Free Canonical Hashing: Uses length-prefixed domain-separated canonical hashing
 //!    to eliminate delimiter-injection collision vulnerabilities.
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use thiserror::Error;
 
 pub mod slack;
@@ -21,9 +21,17 @@ pub mod slack;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ApprovalStatus {
     Pending,
-    Approved { approver_email: String, approved_at_unix: i64 },
-    Consumed { consumed_at_unix: i64 },
-    Denied { reviewer_email: String, reason: String },
+    Approved {
+        approver_email: String,
+        approved_at_unix: i64,
+    },
+    Consumed {
+        consumed_at_unix: i64,
+    },
+    Denied {
+        reviewer_email: String,
+        reason: String,
+    },
     Expired,
 }
 
@@ -238,23 +246,45 @@ mod tests {
     fn prevents_hash_delimiter_collision() {
         let h1 = compute_payload_sha256("agent|server", "prod", "tool", "{}");
         let h2 = compute_payload_sha256("agent", "server|prod", "tool", "{}");
-        assert_ne!(h1, h2, "Length-prefixed hashing prevents delimiter collision attacks");
+        assert_ne!(
+            h1, h2,
+            "Length-prefixed hashing prevents delimiter collision attacks"
+        );
     }
 
     #[test]
     fn detects_tampered_payload_on_approval_and_consumption() {
         let mut store = AtomicApprovalStore::new();
-        let ticket = store.create_ticket("t-2", "agent-2", "pg", "query", "{\"q\":\"SELECT 1\"}", 1000);
+        let ticket = store.create_ticket(
+            "t-2",
+            "agent-2",
+            "pg",
+            "query",
+            "{\"q\":\"SELECT 1\"}",
+            1000,
+        );
 
         // Approving with altered hash fails
         let err = store.approve_ticket("t-2", "admin@axiom.security", "sha256:badhash", 500);
         assert!(matches!(err, Err(ApprovalError::PayloadTampered { .. })));
 
         // Approving with valid hash succeeds
-        store.approve_ticket("t-2", "admin@axiom.security", &ticket.payload_sha256, 500).unwrap();
+        store
+            .approve_ticket("t-2", "admin@axiom.security", &ticket.payload_sha256, 500)
+            .unwrap();
 
         // Consuming with altered payload fails
-        let tampered_consume = store.consume_atomic("t-2", "agent-2", "pg", "query", "{\"q\":\"DROP TABLE users\"}", 550);
-        assert!(matches!(tampered_consume, Err(ApprovalError::PayloadTampered { .. })));
+        let tampered_consume = store.consume_atomic(
+            "t-2",
+            "agent-2",
+            "pg",
+            "query",
+            "{\"q\":\"DROP TABLE users\"}",
+            550,
+        );
+        assert!(matches!(
+            tampered_consume,
+            Err(ApprovalError::PayloadTampered { .. })
+        ));
     }
 }

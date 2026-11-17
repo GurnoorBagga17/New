@@ -107,8 +107,8 @@ pub fn open_confined_readonly(
     let resolved_path = Path::new(resolved_str);
 
     // Reject if the target path is a symlink before opening
-    let symlink_meta = std::fs::symlink_metadata(resolved_path)
-        .map_err(|_| PathValidationError::InvalidPath)?;
+    let symlink_meta =
+        std::fs::symlink_metadata(resolved_path).map_err(|_| PathValidationError::InvalidPath)?;
     if symlink_meta.file_type().is_symlink() {
         return Err(PathValidationError::OutsideRoot);
     }

@@ -8,8 +8,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axiom_agent_protocol::{
-    policy_signing_payload, AgentMessage, AgentStatus, ControlMessage,
-    PolicyBundle, PROTOCOL_VERSION,
+    policy_signing_payload, AgentMessage, AgentStatus, ControlMessage, PolicyBundle,
+    PROTOCOL_VERSION,
 };
 use axiom_control_plane::{router, signer::PolicySigner, store::Store, AppState};
 use futures_util::{SinkExt, StreamExt};
@@ -106,14 +106,12 @@ type Ws = WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>;
 async fn connect_channel(base: &str, agent_id: Uuid, secret: &str) -> Ws {
     let ws_url = base.replacen("http://", "ws://", 1) + "/v1/agents/channel";
     let mut request = ws_url.into_client_request().unwrap();
-    request.headers_mut().insert(
-        "x-axiom-agent-id",
-        agent_id.to_string().parse().unwrap(),
-    );
-    request.headers_mut().insert(
-        AUTHORIZATION,
-        format!("Bearer {secret}").parse().unwrap(),
-    );
+    request
+        .headers_mut()
+        .insert("x-axiom-agent-id", agent_id.to_string().parse().unwrap());
+    request
+        .headers_mut()
+        .insert(AUTHORIZATION, format!("Bearer {secret}").parse().unwrap());
     let (socket, _) = connect_async(request).await.unwrap();
     socket
 }
@@ -155,7 +153,8 @@ async fn enroll_channel_policy_ack_and_kill_switch() {
     assert_eq!(enrolled.tenant_id, "tenant-a");
     assert!(enrolled.policy.is_none());
 
-    let mut socket = connect_channel(&harness.base, enrolled.agent_id, &enrolled.agent_secret).await;
+    let mut socket =
+        connect_channel(&harness.base, enrolled.agent_id, &enrolled.agent_secret).await;
     send(
         &mut socket,
         &AgentMessage::Hello {
@@ -239,7 +238,14 @@ async fn enroll_channel_policy_ack_and_kill_switch() {
     assert!(error.is_none());
 
     let mut attempts = 0;
-    while harness.state.store.agent(enrolled.agent_id).unwrap().decisions_total != 42 {
+    while harness
+        .state
+        .store
+        .agent(enrolled.agent_id)
+        .unwrap()
+        .decisions_total
+        != 42
+    {
         tokio::time::sleep(Duration::from_millis(25)).await;
         attempts += 1;
         assert!(attempts < 100, "heartbeat was never applied");
@@ -331,10 +337,9 @@ async fn channel_rejects_a_bad_agent_secret() {
         "x-axiom-agent-id",
         enrolled.agent_id.to_string().parse().unwrap(),
     );
-    request.headers_mut().insert(
-        AUTHORIZATION,
-        "Bearer not-the-real-secret".parse().unwrap(),
-    );
+    request
+        .headers_mut()
+        .insert(AUTHORIZATION, "Bearer not-the-real-secret".parse().unwrap());
 
     match connect_async(request).await {
         Err(tokio_tungstenite::tungstenite::Error::Http(response)) => {

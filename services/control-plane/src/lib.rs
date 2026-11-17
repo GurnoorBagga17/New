@@ -24,10 +24,7 @@ use axiom_agent_protocol::{
     PROTOCOL_VERSION,
 };
 use axum::{
-    extract::{
-        ws::WebSocketUpgrade,
-        Path, Query, State,
-    },
+    extract::{ws::WebSocketUpgrade, Path, Query, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::{delete, get, post, put},
@@ -87,7 +84,9 @@ impl AppState {
         self.inner.offline_after
     }
 
-    fn connections(&self) -> std::sync::MutexGuard<'_, HashMap<Uuid, mpsc::UnboundedSender<ControlMessage>>> {
+    fn connections(
+        &self,
+    ) -> std::sync::MutexGuard<'_, HashMap<Uuid, mpsc::UnboundedSender<ControlMessage>>> {
         self.inner
             .connections
             .lock()
@@ -137,7 +136,11 @@ impl AppState {
     }
 
     pub fn push_all(&self, message: ControlMessage) -> usize {
-        let connections: Vec<_> = self.connections().iter().map(|(id, tx)| (*id, tx.clone())).collect();
+        let connections: Vec<_> = self
+            .connections()
+            .iter()
+            .map(|(id, tx)| (*id, tx.clone()))
+            .collect();
         let mut delivered = 0;
         for (agent_id, sender) in connections {
             if sender.send(message.clone()).is_ok() {
@@ -218,7 +221,11 @@ impl IntoResponse for ApiError {
         if status.is_server_error() {
             tracing::error!(%status, %message, "control-plane request failed");
         }
-        (status, Json(json!({ "error": message, "code": self.code() }))).into_response()
+        (
+            status,
+            Json(json!({ "error": message, "code": self.code() })),
+        )
+            .into_response()
     }
 }
 
@@ -395,7 +402,10 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/admin/agents", get(list_agents))
         .route("/v1/admin/agents/:agent_id", get(get_agent))
         .route("/v1/admin/agents/:agent_id/revoke", post(revoke_agent))
-        .route("/v1/admin/policies", get(list_policies).post(publish_policy))
+        .route(
+            "/v1/admin/policies",
+            get(list_policies).post(publish_policy),
+        )
         .route("/v1/admin/kill-switch", post(trigger_kill_switch))
         .route("/v1/admin/kill-switch", delete(clear_kill_switch))
         .route("/v1/admin/revocations", put(update_revocations))
@@ -578,10 +588,8 @@ async fn publish_policy(
     state.signer.sign_bundle(&mut bundle);
     state.store.store_policy(bundle.clone());
 
-    let delivered = state.push_to_tenant(
-        &request.tenant_id,
-        ControlMessage::Policy(bundle.clone()),
-    );
+    let delivered =
+        state.push_to_tenant(&request.tenant_id, ControlMessage::Policy(bundle.clone()));
 
     tracing::info!(
         tenant_id = %request.tenant_id,
@@ -641,7 +649,9 @@ async fn trigger_kill_switch(
         "kill switch engaged"
     );
 
-    Ok(Json(json!({ "kill_switch": switch, "delivered_agents": delivered })))
+    Ok(Json(
+        json!({ "kill_switch": switch, "delivered_agents": delivered }),
+    ))
 }
 
 async fn clear_kill_switch(
@@ -667,7 +677,9 @@ async fn update_revocations(
         tools: request.tools,
         agents: request.agents,
     };
-    state.store.set_revocations(&request.tenant_id, next.clone());
+    state
+        .store
+        .set_revocations(&request.tenant_id, next.clone());
 
     let delivered = state.push_to_tenant(
         &request.tenant_id,
