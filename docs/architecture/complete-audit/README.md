@@ -54,6 +54,7 @@ docs/architecture/complete-audit/
 ├── EXECUTION_FLOWS.md             # 12 detailed Mermaid sequence diagrams covering end-to-end flows
 ├── IMPLEMENTATION_STATUS.md       # Feature-by-feature reality matrix (Complete vs Partial vs Mocked)
 ├── TECHNICAL_DEBT.md              # Prioritized issue register, production blockers, and remediation guide
+├── ENTERPRISE_READINESS_GAP_CLOSURE.md # Enterprise Gap Closure specification (Phases 1-5 implemented)
 ├── USER_MANUAL.md                 # Complete operational runbook for security operators and administrators
 ├── DEVELOPER_ONBOARDING.md        # Zero-to-PR developer setup guide (Windows PowerShell & Linux)
 └── GLOSSARY.md                    # 60+ domain definitions across NHI, IAM, MCP, and Cryptography

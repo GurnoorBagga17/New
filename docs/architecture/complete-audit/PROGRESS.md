@@ -44,8 +44,8 @@
 - **Protobuf Definitions:** 2 (`proto/ext_mcp.proto`, `proto/context_sync.proto`)
 - **Dockerfiles / Compose Configs:** 4 (`deployments/docker/*`)
 - **Helm Charts:** 1 (`deployments/helm/axiom-nhi`)
-- **Database Migrations:** SQLx migrations in `lineage-graph/migrations/` (`0001_phase2_graph.sql`, `0002_tenant_rls.sql`)
-- **Total Documentation Files Produced:** 22 (Full Technical Knowledge Base)
+- **Database Migrations:** SQLx migrations in `lineage-graph/migrations/` (`0001_phase2_graph.sql`, `0002_tenant_rls.sql`, `0003_operator_auth_and_scim.sql`)
+- **Total Documentation Files Produced:** 23 (Full Technical Knowledge Base + Enterprise Readiness Specification)
 
 ---
 
@@ -77,3 +77,51 @@ Following the initial audit completion, the engineering team executed critical a
      - Replaced fragmented tabs with a clean segmented pill container and upgraded the Emergency Kill Switch trigger into a distinct danger action button.
    - Configured Tailwind CSS v4 `@source` paths in `packages/ui/src/theme.css` and added `@import "tailwindcss";` with `@source` in `apps/web/app/styles.css`.
    - Updated all simulator fallback classes in `apps/web/app/styles.css`.
+
+---
+
+## Enterprise Readiness & Competitive Gap Closure (Phases 1-5 100% Implemented)
+
+Following the gap analysis in `enterprise_gap_closure_roadmap.md`, all 5 production enterprise gap closure phases were implemented, cross-compiled, and verified:
+
+1. **Phase 1 (P0): Operator Auth & Multi-Tenancy Engine:**
+   - Database Migration `lineage-graph/migrations/0003_operator_auth_and_scim.sql` deployed with `tenants`, `operators`, `operator_sessions`, compound tenant indices, and RLS policies.
+   - Embedded into `PostgresLineageGraph` in `lineage-graph/src/postgres.rs` with `create_operator`, `get_operator_by_email`, `create_session`, `get_session`, and `revoke_session`.
+   - Upgraded Next.js session store `apps/web/app/api/auth/store.ts` with production `pg.Pool` connection pooling and safe in-memory offline fallback for local tests.
+   - Added WebAuthn step-up cryptographic signature verification (`verifyStepUpSignature`).
+   - Enforced fail-closed production startup validation in `services/extmcp/runtime/src/main.rs` rejecting boot if dev bypass flags are set when `AXIOM_ENV=production`.
+
+2. **Phase 2 (P0): Zero-Trust Control Plane (`:8787`):**
+   - Added scoped operator JWT claims decoding (`OperatorClaims`) and RBAC endpoint gating in `services/extmcp/runtime/src/admin.rs`.
+   - Added single-use 30-second ticket tokens via `POST /v1/local/events/ticket` consumed by `GET /v1/local/events/stream?ticket=<nonce>` to protect SSE streams from URL token exposure and browser credential leaks.
+   - Enforced `security-admin` role for policy bundle mutations and secretless rotations, and `soc-operator` or `security-admin` for emergency revocations.
+   - Enforced mandatory `X-Axiom-StepUp-Signature` on destructive endpoints in production.
+
+3. **Phase 3 (P1): Universal Secretless Credential Broker:**
+   - Extracted abstract `CredentialBrokerProvider` trait in `secretless/src/lib.rs`.
+   - Implemented 5 enterprise credential broker providers:
+     - OpenBao Dynamic Leases (`secretless/src/openbao.rs`).
+     - AWS STS Web Identity (`secretless/src/aws_sts.rs` via `AssumeRoleWithWebIdentity`).
+     - GCP STS Workload Identity Federation (`secretless/src/gcp_sts.rs`).
+     - Azure Entra Workload Identity (`secretless/src/azure_entra.rs`).
+     - RFC 8693 OAuth 2.0 SaaS Broker (`secretless/src/oauth2_client_credentials.rs`).
+     - Vault API Key Injector (`secretless/src/api_key_vault_injector.rs`).
+
+4. **Phase 4 (P1): Enterprise Connector Expansion:**
+   - Expanded `axiom-connectors` in `connectors/src/enterprise.rs` with 8 production discovery connectors:
+     - Azure Entra ID Service Principals & App Registrations.
+     - Google Cloud Platform IAM Service Accounts & Keys.
+     - Okta OAuth 2.0 Service Applications.
+     - Snowflake User Key-Pair & Service Workloads.
+     - Databricks Machine Workload Service Principals.
+     - GitLab CI/CD Pipeline Triggers & Deploy Tokens.
+     - AI Gateways & Proxy Agents (LangChain, Portkey, LiteLLM).
+     - Terraform Cloud State Machine Outputs & Providers.
+   - Strictly enforced the Zero-Secret invariant across all connectors via deterministic HMAC-SHA256 fingerprinting.
+
+5. **Phase 5 (P2): Production Kubernetes Operator & Fleet Deployment:**
+   - Created Kubernetes Custom Resource Definitions:
+     - `deployments/kubernetes/crds/axiom_policy_bundle_crd.yaml` (`AxiomPolicyBundle`).
+     - `deployments/kubernetes/crds/axiom_mcp_server_crd.yaml` (`AxiomMcpServer`).
+   - Created production DaemonSet Helm template `deployments/helm/axiom-nhi/templates/daemonset-runtime.yaml` with SPIFFE CSI driver socket mounts (`/run/spire/sockets/agent.sock`) and health probes.
+   - Created Mutating Admission Webhook configuration `deployments/helm/axiom-nhi/templates/mutating-webhook.yaml` for zero-touch agent sidecar injection.

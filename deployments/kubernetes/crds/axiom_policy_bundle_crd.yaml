@@ -1,0 +1,77 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: axiompolicybundles.nhi.axiom.io
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.14.0
+spec:
+  group: nhi.axiom.io
+  names:
+    kind: AxiomPolicyBundle
+    listKind: AxiomPolicyBundleList
+    plural: axiompolicybundles
+    singular: axiompolicybundle
+    shortNames:
+      - axmpol
+      - axmbundle
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              required:
+                - version
+                - policies
+              properties:
+                version:
+                  type: string
+                  description: "Monotonically increasing Cedar policy bundle version (e.g., v1.4.2)"
+                schema:
+                  type: string
+                  description: "Optional AWS Cedar v4 schema definition. Defaults to Axiom standard schema."
+                policies:
+                  type: array
+                  description: "List of formal Cedar v4 policy declarations"
+                  items:
+                    type: object
+                    required:
+                      - id
+                      - source
+                    properties:
+                      id:
+                        type: string
+                        description: "Unique policy identifier"
+                      source:
+                        type: string
+                        description: "Cedar policy text (e.g. permit(principal, action, resource) when { ... };)"
+                dryRunOnly:
+                  type: boolean
+                  default: false
+                  description: "If true, simulates validation against AST validator without activating"
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum: ["Pending", "Validating", "Active", "Rejected"]
+                activeVersion:
+                  type: string
+                lastSwappedAt:
+                  type: string
+                  format: date-time
+                evaluatedPodsCount:
+                  type: integer
+                validationErrors:
+                  type: array
+                  items:
+                    type: string

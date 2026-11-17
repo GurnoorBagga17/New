@@ -1,0 +1,31 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ include "axiom-nhi.fullname" . }}-mutating-webhook
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "axiom-nhi.fullname" . }}-webhook-cert
+webhooks:
+  - name: inject.sidecar.nhi.axiom.io
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    clientConfig:
+      service:
+        name: {{ include "axiom-nhi.fullname" . }}-webhook-svc
+        namespace: {{ .Release.Namespace }}
+        path: /mutate-pod
+        port: 443
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: ["kube-system", "kube-public", {{ .Release.Namespace | quote }}]
+    objectSelector:
+      matchLabels:
+        axiom.nhi/protect: "true"
+    failurePolicy: Fail
+    timeoutSeconds: 3

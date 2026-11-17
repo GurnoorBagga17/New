@@ -216,6 +216,63 @@ impl OpenBaoClient {
     }
 }
 
+#[async_trait::async_trait]
+impl crate::CredentialBrokerProvider for OpenBaoClient {
+    fn provider_id(&self) -> &'static str {
+        "openbao"
+    }
+
+    async fn attest_workload(&self, attestation_token: &str) -> Result<crate::WorkloadClaims, crate::SecretlessError> {
+        if attestation_token.trim().is_empty() {
+            return Err(crate::SecretlessError::AttestationFailed("Attestation token cannot be empty".into()));
+        }
+
+        Ok(crate::WorkloadClaims {
+            workload_uid: format!("vault://openbao/workload/{}", attestation_token.trim()),
+            spiffe_id: Some(format!("spiffe://axiom.internal/ns/prod/sa/{}", attestation_token.trim())),
+            account_id: Some("openbao-vault-engine".into()),
+            tenant_id: "org_default".into(),
+            namespace: Some("default".into()),
+            authorized_scopes: vec!["database:read".into(), "vault:lease".into()],
+        })
+    }
+
+    async fn acquire_ephemeral_credential(
+        &self,
+        tenant_id: &str,
+        workload: &crate::WorkloadClaims,
+        target_resource: &str,
+        requested_scopes: &[String],
+    ) -> Result<crate::EphemeralLease, crate::SecretlessError> {
+        if requested_scopes.is_empty() {
+            return Err(crate::SecretlessError::AcquisitionFailed("Requested scopes cannot be empty".into()));
+        }
+
+        use sha2::Digest;
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(tenant_id.as_bytes());
+        hasher.update(workload.workload_uid.as_bytes());
+        hasher.update(target_resource.as_bytes());
+        let hash = hex::encode(hasher.finalize());
+        let lease_id = format!("lease-openbao-{}", &hash[..12]);
+
+        let now = chrono::Utc::now().timestamp() as u64;
+        let ttl_seconds = 300u32;
+        let expires_at = now + (ttl_seconds as u64);
+        let masked_token = format!("vault_token_{}****{}", &hash[..4], &hash[hash.len()-4..]);
+
+        Ok(crate::EphemeralLease {
+            lease_id,
+            provider: "openbao".into(),
+            target_resource: target_resource.to_string(),
+            credential_type: "vault_dynamic".into(),
+            masked_token,
+            ttl_seconds,
+            expires_at_unix: expires_at,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

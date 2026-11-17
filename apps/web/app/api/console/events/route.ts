@@ -8,7 +8,29 @@ export async function GET(req: Request) {
 
   // Try upstream connection to live Rust ExtMCP SSE stream
   try {
-    const upstream = await fetch(`${ADMIN_API_URL}/v1/local/events/stream`, {
+    let streamUrl = `${ADMIN_API_URL}/v1/local/events/stream`;
+
+    // Attempt to acquire a short-lived single-use SSE ticket nonce
+    try {
+      const ticketRes = await fetch(`${ADMIN_API_URL}/v1/local/events/ticket`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${ADMIN_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(1000),
+      });
+      if (ticketRes.ok) {
+        const ticketData = (await ticketRes.json()) as { ticket?: string };
+        if (ticketData?.ticket) {
+          streamUrl = `${ADMIN_API_URL}/v1/local/events/stream?ticket=${ticketData.ticket}`;
+        }
+      }
+    } catch {
+      // Fallback to direct Bearer stream URL
+    }
+
+    const upstream = await fetch(streamUrl, {
       headers: {
         Accept: "text/event-stream",
         Authorization: `Bearer ${ADMIN_TOKEN}`,

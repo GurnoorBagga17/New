@@ -21,9 +21,13 @@ Axiom NHI supports two distinct authentication realms:
   - `name`: Display name.
   - `role`: Role assignment (`security-admin`, `soc-operator`, `platform-engineer`, `auditor`).
   - `csrfToken`: Anti-CSRF token validated on state-changing requests.
-- **In-Memory & OIDC Integration:**
-  - `apps/web/app/api/auth/store.ts` provides a high-speed in-memory store for evaluation and local deployments.
+- **Production PostgreSQL Pooling & Schema (`lineage-graph/migrations/0003_operator_auth_and_scim.sql`):**
+  - `apps/web/app/api/auth/store.ts` implements connection pooling via `pg.Pool` backed by PostgreSQL tables: `tenants`, `operators`, and `operator_sessions`.
+  - Seamless offline fallback is maintained for local tests when `DATABASE_URL` is unconfigured.
+  - Includes WebAuthn step-up signature verification (`verifyStepUpSignature`) to authenticate high-risk operations.
+- **OIDC & SCIM Integration:**
   - `apps/web/app/api/auth/oidc/callback/route.ts` provides enterprise Single Sign-On (SSO) integration with Okta, Azure AD, and Google Workspace.
+  - Compatible with SCIM 2.0 provisioning schemas for automated enterprise user and group synchronization.
 
 ### 1.2 Machine & Service Authentication (`identity`)
 - **OAuth 2.1 Compliance:** Workload tokens are strictly accepted via the standard `Authorization: Bearer <token>` header. Token transmission in query parameters or URL paths is explicitly rejected (`MCP01:2025`).
@@ -35,22 +39,53 @@ Axiom NHI supports two distinct authentication realms:
 
 ## 2. Administrative Control Plane Access (`admin.rs`)
 
-The loopback administrative surface of the Rust ExtMCP engine (:8787) is protected by a high-entropy secret token:
-- **Environment Variable:** `AXIOM_ADMIN_TOKEN` (requires minimum 32 bytes of entropy).
-- **Constant-Time Verification:** To prevent timing side-channel attacks during token validation, `admin.rs` implements constant-time byte array comparison:
-  ```rust
-  // services/extmcp/runtime/src/admin.rs:209-217
-  fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
-      let mut diff = left.len() ^ right.len();
-      for index in 0..left.len().max(right.len()) {
-          diff |= usize::from(
-              left.get(index).copied().unwrap_or(0) ^ right.get(index).copied().unwrap_or(0),
-          );
-      }
-      diff == 0
-  }
-  ```
-- **Local Dev Bypass:** In local developer mode, setting `AXIOM_ALLOW_ANONYMOUS_LOCAL=1` or `AXIOM_DEV_MODE=1` permits loopback browser requests from `localhost:3000` without requiring an admin token header.
+The loopback administrative surface of the Rust ExtMCP engine (:8787) is protected by a Zero-Trust multi-layered authorization model:
+
+### 2.1 Operator Identity & Scoped Claims
+Requests to `:8787` authenticate using either an `AXIOM_ADMIN_TOKEN` or a cryptographically signed Operator JWT:
+```rust
+pub struct OperatorClaims {
+    pub tenant_id: String,
+    pub sub: String,
+    pub email: String,
+    pub role: String, // "security-admin" | "soc-operator" | "auditor"
+    pub exp: usize,
+}
+```
+
+### 2.2 Role-Based Access Control (RBAC) Matrix
+- **`security-admin`**: Full administrative access, including Cedar policy bundle updates (`PUT /v1/local/policies/bundle`), key rotation (`POST /v1/secretless/rotate`), and emergency kill switch revocations.
+- **`soc-operator`**: Incident response capabilities, including emergency revocations (`POST /v1/local/revocations`), blast radius simulations, and read-only policy inspection.
+- **`auditor`**: Read-only access to audit logs, OWASP scorecards, and live SSE event streams.
+
+### 2.3 Single-Use 30-Second Ticket Nonce for SSE Streaming
+To prevent browser URL token exposure and browser credential leaks:
+1. The frontend control plane calls `POST /v1/local/events/ticket` with its Bearer session token.
+2. The runtime generates a cryptographically random, single-use ticket nonce with a 30-second TTL stored in `SseTicketStore`.
+3. The browser opens the SSE connection via `GET /v1/local/events/stream?ticket=<ticket_id>`.
+4. The runtime atomically consumes and deletes the ticket from memory, preventing any replay.
+5. Telemetry frames emitted over the SSE channel are strictly filtered to the operator's `tenant_id`.
+
+### 2.4 WebAuthn Step-Up Signature Enforcement
+In production environments (`AXIOM_ENV=production`), destructive operations (`PUT /v1/local/policies/bundle`, `POST /v1/secretless/rotate`, `POST /v1/local/revocations`) enforce the presence of an `X-Axiom-StepUp-Signature` header, verifying cryptographic proof of real-time human authorization.
+
+### 2.5 Fail-Closed Startup Validation
+To eliminate insecure configurations in production, `services/extmcp/runtime/src/main.rs` validates environment flags at boot. If `AXIOM_ENV=production` is detected alongside `AXIOM_ALLOW_ANONYMOUS_LOCAL=1` or `AXIOM_DEV_MODE=1`, the runtime terminates immediately with a fatal security error (`std::process::exit(1)`).
+
+### 2.6 Constant-Time Token Comparison
+To prevent timing side-channel attacks during static token comparison:
+```rust
+// services/extmcp/runtime/src/admin.rs
+fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
+    let mut diff = left.len() ^ right.len();
+    for index in 0..left.len().max(right.len()) {
+        diff |= usize::from(
+            left.get(index).copied().unwrap_or(0) ^ right.get(index).copied().unwrap_or(0),
+        );
+    }
+    diff == 0
+}
+```
 
 ---
 

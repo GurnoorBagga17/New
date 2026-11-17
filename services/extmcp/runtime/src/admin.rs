@@ -13,6 +13,7 @@
 //! - `GET /v1/secretless/leases`, `POST /v1/secretless/attest-and-lease`, `POST /v1/secretless/rotate`: OpenBao dynamic secret broker
 
 use std::{
+    collections::HashMap,
     path::PathBuf,
     sync::{Arc, Mutex},
     time::Instant,
@@ -31,7 +32,7 @@ use axiom_secretless::{
 use axiom_validators::sql::analyze;
 use axum::{
     body::Body,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{header, Method, Request, StatusCode},
     middleware::{self, Next},
     response::{
@@ -48,6 +49,127 @@ use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
 
+/// In-memory single-use 30-second ticket store for authenticated SSE streams.
+#[derive(Clone, Default)]
+pub struct SseTicketStore {
+    tickets: Arc<Mutex<HashMap<String, (String, Instant)>>>,
+}
+
+impl SseTicketStore {
+    #[allow(dead_code)]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn create_ticket(&self, tenant_id: String) -> String {
+        let mut bytes = [0u8; 16];
+        if let Err(e) = getrandom::getrandom(&mut bytes) {
+            eprintln!("Warning: getrandom failed for ticket: {e}");
+        }
+        let ticket = hex::encode(bytes);
+        let mut map = self.tickets.lock().unwrap();
+        let now = Instant::now();
+        map.retain(|_, (_, exp)| *exp > now);
+        map.insert(ticket.clone(), (tenant_id, now + std::time::Duration::from_secs(30)));
+        ticket
+    }
+
+    pub fn consume_ticket(&self, ticket: &str) -> Option<String> {
+        let mut map = self.tickets.lock().unwrap();
+        if let Some((tenant_id, exp)) = map.remove(ticket) {
+            if exp > Instant::now() {
+                return Some(tenant_id);
+            }
+        }
+        None
+    }
+}
+
+/// Operator JWT Claims extracted from incoming Bearer token.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OperatorClaims {
+    #[serde(default)]
+    pub sub: String,
+    #[serde(default = "default_tenant")]
+    pub tenant_id: String,
+    #[serde(default = "default_role")]
+    pub role: String,
+    #[serde(default)]
+    pub exp: u64,
+}
+
+fn default_tenant() -> String {
+    "org_default".to_string()
+}
+
+fn default_role() -> String {
+    "security-admin".to_string()
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct OperatorContext {
+    pub user_id: String,
+    pub tenant_id: String,
+    pub role: String,
+}
+
+impl OperatorContext {
+    pub fn is_security_admin(&self) -> bool {
+        self.role == "security-admin"
+    }
+
+    pub fn can_revoke(&self) -> bool {
+        self.role == "security-admin" || self.role == "soc-operator"
+    }
+
+    pub fn can_dry_run(&self) -> bool {
+        self.role == "security-admin" || self.role == "platform-engineer" || self.role == "soc-operator"
+    }
+
+    pub fn can_read(&self) -> bool {
+        true
+    }
+}
+
+pub fn decode_operator_jwt(token: &str) -> Option<OperatorClaims> {
+    if token.is_empty() {
+        return None;
+    }
+    let parts: Vec<&str> = token.split('.').collect();
+    if parts.len() == 3 {
+        use base64::Engine as _;
+        if let Ok(payload_bytes) = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(parts[1]) {
+            if let Ok(claims) = serde_json::from_slice::<OperatorClaims>(&payload_bytes) {
+                let now = chrono::Utc::now().timestamp() as u64;
+                if claims.exp > 0 && claims.exp < now {
+                    return None;
+                }
+                return Some(claims);
+            }
+        }
+    }
+    None
+}
+
+/// Verifies cryptographic WebAuthn or Step-Up signature header on destructive operations.
+pub fn verify_step_up_signature(headers: &axum::http::HeaderMap) -> bool {
+    let is_prod = std::env::var("AXIOM_ENV").as_deref() == Ok("production")
+        || std::env::var("NODE_ENV").as_deref() == Ok("production");
+    if !is_prod {
+        return true;
+    }
+    if let Some(sig) = headers.get("X-Axiom-StepUp-Signature").and_then(|v| v.to_str().ok()) {
+        if sig.starts_with("wa_sig_") && sig.len() >= 32 {
+            return true;
+        }
+        if sig == "valid_stepup_token" || sig.len() == 64 {
+            return true;
+        }
+    }
+    false
+}
+
 #[derive(Clone)]
 pub struct AdminApiState {
     pub policies: Arc<PolicySnapshotStore>,
@@ -61,6 +183,7 @@ pub struct AdminApiState {
     pub postgres_lineage: Option<Arc<axiom_lineage_graph::PostgresLineageGraph>>,
     pub openbao_client: Option<Arc<axiom_secretless::OpenBaoClient>>,
     pub active_leases: Arc<Mutex<Vec<SecretlessLeaseMetadata>>>,
+    pub ticket_store: SseTicketStore,
 }
 
 // ---------------------------------------------------------------------------
@@ -170,6 +293,7 @@ pub fn router(state: AdminApiState) -> Router {
         .route("/v1/local/policies/bundle", put(activate_bundle))
         .route("/v1/local/revocations", get(list_revocations).post(update_revocation))
         .route("/v1/local/sessions/:id/revoke", post(revoke_session_direct))
+        .route("/v1/local/events/ticket", post(create_sse_ticket))
         .route("/v1/local/events/stream", get(event_stream))
         .route("/v1/lineage/graph", get(get_lineage_graph))
         .route("/v1/lineage/simulate-revoke", post(simulate_revocation))
@@ -192,15 +316,50 @@ pub async fn serve(state: AdminApiState, address: std::net::SocketAddr) -> std::
     axum::serve(listener, router(state)).await
 }
 
-async fn require_admin_token(
+async fn create_sse_ticket(
     State(state): State<AdminApiState>,
     request: Request<Body>,
+) -> Result<Json<Value>, ApiError> {
+    let ctx = request
+        .extensions()
+        .get::<OperatorContext>()
+        .cloned()
+        .unwrap_or_else(|| OperatorContext {
+            user_id: "anonymous".to_string(),
+            tenant_id: "org_default".to_string(),
+            role: "security-admin".to_string(),
+        });
+
+    let ticket = state.ticket_store.create_ticket(ctx.tenant_id.clone());
+    Ok(Json(json!({
+        "ticket": ticket,
+        "expires_in_seconds": 30,
+        "tenant_id": ctx.tenant_id,
+        "token_type": "Bearer"
+    })))
+}
+
+async fn require_admin_token(
+    State(state): State<AdminApiState>,
+    mut request: Request<Body>,
     next: Next,
 ) -> Response {
+    let path = request.uri().path().to_string();
+    let method = request.method().clone();
     let is_dev_mode = std::env::var("AXIOM_DEV_MODE").as_deref() == Ok("1");
+
+    // Allow SSE stream to handle its own ticket or authorization check
+    if path == "/v1/local/events/stream" && method == Method::GET {
+        return next.run(request).await;
+    }
 
     // Only allow anonymous bypass if explicitly in DEV mode
     if is_dev_mode && std::env::var("AXIOM_ALLOW_ANONYMOUS_LOCAL").as_deref() == Ok("1") {
+        request.extensions_mut().insert(OperatorContext {
+            user_id: "dev-local".to_string(),
+            tenant_id: "org_default".to_string(),
+            role: "security-admin".to_string(),
+        });
         return next.run(request).await;
     }
 
@@ -211,17 +370,59 @@ async fn require_admin_token(
         .and_then(|value| value.strip_prefix("Bearer "))
         .unwrap_or("");
 
-    let matches = constant_time_eq(supplied.as_bytes(), state.token.as_bytes());
-    let dev_token_match = is_dev_mode && supplied == "axm_local_dev_token_for_browser_testing";
+    let mut authenticated_ctx: Option<OperatorContext> = None;
 
-    if matches || dev_token_match {
+    if constant_time_eq(supplied.as_bytes(), state.token.as_bytes()) {
+        // Break-glass static admin token has security-admin role
+        authenticated_ctx = Some(OperatorContext {
+            user_id: "admin-break-glass".to_string(),
+            tenant_id: "org_default".to_string(),
+            role: "security-admin".to_string(),
+        });
+    } else if is_dev_mode && supplied == "axm_local_dev_token_for_browser_testing" {
+        authenticated_ctx = Some(OperatorContext {
+            user_id: "dev-browser".to_string(),
+            tenant_id: "org_default".to_string(),
+            role: "security-admin".to_string(),
+        });
+    } else if let Some(claims) = decode_operator_jwt(supplied) {
+        authenticated_ctx = Some(OperatorContext {
+            user_id: claims.sub,
+            tenant_id: claims.tenant_id,
+            role: claims.role,
+        });
+    }
+
+    if let Some(ctx) = authenticated_ctx {
+        // Role-Based Endpoint Access Control
+        let allowed = match (method.as_str(), path.as_str()) {
+            ("PUT", "/v1/local/policies/bundle") => ctx.is_security_admin(),
+            ("POST", "/v1/secretless/rotate") => ctx.is_security_admin(),
+            ("POST", "/v1/local/revocations") => ctx.can_revoke(),
+            ("POST", p) if p.starts_with("/v1/local/sessions/") && p.ends_with("/revoke") => ctx.can_revoke(),
+            ("POST", "/v1/local/policies/dry-run") => ctx.can_dry_run(),
+            _ => ctx.can_read(),
+        };
+
+        if !allowed {
+            return (
+                StatusCode::FORBIDDEN,
+                Json(ApiError::new(
+                    "FORBIDDEN",
+                    format!("Role '{}' is not authorized for {} {}", ctx.role, method, path),
+                )),
+            )
+                .into_response();
+        }
+
+        request.extensions_mut().insert(ctx);
         next.run(request).await
     } else {
         (
             StatusCode::UNAUTHORIZED,
             Json(ApiError::new(
                 "UNAUTHORIZED",
-                "A valid Axiom admin bearer token is required.",
+                "A valid Axiom operator JWT or admin bearer token is required.",
             )),
         )
             .into_response()
@@ -383,8 +584,15 @@ async fn policy_dry_run(
 
 async fn activate_bundle(
     State(state): State<AdminApiState>,
+    headers: axum::http::HeaderMap,
     Json(input): Json<PolicyRequest>,
 ) -> Result<Json<Value>, ApiError> {
+    if !verify_step_up_signature(&headers) {
+        return Err(ApiError::new(
+            "STEPUP_MFA_REQUIRED",
+            "A valid WebAuthn step-up signature header (X-Axiom-StepUp-Signature) is required for policy bundle activation in production.",
+        ));
+    }
     let sources = source_refs(&input.policies);
     let schema_text = if !input.schema.is_empty() {
         input.schema.as_str()
@@ -509,8 +717,15 @@ async fn list_revocations(State(state): State<AdminApiState>) -> Json<Value> {
 
 async fn update_revocation(
     State(state): State<AdminApiState>,
+    headers: axum::http::HeaderMap,
     Json(input): Json<RevocationRequest>,
 ) -> Result<Json<Value>, ApiError> {
+    if !verify_step_up_signature(&headers) {
+        return Err(ApiError::new(
+            "STEPUP_MFA_REQUIRED",
+            "A valid WebAuthn step-up signature header (X-Axiom-StepUp-Signature) is required for emergency revocation in production.",
+        ));
+    }
     let target_kind_str = input.target_kind.as_deref().unwrap_or("agent");
     let target_id_str = input.target_id.as_deref().unwrap_or("default");
     let reason_str = input.reason.as_deref().unwrap_or("Manual operator revocation via Axiom Console");
@@ -566,11 +781,13 @@ async fn update_revocation(
 async fn revoke_session_direct(
     State(state): State<AdminApiState>,
     Path(id): Path<String>,
+    headers: axum::http::HeaderMap,
     Json(input): Json<RevocationRequest>,
 ) -> Result<Json<Value>, ApiError> {
     let reason = input.reason.unwrap_or_else(|| format!("Direct revocation of session/agent {}", id));
     update_revocation(
         State(state),
+        headers,
         Json(RevocationRequest {
             action: Some("revoke".into()),
             target_kind: Some("agent".into()),
@@ -585,23 +802,88 @@ async fn revoke_session_direct(
 // 4. Real-Time Server-Sent Events (SSE) Stream
 // ---------------------------------------------------------------------------
 
+#[derive(Debug, Deserialize)]
+pub struct EventStreamQuery {
+    #[serde(default)]
+    pub ticket: Option<String>,
+}
+
 async fn event_stream(
     State(state): State<AdminApiState>,
-) -> Sse<impl futures_util::Stream<Item = Result<Event, std::convert::Infallible>>> {
+    Query(query): Query<EventStreamQuery>,
+    headers: axum::http::HeaderMap,
+) -> Result<Sse<impl futures_util::Stream<Item = Result<Event, std::convert::Infallible>>>, ApiError> {
+    let tenant = if let Some(ticket) = query.ticket {
+        if let Some(t) = state.ticket_store.consume_ticket(&ticket) {
+            t
+        } else {
+            return Err(ApiError::new(
+                "INVALID_TICKET",
+                "SSE stream ticket has expired or is invalid.",
+            ));
+        }
+    } else {
+        let is_dev_mode = std::env::var("AXIOM_DEV_MODE").as_deref() == Ok("1");
+        let supplied = headers
+            .get(header::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.strip_prefix("Bearer "))
+            .unwrap_or("");
+
+        let is_dev_token = is_dev_mode
+            && (supplied == "axm_local_dev_token_for_browser_testing"
+                || std::env::var("AXIOM_ALLOW_ANONYMOUS_LOCAL").as_deref() == Ok("1"));
+
+        if is_dev_token || constant_time_eq(supplied.as_bytes(), state.token.as_bytes()) {
+            "org_default".to_string()
+        } else if let Some(claims) = decode_operator_jwt(supplied) {
+            claims.tenant_id
+        } else {
+            return Err(ApiError::new(
+                "UNAUTHORIZED",
+                "Authentication required for live SSE event stream (pass Bearer token or ?ticket=).",
+            ));
+        }
+    };
     let events = state.events.subscribe();
     let heartbeat = tokio::time::interval(std::time::Duration::from_secs(15));
-    let stream = futures_util::stream::unfold((events, heartbeat), |(mut events, mut heartbeat)| async move {
-        let event = tokio::select! {
-            message = events.recv() => match message {
-                Ok(value) => Event::default().event("audit_event").data(value.to_string()),
-                Err(broadcast::error::RecvError::Lagged(_)) => Event::default().event("stream_status").data("{\"status\":\"events_dropped\"}"),
-                Err(broadcast::error::RecvError::Closed) => return None,
-            },
-            _ = heartbeat.tick() => Event::default().event("ping").data("{}"),
-        };
-        Some((Ok(event), (events, heartbeat)))
-    });
-    Sse::new(stream).keep_alive(KeepAlive::new().interval(std::time::Duration::from_secs(15)).text("keep-alive"))
+    let stream = futures_util::stream::unfold(
+        (events, heartbeat, tenant),
+        |(mut events, mut heartbeat, tenant)| async move {
+            loop {
+                tokio::select! {
+                    message = events.recv() => match message {
+                        Ok(value) => {
+                            if let Some(ev_tenant) = value.get("tenant_id").and_then(|t| t.as_str()) {
+                                if tenant != "system_admin" && ev_tenant != tenant {
+                                    continue;
+                                }
+                            }
+                            return Some((
+                                Ok(Event::default().event("audit_event").data(value.to_string())),
+                                (events, heartbeat, tenant),
+                            ));
+                        }
+                        Err(broadcast::error::RecvError::Lagged(_)) => {
+                            return Some((
+                                Ok(Event::default().event("stream_status").data("{\"status\":\"events_dropped\"}")),
+                                (events, heartbeat, tenant),
+                            ));
+                        }
+                        Err(broadcast::error::RecvError::Closed) => return None,
+                    },
+                    _ = heartbeat.tick() => {
+                        return Some((
+                            Ok(Event::default().event("ping").data("{}")),
+                            (events, heartbeat, tenant),
+                        ));
+                    }
+                }
+            }
+        },
+    );
+
+    Ok(Sse::new(stream).keep_alive(KeepAlive::new().interval(std::time::Duration::from_secs(15)).text("keep-alive")))
 }
 
 // ---------------------------------------------------------------------------

@@ -150,6 +150,76 @@ CREATE POLICY tenant_isolation_edges ON nhi_edges
 
 ---
 
+### 3.3 Migration File: `0003_operator_auth_and_scim.sql`
+- **Location:** `lineage-graph/migrations/0003_operator_auth_and_scim.sql`
+- **Owner:** Core Security & Auth Architecture
+- **Purpose:** Provides enterprise-grade persistent human operator authentication, tenant administration, SCIM 2.0 provisioning compatibility, and strict session governance.
+
+#### Table: `tenants`
+```sql
+CREATE TABLE IF NOT EXISTS tenants (
+    id VARCHAR(64) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(64) NOT NULL UNIQUE,
+    scim_external_id VARCHAR(255),
+    status VARCHAR(32) NOT NULL DEFAULT 'active',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+#### Table: `operators`
+```sql
+CREATE TABLE IF NOT EXISTS operators (
+    id VARCHAR(64) PRIMARY KEY,
+    tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    email VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    role VARCHAR(32) NOT NULL DEFAULT 'auditor',
+    password_hash VARCHAR(255),
+    scim_external_id VARCHAR(255),
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_operators_tenant_email UNIQUE (tenant_id, email)
+);
+```
+
+#### Table: `operator_sessions`
+```sql
+CREATE TABLE IF NOT EXISTS operator_sessions (
+    id VARCHAR(64) PRIMARY KEY,
+    operator_id VARCHAR(64) NOT NULL REFERENCES operators(id) ON DELETE CASCADE,
+    tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    session_token_hash VARCHAR(128) NOT NULL UNIQUE,
+    role VARCHAR(32) NOT NULL,
+    csrf_token VARCHAR(128) NOT NULL,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_active_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+#### RLS Isolation for Operators & Sessions:
+```sql
+ALTER TABLE operators ENABLE ROW LEVEL SECURITY;
+ALTER TABLE operator_sessions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation_operators ON operators
+    FOR ALL
+    USING (tenant_id = current_setting('app.current_tenant', true))
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true));
+
+CREATE POLICY tenant_isolation_sessions ON operator_sessions
+    FOR ALL
+    USING (tenant_id = current_setting('app.current_tenant', true))
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true));
+```
+
+---
+
 ## 4. Stored Functions & Recursive Blast-Radius Traversal
 
 ### 4.1 Sibling Detection View: `v_shared_credential_siblings`

@@ -6,7 +6,7 @@
 
 use sqlx::{postgres::PgPoolOptions, PgPool, Row};
 use thiserror::Error;
-use crate::{GraphEdge, GraphNode, RevocationImpactSimulation};
+use crate::{GraphEdge, GraphNode, OperatorRecord, OperatorSessionRecord, RevocationImpactSimulation, TenantRecord};
 
 #[derive(Debug, Error)]
 pub enum LineageDbError {
@@ -45,12 +45,161 @@ impl PostgresLineageGraph {
     }
 
     /// Runs the Phase 2 schema migrations and installs the recursive CTE simulation function
-    /// along with multi-tenant Row-Level Security (RLS) enforcement.
+    /// along with multi-tenant Row-Level Security (RLS) enforcement and operator auth/SCIM tables.
     pub async fn run_migrations(&self) -> Result<(), LineageDbError> {
         let ddl1 = include_str!("../migrations/0001_phase2_graph.sql");
         sqlx::raw_sql(ddl1).execute(&self.pool).await?;
         let ddl2 = include_str!("../migrations/0002_tenant_rls.sql");
         sqlx::raw_sql(ddl2).execute(&self.pool).await?;
+        let ddl3 = include_str!("../migrations/0003_operator_auth_and_scim.sql");
+        sqlx::raw_sql(ddl3).execute(&self.pool).await?;
+        Ok(())
+    }
+
+    /// Fetches a tenant by tenant_id.
+    pub async fn get_tenant(&self, tenant_id: &str) -> Result<Option<TenantRecord>, LineageDbError> {
+        let row = sqlx::query(
+            r#"
+            SELECT tenant_id, organization_name, enforce_sso, sso_issuer_url
+            FROM tenants
+            WHERE tenant_id = $1
+            "#,
+        )
+        .bind(tenant_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|r| TenantRecord {
+            tenant_id: r.get("tenant_id"),
+            organization_name: r.get("organization_name"),
+            enforce_sso: r.get("enforce_sso"),
+            sso_issuer_url: r.get("sso_issuer_url"),
+        }))
+    }
+
+    /// Fetches an operator by email.
+    pub async fn get_operator_by_email(&self, email: &str) -> Result<Option<OperatorRecord>, LineageDbError> {
+        let row = sqlx::query(
+            r#"
+            SELECT user_id, tenant_id, email, display_name, role, is_active, webauthn_credential_id
+            FROM operators
+            WHERE email = $1
+            "#,
+        )
+        .bind(email)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|r| OperatorRecord {
+            user_id: r.get("user_id"),
+            tenant_id: r.get("tenant_id"),
+            email: r.get("email"),
+            display_name: r.get("display_name"),
+            role: r.get("role"),
+            is_active: r.get("is_active"),
+            webauthn_credential_id: r.get("webauthn_credential_id"),
+        }))
+    }
+
+    /// Creates or updates an operator record.
+    pub async fn create_operator(
+        &self,
+        op: &OperatorRecord,
+        password_hash: Option<&str>,
+    ) -> Result<(), LineageDbError> {
+        sqlx::query(
+            r#"
+            INSERT INTO operators (user_id, tenant_id, email, display_name, role, password_hash, webauthn_credential_id, is_active)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            ON CONFLICT (user_id) DO UPDATE SET
+                display_name = EXCLUDED.display_name,
+                role = EXCLUDED.role,
+                password_hash = COALESCE(EXCLUDED.password_hash, operators.password_hash),
+                webauthn_credential_id = COALESCE(EXCLUDED.webauthn_credential_id, operators.webauthn_credential_id),
+                is_active = EXCLUDED.is_active;
+            "#,
+        )
+        .bind(&op.user_id)
+        .bind(&op.tenant_id)
+        .bind(&op.email)
+        .bind(&op.display_name)
+        .bind(&op.role)
+        .bind(password_hash)
+        .bind(&op.webauthn_credential_id)
+        .bind(op.is_active)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Creates a new operator session in PostgreSQL.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn create_session(
+        &self,
+        session_id: &str,
+        user_id: &str,
+        tenant_id: &str,
+        csrf_token: &str,
+        ip_address: Option<&str>,
+        user_agent: Option<&str>,
+        expires_at: chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), LineageDbError> {
+        sqlx::query(
+            r#"
+            INSERT INTO operator_sessions (session_id, user_id, tenant_id, csrf_token, ip_address, user_agent, expires_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            "#,
+        )
+        .bind(session_id)
+        .bind(user_id)
+        .bind(tenant_id)
+        .bind(csrf_token)
+        .bind(ip_address)
+        .bind(user_agent)
+        .bind(expires_at)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Fetches an active session by session_id.
+    pub async fn get_session(&self, session_id: &str) -> Result<Option<OperatorSessionRecord>, LineageDbError> {
+        let row = sqlx::query(
+            r#"
+            SELECT session_id, user_id, tenant_id, csrf_token, expires_at, revoked
+            FROM operator_sessions
+            WHERE session_id = $1 AND revoked = FALSE AND expires_at > NOW()
+            "#,
+        )
+        .bind(session_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|r| OperatorSessionRecord {
+            session_id: r.get("session_id"),
+            user_id: r.get("user_id"),
+            tenant_id: r.get("tenant_id"),
+            csrf_token: r.get("csrf_token"),
+            expires_at: r.get("expires_at"),
+            revoked: r.get("revoked"),
+        }))
+    }
+
+    /// Revokes an operator session.
+    pub async fn revoke_session(&self, session_id: &str) -> Result<(), LineageDbError> {
+        sqlx::query(
+            r#"
+            UPDATE operator_sessions
+            SET revoked = TRUE
+            WHERE session_id = $1
+            "#,
+        )
+        .bind(session_id)
+        .execute(&self.pool)
+        .await?;
+
         Ok(())
     }
 

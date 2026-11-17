@@ -13,6 +13,7 @@ hmac.workspace = true
 hex.workspace = true
 tokio.workspace = true
 reqwest = { version = "0.12", features = ["json"] }
+chrono.workspace = true
 
 [features]
 default = []

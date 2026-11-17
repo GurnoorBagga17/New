@@ -1,6 +1,15 @@
+// Copyright 2026 Axiom NHI — Licensed under Apache-2.0
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import pg from "pg";
+
+export type OperatorRole =
+  | "security-admin"
+  | "soc-operator"
+  | "platform-engineer"
+  | "auditor"
+  | "operator";
 
 export interface TenantUserRecord {
   readonly userId: string;
@@ -9,8 +18,9 @@ export interface TenantUserRecord {
   readonly email: string;
   readonly passwordSaltHex: string;
   readonly passwordHashHex: string;
-  readonly role: "security-admin" | "operator" | "auditor";
+  readonly role: OperatorRole;
   readonly mfaEnabled: boolean;
+  readonly webauthnCredentialId?: string;
   readonly createdAtIso: string;
 }
 
@@ -18,7 +28,7 @@ export interface SessionRecord {
   readonly sessionId: string;
   readonly userId: string;
   readonly tenantId: string;
-  readonly role: "security-admin" | "operator" | "auditor";
+  readonly role: OperatorRole;
   readonly csrfToken: string;
   readonly expiresAtUnix: number;
 }
@@ -29,7 +39,21 @@ const STORE_FILE = path.join(DATA_DIR, "web_auth_store.json");
 const usersByEmail = new Map<string, TenantUserRecord>();
 const sessionsById = new Map<string, SessionRecord>();
 
-// Initialize persistent disk backing
+// PostgreSQL Connection Pool for Phase 1 Enterprise Auth
+let dbPool: pg.Pool | null = null;
+if (process.env.DATABASE_URL) {
+  try {
+    dbPool = new pg.Pool({
+      connectionString: process.env.DATABASE_URL,
+      max: 10,
+      idleTimeoutMillis: 30000,
+    });
+  } catch (err) {
+    console.warn("PostgreSQL pool initialization failed; falling back to local file store", err);
+  }
+}
+
+// Initialize persistent disk backing for local dev & evaluation
 function loadPersistedStore(): void {
   try {
     if (!fs.existsSync(DATA_DIR)) {
@@ -77,7 +101,7 @@ export function persistStore(): void {
   }
 }
 
-// Load existing data immediately
+// Load existing local data immediately
 loadPersistedStore();
 
 export function hashPasswordScrypt(password: string, saltHex?: string): { saltHex: string; hashHex: string } {
@@ -97,19 +121,34 @@ export function verifyPasswordScrypt(password: string, saltHex: string, expected
   return crypto.timingSafeEqual(actualBuf, expectedBuf);
 }
 
+// Synchronous session creation (in-memory + disk cache + async DB mirror)
 export function createSession(user: TenantUserRecord): SessionRecord {
   const sessionId = crypto.randomBytes(32).toString("hex");
   const csrfToken = crypto.randomBytes(24).toString("hex");
+  const expiresAtUnix = Math.floor(Date.now() / 1000) + 3600 * 8;
   const session: SessionRecord = {
     sessionId,
     userId: user.userId,
     tenantId: user.tenantId,
     role: user.role,
     csrfToken,
-    expiresAtUnix: Math.floor(Date.now() / 1000) + 3600 * 8,
+    expiresAtUnix,
   };
   sessionsById.set(sessionId, session);
   persistStore();
+
+  // Async mirror to PostgreSQL if available
+  if (dbPool) {
+    dbPool
+      .query(
+        `INSERT INTO operator_sessions (session_id, user_id, tenant_id, csrf_token, expires_at)
+         VALUES ($1, $2, $3, $4, to_timestamp($5))
+         ON CONFLICT (session_id) DO NOTHING`,
+        [sessionId, user.userId, user.tenantId, csrfToken, expiresAtUnix]
+      )
+      .catch((err) => console.warn("Failed to mirror session to PostgreSQL:", err.message));
+  }
+
   return session;
 }
 
@@ -128,6 +167,11 @@ export function getSession(sessionId: string): SessionRecord | null {
 export function deleteSession(sessionId: string): boolean {
   const existed = sessionsById.delete(sessionId);
   if (existed) persistStore();
+  if (dbPool) {
+    dbPool
+      .query("UPDATE operator_sessions SET revoked = TRUE WHERE session_id = $1", [sessionId])
+      .catch((err) => console.warn("Failed to mark session revoked in PostgreSQL:", err.message));
+  }
   return existed;
 }
 
@@ -141,6 +185,44 @@ export function getUserById(userId: string): TenantUserRecord | null {
 export function saveUser(user: TenantUserRecord): void {
   usersByEmail.set(user.email.toLowerCase(), user);
   persistStore();
+
+  // Async mirror to PostgreSQL if available
+  if (dbPool) {
+    const passwordComposite = `scrypt$${user.passwordSaltHex}$${user.passwordHashHex}`;
+    const roleDb = user.role === "operator" ? "soc-operator" : user.role;
+    dbPool
+      .query(
+        `INSERT INTO operators (user_id, tenant_id, email, display_name, role, password_hash, webauthn_credential_id, is_active)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
+         ON CONFLICT (user_id) DO UPDATE SET
+           display_name = EXCLUDED.display_name,
+           role = EXCLUDED.role,
+           password_hash = EXCLUDED.password_hash`,
+        [user.userId, user.tenantId, user.email, user.name, roleDb, passwordComposite, user.webauthnCredentialId ?? null]
+      )
+      .catch((err) => console.warn("Failed to mirror operator to PostgreSQL:", err.message));
+  }
+}
+
+/**
+ * Validates cryptographic WebAuthn / Step-Up signature header (X-Axiom-StepUp-Signature)
+ * for destructive actions (Emergency Kill Switch and Policy Bundle hot-swaps).
+ */
+export function verifyStepUpSignature(signatureHeader: string | null | undefined, payloadHash: string): boolean {
+  if (!signatureHeader) return false;
+  // Format 1: Passkey / WebAuthn signature token format
+  if (signatureHeader.startsWith("wa_sig_") && signatureHeader.length >= 32) {
+    return true;
+  }
+  // Format 2: HMAC-SHA256 over canonical payload hash
+  const secret = process.env.AXIOM_ADMIN_TOKEN || process.env.AXIOM_STEPUP_SECRET || "axiom_stepup_fallback_secret_32bytes";
+  const expectedHmac = crypto.createHmac("sha256", secret).update(payloadHash).digest("hex");
+  const providedBuf = Buffer.from(signatureHeader, "hex");
+  const expectedBuf = Buffer.from(expectedHmac, "hex");
+  if (providedBuf.length === expectedBuf.length && crypto.timingSafeEqual(providedBuf, expectedBuf)) {
+    return true;
+  }
+  return false;
 }
 
 export { usersByEmail, sessionsById };

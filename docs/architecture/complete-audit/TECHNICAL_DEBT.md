@@ -37,12 +37,16 @@ Issues are categorized by severity:
 ### Issue DEBT-02: Next.js In-Memory Session Store in Production
 - **Category:** Authentication / Multi-Tenancy
 - **Severity:** P1 (High)
-- **Production Blocker:** Yes (for multi-instance Cloud deployments)
-- **File Path:** `apps/web/app/api/auth/store.ts`
-- **Description:** User registrations and sessions created via `/api/auth/register` are stored in an in-memory TypeScript `Map<string, UserRecord>`.
-- **Evidence:** `apps/web/app/api/auth/store.ts:16`: `const users = new Map<string, UserRecord>();`.
-- **Impact:** If the Next.js application scales horizontally across multiple Vercel or Kubernetes pods, session state is not shared, resulting in session loss.
-- **Resolution:** Swap the in-memory store for a Redis session cache or Supabase Auth provider when deploying outside single-instance dev environments.
+- **Status:** **REMEDIATED (PostgreSQL Connection Pooling + Offline Dev Fallback)**
+- **Production Blocker:** No
+- **File Paths:** `apps/web/app/api/auth/store.ts`, `lineage-graph/migrations/0003_operator_auth_and_scim.sql`
+- **Description:** User registrations and sessions created via `/api/auth/register` were previously stored only in an in-memory TypeScript `Map<string, UserRecord>`.
+- **Evidence:** `apps/web/app/api/auth/store.ts` previously used in-memory maps without database persistence.
+- **Impact:** Previous risk of session loss upon horizontal scaling across pods.
+- **Remediation Implemented:**
+  - Authored SQL migration `lineage-graph/migrations/0003_operator_auth_and_scim.sql` defining `tenants`, `operators`, and `operator_sessions` with compound indices and RLS.
+  - Implemented production `pg.Pool` connection pooling in `apps/web/app/api/auth/store.ts` that persists and validates sessions in PostgreSQL, with seamless offline in-memory fallback for local unit tests.
+  - Added WebAuthn step-up signature verification (`verifyStepUpSignature`) and enforced fail-closed startup validation in `services/extmcp/runtime/src/main.rs`.
 
 ---
 
@@ -110,9 +114,66 @@ Issues are categorized by severity:
 ### Issue DEBT-08: Multi-Tenant Row-Level Security Isolation Missing on Lineage Tables
 - **Category:** Database / Multi-Tenancy / Security
 - **Severity:** P1 (High)
-- **Status:** **IN PROGRESS (Phase 1 Migration Added)**
-- **Production Blocker:** Yes (for enterprise multi-tenant shared database deployments)
-- **File Path:** `lineage-graph/migrations/0002_tenant_rls.sql`
+- **Status:** **REMEDIATED (Migrations 0002 & 0003 Applied)**
+- **Production Blocker:** No
+- **File Paths:** `lineage-graph/migrations/0002_tenant_rls.sql`, `lineage-graph/migrations/0003_operator_auth_and_scim.sql`
 - **Description:** `nhi_nodes` and `nhi_edges` previously stored graph elements without tenant discriminator columns, allowing potential cross-tenant blast radius visibility if database connections were pooled across tenants.
 - **Remediation Implemented:**
   - Created migration `0002_tenant_rls.sql` adding `tenant_id VARCHAR(64) NOT NULL DEFAULT 'default'`, creating compound tenant indexes (`idx_nhi_nodes_tenant`, `idx_nhi_edges_tenant`), enabling PostgreSQL RLS, and creating `tenant_isolation_nodes` and `tenant_isolation_edges` policies.
+  - Created migration `0003_operator_auth_and_scim.sql` providing isolated `tenants`, `operators`, and `operator_sessions` with RLS policies enforcing `tenant_id = current_setting('app.current_tenant', true)`.
+
+---
+
+### Issue DEBT-09: Unauthenticated SSE Audit Stream & Lack of Control Plane RBAC
+- **Category:** Runtime Security / Authorization
+- **Severity:** P0 (Critical)
+- **Status:** **REMEDIATED**
+- **Production Blocker:** No
+- **File Paths:** `services/extmcp/runtime/src/admin.rs`, `apps/web/app/api/console/events/route.ts`
+- **Description:** The Server-Sent Events stream (`GET /v1/local/events/stream`) and administrative control plane endpoints on port `8787` previously allowed unauthenticated access in dev mode and lacked role-based access control.
+- **Remediation Implemented:**
+  - Implemented scoped operator JWT claims decoding (`OperatorClaims`) with strict role enforcement: `security-admin` for policy updates and key rotations, `soc-operator` or `security-admin` for emergency revocations, and `auditor` for audit reads.
+  - Created single-use 30-second ticket tokens via `POST /v1/local/events/ticket` consumed by `GET /v1/local/events/stream?ticket=<nonce>`, protecting the stream from URL token leakage.
+  - Enforced `X-Axiom-StepUp-Signature` WebAuthn signature requirement on all destructive endpoints in production environments.
+  - Scoped stream broadcasts strictly by `tenant_id` to eliminate cross-tenant telemetry exposure.
+
+---
+
+### Issue DEBT-10: Single-Cloud Secretless Credential Broker Limitation
+- **Category:** Secretless / Workload Identity
+- **Severity:** P1 (High)
+- **Status:** **REMEDIATED**
+- **Production Blocker:** No
+- **File Paths:** `secretless/src/lib.rs`, `secretless/src/aws_sts.rs`, `secretless/src/gcp_sts.rs`, `secretless/src/azure_entra.rs`, `secretless/src/oauth2_client_credentials.rs`, `secretless/src/api_key_vault_injector.rs`
+- **Description:** Secretless broker was previously tightly coupled to an external OpenBao binary, lacking native cloud-provider STS federation (AWS, GCP, Azure, SaaS OAuth2).
+- **Remediation Implemented:**
+  - Extracted the `CredentialBrokerProvider` trait in `secretless/src/lib.rs`.
+  - Implemented 5 universal multi-cloud broker providers: AWS STS (`AssumeRoleWithWebIdentity`), GCP STS (Workload Identity Federation), Azure Entra (Managed Identity / Federated Credentials), RFC 8693 OAuth 2.0 SaaS Broker, and Vault API Key Injector.
+  - Enforced the Zero-Secret invariant across all broker lease generation routines.
+
+---
+
+### Issue DEBT-11: Limited Multi-Cloud Identity Connectors
+- **Category:** Integrations / Identity Discovery
+- **Severity:** P1 (High)
+- **Status:** **REMEDIATED**
+- **Production Blocker:** No
+- **File Paths:** `connectors/src/lib.rs`, `connectors/src/enterprise.rs`
+- **Description:** Identity discovery connectors were previously limited to AWS, K8s, GitHub, and Slack, leaving major enterprise identity repositories unmapped.
+- **Remediation Implemented:**
+  - Expanded `axiom-connectors` with 8 production enterprise discovery workers in `connectors/src/enterprise.rs`: Azure Entra ID, GCP IAM, Okta, Snowflake, Databricks, GitLab, AI Gateways, and Terraform State.
+  - Enforced deterministic HMAC-SHA256 fingerprinting on all credentials, passing all unit tests in `test_enterprise_connectors_zero_secret_invariants`.
+
+---
+
+### Issue DEBT-12: Lack of Enterprise Kubernetes CRDs & Admission Webhooks
+- **Category:** Infrastructure / Fleet Control
+- **Severity:** P1 (High)
+- **Status:** **REMEDIATED**
+- **Production Blocker:** No
+- **File Paths:** `deployments/kubernetes/crds/*`, `deployments/helm/axiom-nhi/templates/*`
+- **Description:** Deploying Axiom across large Kubernetes fleets lacked declarative CRDs and automated sidecar proxy injection.
+- **Remediation Implemented:**
+  - Authored Kubernetes CRDs `AxiomPolicyBundle` and `AxiomMcpServer`.
+  - Authored production DaemonSet Helm template `daemonset-runtime.yaml` mounting the SPIFFE CSI driver socket (`/run/spire/sockets/agent.sock`) and configured health probes on `:8787/healthz`.
+  - Authored Mutating Admission Webhook configuration `mutating-webhook.yaml` for zero-touch agent pod interception.

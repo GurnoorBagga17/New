@@ -236,6 +236,19 @@ fn build_validator(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let env_mode = std::env::var("AXIOM_ENV").unwrap_or_else(|_| "development".to_owned());
+    let allow_anonymous = std::env::var("AXIOM_ALLOW_ANONYMOUS_LOCAL").unwrap_or_default() == "1";
+    let dev_mode = std::env::var("AXIOM_DEV_MODE").unwrap_or_default() == "1";
+
+    if env_mode == "production" {
+        if allow_anonymous {
+            return Err("FATAL SECURITY VIOLATION: AXIOM_ALLOW_ANONYMOUS_LOCAL=1 is strictly forbidden in AXIOM_ENV=production".into());
+        }
+        if dev_mode {
+            return Err("FATAL SECURITY VIOLATION: AXIOM_DEV_MODE=1 is strictly forbidden in AXIOM_ENV=production".into());
+        }
+    }
+
     let bind_addr: SocketAddr = std::env::var("AXIOM_EXTMCP_ADDR")
         .unwrap_or_else(|_| "0.0.0.0:9001".to_owned())
         .parse()?;
@@ -444,6 +457,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         postgres_lineage: postgres_lineage_opt,
         openbao_client: openbao_client_opt,
         active_leases,
+        ticket_store: admin::SseTicketStore::default(),
     };
     let grpc = async { adapter.serve(bind_addr).await.map_err(|error| -> Box<dyn std::error::Error> { Box::new(error) }) };
     let http = async { admin::serve(admin_state, admin_addr).await.map_err(|error| -> Box<dyn std::error::Error> { Box::new(error) }) };

@@ -20,6 +20,14 @@ Axiom NHI provides verifiable, source-code-backed connectors across cloud provid
 | **SpiceDB** | Fleet Authorization | Pre-shared Key (PSK) / gRPC | SpiceDB Zanzibar API (:50051) | `objectType:objectId#relation@subject` | **COMPLETE** |
 | **Splunk HEC** | Enterprise SIEM | HTTP Event Collector (HEC) Token | HTTPS POST `/services/collector/event` | OCSF v1.3 JSON format | **COMPLETE** |
 | **Microsoft Sentinel** | Enterprise SIEM / SOC | Azure AD App Registration / Shared Key | Azure Log Analytics Data Collector API | ArcSight CEF / OCSF v1.3 format | **COMPLETE** |
+| **Azure Entra ID** | Cloud Identity / Workloads | Microsoft Graph API / Client Credentials | `GET /v1.0/servicePrincipals`, `/applications` | Service Principal App ID &rarr; HMAC-SHA256 Secret | **COMPLETE** |
+| **Google Cloud IAM** | Cloud Identity / Workloads | GCP Service Account Key / Workload Identity | `iam.googleapis.com/v1/projects/{id}/serviceAccounts` | Service Account Email &rarr; HMAC-SHA256 Key ID | **COMPLETE** |
+| **Okta** | Workforce & SaaS Identity | Okta SSWS Token / Private Key JWT | `/api/v1/apps?filter=type eq "service"` | Client ID &rarr; Scopes & Secret Fingerprint | **COMPLETE** |
+| **Snowflake** | Data Cloud Workloads | Key-Pair JWT / Service Account | `SHOW USERS`, `SHOW SERVICE WORKLOADS` | Snowflake Account User &rarr; Public Key Hash | **COMPLETE** |
+| **Databricks** | Lakehouse AI Workloads | Personal Access Token / OAuth M2M | `GET /api/2.0/service-principals` | SP Application ID &rarr; HMAC-SHA256 Token | **COMPLETE** |
+| **GitLab** | DevSecOps CI/CD | Scoped Project / Group Access Token | `GET /api/v4/projects/{id}/deploy_tokens` | Deploy Token ID &rarr; Scopes Fingerprint | **COMPLETE** |
+| **AI Gateways** | LLM Proxies & Tool Routers | Gateway Master Token (LangChain/Portkey) | Direct Ingestion / Discovery Worker | Provider Route &rarr; Virtual Key Fingerprint | **COMPLETE** |
+| **Terraform State** | Infrastructure as Code | Terraform Cloud Token / S3 State Reader | State JSON Object Parser | Resource Address &rarr; Output Key Hash | **COMPLETE** |
 
 ---
 
@@ -115,3 +123,20 @@ When an AI agent delegates a sub-task to another agent, `secretless::exchange_rf
 - The audience indicator matches RFC 8707 canonical URIs (`mcp://...`).
 - The `act` (actor) claim records the full delegation lineage chain:
   `["agent::parent-orchestrator", "agent::child-worker"]`.
+
+---
+
+### 4.3 Universal Multi-Cloud STS Credential Brokers
+Axiom NHI abstracts secretless brokering across multi-cloud infrastructure through the `CredentialBrokerProvider` trait in `secretless/src/lib.rs`:
+
+1. **AWS STS Web Identity (`secretless/src/aws_sts.rs`):**
+   - Workloads present ambient Kubernetes / SPIFFE JWTs to assume scoped AWS IAM roles via `AssumeRoleWithWebIdentity`.
+   - Returns temporary `ASIA...` AWS session credentials with a 15-minute TTL.
+2. **GCP STS Workload Identity Federation (`secretless/src/gcp_sts.rs`):**
+   - Exchanges workload identity tokens with Google Cloud STS (`https://sts.googleapis.com/v1/token`) for federated short-lived OAuth access tokens (`ya29...`).
+3. **Azure Entra Workload Identity (`secretless/src/azure_entra.rs`):**
+   - Exchanges federated client assertions with Azure Entra ID (`login.microsoftonline.com/{tenant}/oauth2/v2.0/token`) for Microsoft Graph and ARM access tokens.
+4. **RFC 8693 OAuth 2.0 SaaS Broker (`secretless/src/oauth2_client_credentials.rs`):**
+   - Attenuates scopes and issues temporary access tokens for upstream enterprise SaaS APIs (Salesforce, Workday, ServiceNow).
+5. **Vault API Key Injector (`secretless/src/api_key_vault_injector.rs`):**
+   - Retrieves static API keys from encrypted Vault storage and injects them directly at network egress, returning masked metadata (`axm_live_key_...****`) to client callers.

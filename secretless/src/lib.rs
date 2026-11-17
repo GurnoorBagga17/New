@@ -14,7 +14,74 @@ use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 pub mod openbao;
+pub mod aws_sts;
+pub mod gcp_sts;
+pub mod azure_entra;
+pub mod oauth2_client_credentials;
+pub mod api_key_vault_injector;
+
 pub use openbao::{OpenBaoClient, OpenBaoConfig, OpenBaoError};
+pub use aws_sts::AwsStsBroker;
+pub use gcp_sts::GcpStsBroker;
+pub use azure_entra::AzureEntraBroker;
+pub use oauth2_client_credentials::OAuth2ClientCredentialsBroker;
+pub use api_key_vault_injector::ApiKeyVaultInjector;
+
+/// Workload claims resulting from workload attestation (SVID, OIDC, STS).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkloadClaims {
+    pub workload_uid: String,
+    pub spiffe_id: Option<String>,
+    pub account_id: Option<String>,
+    pub tenant_id: String,
+    pub namespace: Option<String>,
+    pub authorized_scopes: Vec<String>,
+}
+
+/// Ephemeral credential lease for an upstream resource or API.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EphemeralLease {
+    pub lease_id: String,
+    pub provider: String,
+    pub target_resource: String,
+    pub credential_type: String,
+    pub masked_token: String,
+    pub ttl_seconds: u32,
+    pub expires_at_unix: u64,
+}
+
+#[derive(Debug, Error)]
+pub enum SecretlessError {
+    #[error("Attestation failed: {0}")]
+    AttestationFailed(String),
+    #[error("Acquisition failed: {0}")]
+    AcquisitionFailed(String),
+    #[error("Scope escalation denied: {0}")]
+    ScopeEscalation(String),
+    #[error("Provider error: {0}")]
+    Provider(String),
+    #[error("IO error: {0}")]
+    Io(String),
+}
+
+/// Universal Pluggable Credential Broker Provider trait.
+/// Allows OpenBao, AWS STS, GCP STS, Azure Entra, and SaaS OAuth2 brokers to be used interchangeably.
+#[async_trait::async_trait]
+pub trait CredentialBrokerProvider: Send + Sync {
+    fn provider_id(&self) -> &'static str;
+
+    /// Verify workload attestation (e.g., K8s SVID, AWS IMDSv2 / STS identity, GCP OIDC)
+    async fn attest_workload(&self, attestation_token: &str) -> Result<WorkloadClaims, SecretlessError>;
+
+    /// Mint or retrieve an ephemeral credential for the upstream MCP server or API
+    async fn acquire_ephemeral_credential(
+        &self,
+        tenant_id: &str,
+        workload: &WorkloadClaims,
+        target_resource: &str,
+        requested_scopes: &[String],
+    ) -> Result<EphemeralLease, SecretlessError>;
+}
 
 /// Browser-safe metadata pill for an ephemeral OpenBao dynamic secret lease.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

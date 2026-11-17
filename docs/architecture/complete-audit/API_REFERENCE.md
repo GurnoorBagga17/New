@@ -13,17 +13,18 @@
 | `GET` | `/healthz` | Rust Axum (:8787) | `services/extmcp/runtime/src/admin.rs:165` | None | Engine liveness and health probe | **COMPLETE** |
 | `GET` | `/v1/local/policies/version` | Rust Axum (:8787) | `src/admin.rs:223` `policy_version` | Bearer Token | Returns active Cedar policy SHA-256 version | **COMPLETE** |
 | `POST` | `/v1/local/policies/dry-run` | Rust Axum (:8787) | `src/admin.rs:232` `policy_dry_run` | Bearer Token | Evaluates tool call against Cedar AST & SQL validator | **COMPLETE** |
-| `PUT` | `/v1/local/policies/bundle` | Rust Axum (:8787) | `src/admin.rs:374` `activate_bundle` | Bearer Token | Atomic lock-free hot-swap of active Cedar bundle | **COMPLETE** |
+| `PUT` | `/v1/local/policies/bundle` | Rust Axum (:8787) | `src/admin.rs:374` `activate_bundle` | `security-admin` + Step-Up | Atomic lock-free hot-swap of active Cedar bundle | **COMPLETE** |
 | `GET` | `/v1/local/revocations` | Rust Axum (:8787) | `src/admin.rs:479` `list_revocations` | Bearer Token | Lists all active revocation records | **COMPLETE** |
-| `POST` | `/v1/local/revocations` | Rust Axum (:8787) | `src/admin.rs:488` `update_revocation` | Bearer Token | Inserts sub-50ms revocation (agent, tool, server, session) | **COMPLETE** |
-| `POST` | `/v1/local/sessions/:id/revoke` | Rust Axum (:8787) | `src/admin.rs:528` `revoke_session_direct`| Bearer Token | Directly revokes specific MCP session | **COMPLETE** |
-| `GET` | `/v1/local/events/stream` | Rust Axum (:8787) | `src/admin.rs:547` `event_stream` | None / Loopback | SSE stream of real-time audit decisions | **COMPLETE** |
+| `POST` | `/v1/local/revocations` | Rust Axum (:8787) | `src/admin.rs:488` `update_revocation` | `soc-operator` / `security-admin` + Step-Up | Inserts sub-50ms revocation (agent, tool, server, session) | **COMPLETE** |
+| `POST` | `/v1/local/sessions/:id/revoke` | Rust Axum (:8787) | `src/admin.rs:528` `revoke_session_direct`| `soc-operator` / `security-admin` + Step-Up | Directly revokes specific MCP session | **COMPLETE** |
+| `POST` | `/v1/local/events/ticket` | Rust Axum (:8787) | `src/admin.rs:605` `generate_stream_ticket`| Operator Bearer Token | Issues single-use 30s ticket nonce for SSE streaming | **COMPLETE** |
+| `GET` | `/v1/local/events/stream` | Rust Axum (:8787) | `src/admin.rs:547` `event_stream` | Single-use Ticket / Bearer | SSE stream of real-time audit decisions (tenant-scoped) | **COMPLETE** |
 | `GET` | `/v1/lineage/graph` | Rust Axum (:8787) | `src/admin.rs:568` `get_lineage_graph` | Bearer Token | Returns full node/edge dependency topology | **COMPLETE** |
 | `POST` | `/v1/lineage/simulate-revoke` | Rust Axum (:8787) | `src/admin.rs:582` `simulate_revocation` | Bearer Token | BFS simulation of revocation blast-radius and siblings | **COMPLETE** |
 | `GET` | `/v1/owasp/scorecard` | Rust Axum (:8787) | `src/admin.rs:608` `get_owasp_scorecard` | Bearer Token | OWASP NHI Top 10 & MCP Top 10 compliance state | **COMPLETE** |
 | `GET` | `/v1/secretless/leases` | Rust Axum (:8787) | `src/admin.rs:649` `list_secretless_leases` | Bearer Token | Lists active dynamic OpenBao leases (redacted) | **COMPLETE** |
 | `POST` | `/v1/secretless/attest-and-lease`| Rust Axum (:8787) | `src/admin.rs:664` `attest_and_lease` | Bearer Token | Attests workload and issues dynamic secret lease | **COMPLETE** |
-| `POST` | `/v1/secretless/rotate` | Rust Axum (:8787) | `src/admin.rs:687` `trigger_secretless_rotation`| Bearer Token | Triggers zero-downtime rotation of static secrets | **COMPLETE** |
+| `POST` | `/v1/secretless/rotate` | Rust Axum (:8787) | `src/admin.rs:687` `trigger_secretless_rotation`| `security-admin` + Step-Up | Triggers zero-downtime rotation of static secrets | **COMPLETE** |
 | `POST` | `/api/playground/evaluate` | Next.js API Route | `apps/web/app/api/playground/evaluate/route.ts` | None | Web proxy to Rust dry-run with local fallback | **COMPLETE** |
 | `GET` | `/api/sbom/download` | Next.js API Route | `apps/web/app/api/sbom/download/route.ts` | None | Streams verified CycloneDX 1.6 SBOM JSON | **COMPLETE** |
 | `POST` | `/api/shadow-audit/analyze` | Next.js API Route | `apps/web/app/api/shadow-audit/analyze/route.ts` | None | Computes shadow AI risk sprawl and exposure score | **COMPLETE** |
@@ -166,11 +167,28 @@
 
 ---
 
-### 2.4 Real-Time Audit Event Stream (Server-Sent Events)
+### 2.4 Stream Authentication Ticket Issuance
+- **Endpoint:** `POST /v1/local/events/ticket`
+- **Location:** `services/extmcp/runtime/src/admin.rs:605` (`generate_stream_ticket`)
+- **Authentication:** Operator Bearer Token (or `AXIOM_ADMIN_TOKEN`).
+- **Purpose:** Generates a high-entropy, 30-second single-use ticket nonce that allows the frontend browser console to open a Server-Sent Events (SSE) telemetry connection without exposing long-lived bearer tokens or passwords in browser URLs.
+- **Success Response (200 OK):**
+  ```json
+  {
+    "ticket": "9f8a3c...d4e1",
+    "expires_in_secs": 30
+  }
+  ```
+
+---
+
+### 2.5 Real-Time Audit Event Stream (Server-Sent Events)
 - **Endpoint:** `GET /v1/local/events/stream`
 - **Location:** `services/extmcp/runtime/src/admin.rs:547` (`event_stream`)
-- **Authentication:** None (Loopback interface `127.0.0.1` only).
+- **Authentication:** Single-use ticket nonce query parameter (`?ticket=<nonce>`) or Bearer JWT / admin token header.
 - **Purpose:** Streams live audit records and security decision telemetry directly to connected operator consoles.
+- **Tenant Scoping:** Events are strictly filtered by the operator's `tenant_id`, guaranteeing complete cross-tenant telemetry isolation.
+- **Consumption Model:** Consuming a ticket nonce immediately burns it from memory, preventing replay attacks.
 - **Response Headers:** `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `Connection: keep-alive`.
 - **Event Payload Schema (JSON frame):**
   ```json
@@ -190,10 +208,10 @@
 
 ---
 
-### 2.5 Pre-Revocation Blast-Radius Simulation
+### 2.6 Pre-Revocation Blast-Radius Simulation
 - **Endpoint:** `POST /v1/lineage/simulate-revoke`
 - **Location:** `services/extmcp/runtime/src/admin.rs:582` (`simulate_revocation`)
-- **Authentication:** Bearer token required.
+- **Authentication:** Bearer token required (`soc-operator` or `security-admin`).
 - **Purpose:** Models dependency impact before an operator triggers a revocation, calculating directly affected agents, transitive workloads, and shared-credential siblings (`NHI9:2025`).
 - **Request Body Schema:**
   ```json

@@ -21,6 +21,14 @@ pub enum ConnectorKind {
     Kubernetes,
     Github,
     Slack,
+    AzureEntra,
+    GcpIam,
+    Okta,
+    Snowflake,
+    Databricks,
+    Gitlab,
+    AiGateways,
+    TerraformState,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -249,7 +257,13 @@ impl DiscoveryOrchestrator {
 
 pub mod saas_oauth;
 pub mod discovery;
+pub mod enterprise;
 pub use discovery::{DiscoveryError, SlackDiscoveryWorker};
+pub use enterprise::{
+    AiGatewaysDiscoveryWorker, AzureEntraDiscoveryWorker, DatabricksDiscoveryWorker,
+    GcpIamDiscoveryWorker, GitlabDiscoveryWorker, OktaDiscoveryWorker, SnowflakeDiscoveryWorker,
+    TerraformStateDiscoveryWorker,
+};
 #[cfg(feature = "aws")]
 pub use discovery::AwsIamDiscoveryWorker;
 #[cfg(feature = "k8s")]
@@ -361,5 +375,133 @@ mod tests {
         assert!(limiter.try_acquire());
         // Burst capacity exhausted
         assert!(!limiter.try_acquire());
+    }
+
+    #[test]
+    fn test_enterprise_connectors_zero_secret_invariants() {
+        let salt = b"enterprise-salt-5678";
+
+        // 1. Azure Entra
+        let entra = AzureEntraDiscoveryWorker::new();
+        let sp = entra.normalize_service_principal(
+            salt,
+            "tenant-123",
+            "app-456",
+            "CI/CD Deployer",
+            "Application",
+            vec!["Directory.ReadWrite.All".into()],
+            1710000000,
+            Some(1710000500),
+        );
+        assert_eq!(sp.source_connector, ConnectorKind::AzureEntra);
+        assert_eq!(sp.metadata_tags.get("risk_tag").unwrap(), "NHI4:PrivilegeOverprovisioning");
+        assert!(sp.fingerprint_sha256.starts_with("hmac-sha256:"));
+
+        // 2. GCP IAM
+        let gcp = GcpIamDiscoveryWorker::new();
+        let sa = gcp.normalize_service_account(
+            salt,
+            "prod-proj",
+            "terraform-sa@prod-proj.iam.gserviceaccount.com",
+            "1099238472",
+            vec!["roles/owner".into()],
+            true,
+            1710000000,
+            None,
+        );
+        assert_eq!(sa.source_connector, ConnectorKind::GcpIam);
+        assert_eq!(sa.metadata_tags.get("risk_tag").unwrap(), "NHI2:LongLivedUserManagedKey");
+
+        // 3. Okta
+        let okta = OktaDiscoveryWorker::new();
+        let tok = okta.normalize_api_token(
+            salt,
+            "https://acme.okta.com",
+            "00T12345",
+            "AdminSyncToken",
+            "usr_admin99",
+            1710000000,
+            Some(1720000000),
+        );
+        assert_eq!(tok.source_connector, ConnectorKind::Okta);
+
+        // 4. Snowflake
+        let snowflake = SnowflakeDiscoveryWorker::new();
+        let sf = snowflake.normalize_service_user(
+            salt,
+            "xy12345",
+            "ETL_USER",
+            false,
+            vec!["ACCOUNTADMIN".into()],
+            1710000000,
+            None,
+        );
+        assert_eq!(sf.source_connector, ConnectorKind::Snowflake);
+        assert_eq!(sf.metadata_tags.get("risk_tag").unwrap(), "NHI3:PasswordWithoutKeyPairAuth");
+
+        // 5. Databricks
+        let dbx = DatabricksDiscoveryWorker::new();
+        let pat = dbx.normalize_personal_access_token(
+            salt,
+            "https://adb-123.azuredatabricks.net",
+            "dapi_pat_1",
+            "Model training pipeline",
+            "data-engineer@corp.local",
+            0,
+            1710000000,
+        );
+        assert_eq!(pat.source_connector, ConnectorKind::Databricks);
+        assert_eq!(pat.metadata_tags.get("risk_tag").unwrap(), "NHI3:IndefiniteTokenLifetime");
+
+        // 6. GitLab
+        let gitlab = GitlabDiscoveryWorker::new();
+        let gl = gitlab.normalize_project_access_token(
+            salt,
+            "org/backend-api",
+            9876,
+            "Release Deployer",
+            vec!["api".into(), "write_repository".into()],
+            50,
+            1710000000,
+            None,
+        );
+        assert_eq!(gl.source_connector, ConnectorKind::Gitlab);
+        assert_eq!(gl.metadata_tags.get("risk_tag").unwrap(), "NHI4:GitLabMaintainerTokenScope");
+
+        // 7. AI Gateways
+        let ai = AiGatewaysDiscoveryWorker::new();
+        let llm = ai.normalize_llm_api_key(
+            salt,
+            "openai",
+            "key_prod_agent",
+            "Customer Support Agent",
+            "platform-team",
+            1710000000,
+            None,
+        );
+        assert_eq!(llm.source_connector, ConnectorKind::AiGateways);
+        assert_eq!(llm.metadata_tags.get("risk_tag").unwrap(), "MCP09:ShadowAiKeyExposure");
+
+        // 8. Terraform State
+        let tf = TerraformStateDiscoveryWorker::new();
+        let tfstate = serde_json::json!({
+            "resources": [
+                {
+                    "type": "aws_iam_role",
+                    "name": "lambda_payment_processor",
+                }
+            ]
+        });
+        let pairs = tf.parse_tfstate_and_attribute(
+            salt,
+            &tfstate,
+            "github.com/org/infra-live",
+            "modules/payments/iam.tf",
+            "devops-lead@company.com",
+        );
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].0.source_connector, ConnectorKind::TerraformState);
+        assert_eq!(pairs[0].1.relation_type, "OWNS");
+        assert_eq!(pairs[0].1.observed_via, "git_blame:modules/payments/iam.tf");
     }
 }

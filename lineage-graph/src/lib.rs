@@ -12,6 +12,35 @@ pub mod postgres;
 pub use postgres::{LineageDbError, PostgresLineageGraph};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TenantRecord {
+    pub tenant_id: String,
+    pub organization_name: String,
+    pub enforce_sso: bool,
+    pub sso_issuer_url: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OperatorRecord {
+    pub user_id: String,
+    pub tenant_id: String,
+    pub email: String,
+    pub display_name: String,
+    pub role: String,
+    pub is_active: bool,
+    pub webauthn_credential_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OperatorSessionRecord {
+    pub session_id: String,
+    pub user_id: String,
+    pub tenant_id: String,
+    pub csrf_token: String,
+    pub expires_at: chrono::DateTime<chrono::Utc>,
+    pub revoked: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GraphNode {
     pub entity_uid: String,
     pub entity_kind: String,

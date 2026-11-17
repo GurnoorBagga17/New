@@ -98,17 +98,34 @@ flowchart LR
 
 ---
 
-## 3. Production Kubernetes Deployment (Helm)
+## 3. Production Kubernetes Deployment (Helm & CRDs)
 
-The official Helm chart is located at `deployments/helm/axiom-nhi/`:
-- **Chart Name:** `axiom-nhi`
-- **Version:** `1.0.0`
-- **Templates Included:**
-  - `deployment-gateway-and-airgap.yaml`: Deploys `axiom-extmcp` alongside `agentgateway` as a high-availability pod with pod anti-affinity.
-  - `statefulsets-and-services.yaml`: Deploys PostgreSQL 16 cluster and Redis cache.
-  - `external-secrets.yaml`: Automatically synchronizes `AXIOM_ADMIN_TOKEN` and cloud provider credentials from AWS Secrets Manager or HashiCorp Vault.
+The official enterprise deployment package includes Custom Resource Definitions (CRDs) and Helm charts:
+
+### 3.1 Kubernetes Custom Resource Definitions (CRDs)
+Located in `deployments/kubernetes/crds/`:
+- **`AxiomPolicyBundle` (`axiom.io/v1alpha1`):** Declarative representation of Cedar policy sets, target agent roles, AST validator rules, and active bundle versions (`candidate_version`). Enables GitOps policy synchronization via ArgoCD or Flux.
+- **`AxiomMcpServer` (`axiom.io/v1alpha1`):** Declarative registration of upstream MCP servers, tool definitions, cryptographic tool hash pins (`RFC 8785`), secretless broker provider references, and per-tool Cedar constraints.
+
+### 3.2 Helm Chart Templates (`deployments/helm/axiom-nhi/`)
+- **`daemonset-runtime.yaml`:**
+  - Deploys `axiom-extmcp-runtime` as a node-level DaemonSet to service local agent workloads with sub-millisecond network latency.
+  - Mounts the host-level SPIFFE CSI driver socket (`/run/spire/sockets/agent.sock`) for zero-touch workload SVID attestation.
+  - Exposes port `9001` (gRPC inline filter) and port `8787` (HTTP/SSE control plane) with automated `/healthz` probes.
+- **`mutating-webhook.yaml`:**
+  - Configures a Mutating Admission Webhook (`axiom-sidecar-injector.axiom-system.svc`) targeting pods annotated with `axiom.io/inject: "true"`.
+  - Injects the `axiom-agentgateway` Envoy sidecar container, routing outbound tool calls transparently to the node-local DaemonSet on `:9001`.
+- **`deployment-gateway-and-airgap.yaml`:**
+  - Deploys high-availability control plane pods with pod anti-affinity.
+- **`statefulsets-and-services.yaml`:**
+  - Provisions PostgreSQL 16 cluster with multi-tenant RLS schema and Redis session cache.
+- **`external-secrets.yaml`:**
+  - Synchronizes operator credentials and cloud provider keys via external vault engines.
 
 ```bash
+# Install CRDs
+kubectl apply -f ./deployments/kubernetes/crds/
+
 # Install via Helm in corporate Kubernetes cluster
 helm upgrade --install axiom-nhi ./deployments/helm/axiom-nhi \
   --namespace axiom-system \

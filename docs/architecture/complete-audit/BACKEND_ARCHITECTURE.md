@@ -139,11 +139,27 @@ flowchart TD
   - Combines exposure scores (weight: 60%) and blast-radius scores (weight: 40%) into composite severities (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`).
 
 ### 2.7 `secretless`
-- **Location:** `secretless/src/lib.rs`, `src/openbao.rs`
+- **Location:** `secretless/src/lib.rs`, `src/openbao.rs`, `src/aws_sts.rs`, `src/gcp_sts.rs`, `src/azure_entra.rs`, `src/oauth2_client_credentials.rs`, `src/api_key_vault_injector.rs`
 - **Responsibilities:**
-  - Manages JIT dynamic credential leases from OpenBao (`vault://openbao/...`).
-  - Implements IETF RFC 8693 OAuth 2.0 Token Exchange with strict scope attenuation (guarantees child agents cannot request scopes exceeding the parent delegator's grant).
-  - Emits redacted `SecretlessLeaseMetadata` to browser clients.
+  - Implements universal `CredentialBrokerProvider` trait:
+    ```rust
+    #[async_trait]
+    pub trait CredentialBrokerProvider: Send + Sync {
+        fn provider_name(&self) -> &'static str;
+        async fn exchange_credentials(
+            &self,
+            claims: &WorkloadClaims,
+            target_resource: &str,
+        ) -> Result<EphemeralLease, SecretlessError>;
+        async fn revoke_lease(&self, lease_id: &str) -> Result<(), SecretlessError>;
+    }
+    ```
+  - **OpenBao Dynamic Engine:** Manages JIT dynamic database/vault leases (`vault://openbao/...`).
+  - **AWS STS Web Identity:** Assumes target IAM roles via `AssumeRoleWithWebIdentity` with short-lived 15-minute sessions.
+  - **GCP STS Workload Identity:** Exchanges workload JWTs for Google Cloud STS federated tokens.
+  - **Azure Entra Managed Identity:** Exchanges federated assertion tokens for Microsoft Graph / Azure Resource Manager access tokens.
+  - **RFC 8693 OAuth 2.0 SaaS Broker:** Executes client credentials token exchanges against upstream SaaS identity providers (Salesforce, Workday, ServiceNow) with strict scope attenuation.
+  - **Vault API Key Injector:** Injects masked ephemeral static keys into request headers directly at egress without exposing raw values to AI agents.
 
 ### 2.8 `approvals`
 - **Location:** `approvals/src/lib.rs`, `src/slack.rs`
@@ -170,3 +186,11 @@ flowchart TD
 - **Responsibilities:**
   - `audit`: Lock-free bounded event bus with off-path writer. Writes append-only JSONL files with cryptographic SHA-256 Merkle hash chaining (`prev_hash`, `entry_hash`).
   - `kill-switch`: Lock-free `ArcSwap<RevocationSnapshot>` providing sub-50ms global, per-agent, per-tool, and per-session emergency revocations.
+
+### 2.12 `connectors`
+- **Location:** `connectors/src/lib.rs`, `src/discovery.rs`, `src/aws.rs`, `src/k8s.rs`, `src/github.rs`, `src/enterprise.rs`
+- **Responsibilities:**
+  - Multi-cloud passive identity and credential discovery workers.
+  - Normalizes heterogeneous IAM definitions into canonical `DiscoveredEntity` records.
+  - Enforces the Zero-Secret invariant across all 12 discovery connectors (AWS, K8s, GitHub, Slack, Azure Entra, GCP IAM, Okta, Snowflake, Databricks, GitLab, AI Gateways, Terraform State).
+  - Computes deterministic, salted HMAC-SHA256 fingerprints for every discovered secret, token, key-pair, or service principal.

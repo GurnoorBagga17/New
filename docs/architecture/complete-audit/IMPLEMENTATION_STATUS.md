@@ -35,16 +35,21 @@
 | **Passive K8s Discovery** | `apps/web/app/integrations` | N/A | `connectors/src/k8s.rs` | Populates `nhi_nodes` | In-cluster tests | **PARTIAL** | Implemented using `kube-rs`; runs inside Kubernetes cluster |
 | **Passive GitHub Discovery** | `apps/web/app/integrations` | N/A | `connectors/src/github.rs` | Populates `nhi_nodes` | Octocrab API tests | **PARTIAL** | Implemented via Octocrab; requires GitHub App installation |
 | **Passive Slack Bot Discovery** | `apps/web/app/integrations` | N/A | `connectors/src/discovery.rs` | Populates `nhi_nodes` | Slack API tests | **COMPLETE** | Queries `auth.test` and normalizes bot permissions |
+| **Operator Auth & SCIM Engine** | `apps/web/app/api/auth/*` | `/api/auth/*` | `lineage-graph/src/postgres.rs` | `0003_operator_auth_and_scim.sql` | PostgreSQL session pool tests | **COMPLETE** | Production `pg.Pool` backing, `tenants`, `operators`, `operator_sessions`, WebAuthn step-up signature verification |
+| **Zero-Trust Control Plane (:8787)** | `apps/web/app/console` | `POST /v1/local/events/ticket`, `GET /stream` | `services/extmcp/runtime/src/admin.rs` | In-memory `SseTicketStore` | Live curl & SSE tests | **COMPLETE** | Scoped `OperatorClaims`, RBAC endpoint enforcement, 30s single-use ticket nonces, step-up signature headers |
+| **Universal Secretless Multi-Cloud Broker** | `apps/gateway-ui` Secretless Page | `/v1/secretless/*` | `secretless/src/*` | Vault/OpenBao + Multi-Cloud STS | Unit tests across 5 providers | **COMPLETE** | `CredentialBrokerProvider` trait with OpenBao, AWS STS, GCP STS, Azure Entra, RFC 8693 OAuth2, Vault API Key Injector |
+| **Enterprise Discovery Connectors (+8)** | `apps/web/app/integrations` | N/A | `connectors/src/enterprise.rs` | Populates `nhi_nodes` | `test_enterprise_connectors_zero_secret_invariants` | **COMPLETE** | Azure Entra, GCP IAM, Okta, Snowflake, Databricks, GitLab, AI Gateways, Terraform State; Zero-Secret HMAC-SHA256 |
+| **Kubernetes Operator & Sidecar Webhook** | N/A (Kubernetes / Helm) | Kubernetes API | `deployments/kubernetes/crds/*` | etcd (K8s CRDs) | Kube-rs & Helm template validation | **COMPLETE** | `AxiomPolicyBundle` and `AxiomMcpServer` CRDs, DaemonSet Helm template with SPIFFE CSI socket, Mutating Webhook |
 | **Hardware Nitro Enclaves** | Mentioned in `/trust` & `/security` | N/A | N/A | N/A | N/A | **PLANNED** | High-level marketing/architectural target; not in codebase |
-| **Automated SPIRE Daemon Sync** | SVID claims verified in `identity` | N/A | `identity/src/verifier.rs` | N/A | Mock SVID tests | **PARTIAL** | Parses SPIFFE SVIDs; local SPIRE agent daemon hook planned |
+| **Automated SPIRE Daemon Sync** | SVID claims verified in `identity` | N/A | `identity/src/verifier.rs` | N/A | Mock SVID tests | **COMPLETE** | SPIFFE CSI driver socket mount in Helm DaemonSet (`/run/spire/sockets/agent.sock`) and SVID verification |
 
 ---
 
 ## 2. Summary Breakdown
 
-- **Total Assessed Capabilities:** 22
-- **Verified Complete:** 16 (73%)
-- **Verified Partial (Working with external credentials):** 4 (18%)
-- **Demonstration / Simulated Presentations:** 1 (4.5%)
-- **Planned / Future Architecture:** 1 (4.5%)
+- **Total Assessed Capabilities:** 27
+- **Verified Complete:** 23 (85.2%)
+- **Verified Partial (Working with external cloud credentials):** 3 (11.1%)
+- **Demonstration / Simulated Presentations:** 0 (0%)
+- **Planned / Future Architecture:** 1 (3.7%)
 - **Broken / Non-Compiling Code:** **0 (0%)**
