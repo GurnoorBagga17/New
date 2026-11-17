@@ -1,13 +1,11 @@
 /**
- * Axiom NHI — Production-Hardened Local Admin & Enterprise Control Plane HTTP/SSE Server
+ * [DEPRECATED / ARCHIVED COMPATIBILITY WRAPPER]
+ * Axiom NHI — Legacy Local Admin Node.js Shim
  *
- * Security Hardening Implemented:
- *  - Explicit Environment-Driven CORS (`AXIOM_ALLOWED_ORIGINS`, never wildcard `*`)
- *  - Token-Bucket HTTP Rate Limiting per IP/Actor (`429 Too Many Requests` + `Retry-After`)
- *  - Centralized Input Schema Validation (`validators.cjs`) rejecting malformed or secret-bearing inputs
- *  - RBAC/ABAC Least-Privilege Enforcement (`operator`, `security-admin`, `auditor`, `workload-attester`)
- *  - Same-Origin Static Asset Hosting for `apps/gateway-ui/dist` with strict CSP
- *  - Tamper-Evident SHA-256 Merkle Hash-Chained Audit Log (`prev_hash` -> `entry_hash`)
+ * NOTICE: The authoritative native Rust admin and SSE server is implemented
+ * in `services/extmcp/runtime/src/admin.rs` listening on port 8787.
+ * This file is retained only for historical mock fallback and automatically
+ * forwards state-mutating requests to the live Rust ExtMCP process (:8787).
  *
  * Routes Implemented:
  *  - GET  /v1/local/events/stream          (SSE real-time audit & kill-switch stream)

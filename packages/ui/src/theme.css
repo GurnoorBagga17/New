@@ -6,6 +6,8 @@
 @import "../../../docs/architecture/generated/tailwind-theme.css";
 
 @source "./**/*.{js,ts,jsx,tsx}";
+@source "../../../apps/web/app/**/*.{js,ts,jsx,tsx}";
+@source "../../../apps/gateway-ui/src/**/*.{js,ts,jsx,tsx}";
 
 :root {
     color-scheme: light;

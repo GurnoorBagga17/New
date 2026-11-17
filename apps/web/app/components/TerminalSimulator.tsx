@@ -176,7 +176,7 @@ export function TerminalSimulator() {
   };
 
   const handleTriggerKillSwitch = () => {
-    setActiveIdx(3); // Switch to Kill Switch scenario
+    setActiveIdx(3);
     setIsReplaying(true);
     setVisibleCount(1);
   };
@@ -208,64 +208,102 @@ export function TerminalSimulator() {
   }, [visibleCount]);
 
   return (
-    <div className="rounded-2xl border border-slate-200/90 bg-white shadow-xl shadow-slate-200/50 overflow-hidden flex flex-col" aria-label="Split Terminal and Policy Trace Simulator">
+    <div
+      className="rounded-2xl border border-slate-300/90 bg-white shadow-xl shadow-slate-200/50 overflow-hidden flex flex-col"
+      style={{ backgroundColor: "#ffffff", borderColor: "#cbd5e1" }}
+      aria-label="Split Terminal and Policy Trace Simulator"
+    >
       {/* Top Window Bar */}
-      <div className="px-5 py-3 bg-slate-50/80 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3">
+      <div
+        className="px-4 sm:px-5 py-3 border-b flex flex-wrap items-center justify-between gap-3"
+        style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0" }}
+      >
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5" aria-hidden="true">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-2xs inline-block" />
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-2xs inline-block" />
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-2xs inline-block" />
+            <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: "#ef4444" }} />
+            <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: "#f59e0b" }} />
+            <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: "#10b981" }} />
           </div>
-          <span className="text-xs font-bold text-slate-800 font-mono tracking-wide uppercase">
+          <span
+            className="text-xs font-bold font-mono tracking-wide uppercase"
+            style={{ color: "#0f172a" }}
+          >
             Split Terminal &amp; Policy Trace Simulator
           </span>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {SCENARIOS.map((sc, i) => (
-            <button
-              key={sc.id}
-              type="button"
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                activeIdx === i
-                  ? "bg-white text-indigo-700 shadow-xs border border-indigo-200 ring-1 ring-indigo-200/50 font-bold"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-              }`}
-              onClick={() => handleScenarioChange(i)}
-            >
-              {sc.name}
-            </button>
-          ))}
-          {/* Interactive Trigger Emergency Kill Switch Button */}
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Scenario Tab Buttons */}
+          <div
+            className="inline-flex items-center p-1 rounded-lg gap-1 border"
+            style={{ backgroundColor: "#e2e8f0", borderColor: "#cbd5e1" }}
+          >
+            {SCENARIOS.map((sc, i) => {
+              const isActive = activeIdx === i;
+              return (
+                <button
+                  key={sc.id}
+                  type="button"
+                  onClick={() => handleScenarioChange(i)}
+                  className="px-3 py-1.5 rounded-md text-xs font-mono transition-all cursor-pointer"
+                  style={{
+                    backgroundColor: isActive ? "#ffffff" : "transparent",
+                    color: isActive ? "#0f172a" : "#475569",
+                    fontWeight: isActive ? 700 : 500,
+                    boxShadow: isActive ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+                  }}
+                >
+                  {sc.name}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Trigger Emergency Kill Switch Action Button */}
           <button
             type="button"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-white bg-rose-600 hover:bg-rose-700 transition-all cursor-pointer shadow-xs ml-2 border border-rose-700"
             onClick={handleTriggerKillSwitch}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold text-white transition-all cursor-pointer shadow-sm border"
+            style={{
+              backgroundColor: "#dc2626",
+              borderColor: "#b91c1c",
+              color: "#ffffff",
+            }}
             title="Simulate immediate cluster-wide revocation"
           >
-            <span className="text-white text-sm leading-none">⏻</span>
-            <span className="text-white">Trigger Emergency Kill Switch</span>
+            <span className="text-sm leading-none" style={{ color: "#ffffff" }}>⏻</span>
+            <span style={{ color: "#ffffff" }}>Trigger Emergency Kill Switch</span>
           </button>
         </div>
       </div>
 
       {/* Main Split Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-200/80 bg-white min-h-[340px]">
+      <div
+        className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x min-h-[340px]"
+        style={{ borderColor: "#e2e8f0" }}
+      >
         {/* LEFT COLUMN: Terminal */}
-        <div className="lg:col-span-7 flex flex-col justify-between bg-slate-50/20 p-5">
+        <div
+          className="lg:col-span-7 flex flex-col justify-between p-5"
+          style={{ backgroundColor: "#f8fafc" }}
+        >
           <div>
-            <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-200/60 text-xs text-slate-500 font-mono">
-              <span className="font-semibold text-slate-600">axiom-gateway : zsh</span>
+            <div
+              className="flex items-center justify-between pb-2.5 mb-3 border-b text-xs font-mono"
+              style={{ borderColor: "#e2e8f0" }}
+            >
+              <span className="font-bold" style={{ color: "#334155" }}>axiom-gateway : zsh</span>
               <button
                 type="button"
-                className="flex items-center gap-1 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer text-xs"
+                className="flex items-center gap-1 transition-colors cursor-pointer text-xs font-medium"
+                style={{ color: "#475569" }}
                 onClick={() => {
                   setIsReplaying(true);
                   setVisibleCount(1);
                 }}
                 title="Re-run simulation"
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <polyline points="1 4 1 10 7 10" />
                   <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
                 </svg>
@@ -273,35 +311,59 @@ export function TerminalSimulator() {
               </button>
             </div>
 
-            <div className="font-mono text-[11px] leading-relaxed max-h-[220px] overflow-y-auto space-y-1.5 scrollbar-thin" ref={terminalScrollRef}>
-              <div className="flex items-center gap-2 mb-2 pb-1 text-slate-800 font-semibold border-b border-slate-100">
-                <span className="text-slate-400 select-none">~</span>
-                <span className="text-emerald-600 font-bold select-none">$</span>
-                <span className="text-slate-900">{scenario.command}</span>
+            <div
+              className="font-mono text-xs leading-relaxed max-h-[230px] overflow-y-auto space-y-1.5"
+              ref={terminalScrollRef}
+            >
+              <div
+                className="flex items-center gap-2 mb-2 pb-1 font-semibold border-b"
+                style={{ borderColor: "#e2e8f0" }}
+              >
+                <span className="select-none font-bold" style={{ color: "#64748b" }}>~</span>
+                <span className="select-none font-bold" style={{ color: "#16a34a" }}>$</span>
+                <span className="font-bold" style={{ color: "#0f172a" }}>{scenario.command}</span>
               </div>
 
               {scenario.terminalLogs.slice(0, visibleCount).map((log, i) => {
-                const tagStyles = {
-                  danger: "text-rose-700 bg-rose-50 border border-rose-200 font-bold",
-                  warn: "text-amber-800 bg-amber-50 border border-amber-200 font-bold",
-                  success: "text-emerald-700 bg-emerald-50 border border-emerald-200 font-bold",
-                  info: "text-sky-700 bg-sky-50 border border-sky-200 font-bold",
+                const tagConfig = {
+                  danger: { bg: "#fee2e2", color: "#991b1b", border: "#fca5a5" },
+                  warn: { bg: "#fef3c7", color: "#92400e", border: "#fcd34d" },
+                  success: { bg: "#dcfce7", color: "#166534", border: "#86efac" },
+                  info: { bg: "#e0f2fe", color: "#075985", border: "#7dd3fc" },
                 }[log.tagType];
 
-                const textStyles = {
-                  danger: "text-rose-700 font-semibold",
-                  warn: "text-amber-900 font-medium",
-                  success: "text-emerald-800 font-medium",
-                  info: "text-slate-800",
+                const textConfig = {
+                  danger: { color: "#7f1d1d", fontWeight: 600 },
+                  warn: { color: "#78350f", fontWeight: 500 },
+                  success: { color: "#14532d", fontWeight: 500 },
+                  info: { color: "#1e293b", fontWeight: 400 },
                 }[log.tagType];
 
                 return (
                   <div key={i} className="flex items-start gap-2 py-0.5 leading-snug">
-                    <span className="text-slate-400 text-[10px] flex-shrink-0 select-none pt-0.5">{log.time}</span>
-                    <span className={`px-1.5 py-0.2 rounded text-[10px] flex-shrink-0 ${tagStyles}`}>
+                    <span
+                      className="text-[10px] flex-shrink-0 select-none pt-0.5"
+                      style={{ color: "#64748b" }}
+                    >
+                      {log.time}
+                    </span>
+                    <span
+                      className="px-1.5 py-0.5 rounded text-[10px] flex-shrink-0 font-bold border"
+                      style={{
+                        backgroundColor: tagConfig.bg,
+                        color: tagConfig.color,
+                        borderColor: tagConfig.border,
+                      }}
+                    >
                       [{log.tag}]
                     </span>
-                    <span className={`flex-1 break-all ${textStyles}`}>
+                    <span
+                      className="flex-1 break-all"
+                      style={{
+                        color: textConfig.color,
+                        fontWeight: textConfig.fontWeight,
+                      }}
+                    >
                       {log.text}
                     </span>
                   </div>
@@ -309,49 +371,92 @@ export function TerminalSimulator() {
               })}
 
               <div className="pt-1">
-                <span className="w-1.5 h-3.5 bg-indigo-500 inline-block animate-pulse align-middle" />
+                <span
+                  className="w-2 h-4 inline-block animate-pulse align-middle"
+                  style={{ backgroundColor: "#4f46e5" }}
+                />
               </div>
             </div>
           </div>
 
           {/* Quick status pill at terminal bottom */}
-          <div className="flex items-center justify-between pt-3 mt-4 border-t border-slate-200/60">
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-bold ${
-              scenario.badgeType === "danger"
-                ? "bg-rose-50 text-rose-700 border border-rose-200"
-                : scenario.badgeType === "success"
-                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                : "bg-amber-50 text-amber-800 border border-amber-200"
-            }`}>
-              <span className="w-2 h-2 rounded-full bg-current" />
-              <span>{scenario.badge}</span>
+          <div
+            className="flex items-center justify-between pt-3 mt-4 border-t"
+            style={{ borderColor: "#e2e8f0" }}
+          >
+            {scenario.badgeType === "danger" ? (
+              <span
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border"
+                style={{
+                  backgroundColor: "#fee2e2",
+                  color: "#991b1b",
+                  borderColor: "#fca5a5",
+                }}
+              >
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "#dc2626" }} />
+                <span>{scenario.badge}</span>
+              </span>
+            ) : scenario.badgeType === "success" ? (
+              <span
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border"
+                style={{
+                  backgroundColor: "#dcfce7",
+                  color: "#166534",
+                  borderColor: "#86efac",
+                }}
+              >
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "#16a34a" }} />
+                <span>{scenario.badge}</span>
+              </span>
+            ) : (
+              <span
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border"
+                style={{
+                  backgroundColor: "#fef3c7",
+                  color: "#92400e",
+                  borderColor: "#fcd34d",
+                }}
+              >
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "#d97706" }} />
+                <span>{scenario.badge}</span>
+              </span>
+            )}
+            <span className="text-xs font-mono font-medium" style={{ color: "#475569" }}>
+              Fail-closed runtime boundary
             </span>
-            <span className="text-[11px] text-slate-500 font-mono">Fail-closed runtime boundary</span>
           </div>
         </div>
 
         {/* RIGHT COLUMN: Policy Trace / Cedar Guardrail */}
-        <div className="lg:col-span-5 flex flex-col justify-between bg-white p-5">
-          <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-200/60">
+        <div
+          className="lg:col-span-5 flex flex-col justify-between p-5"
+          style={{ backgroundColor: "#ffffff" }}
+        >
+          <div
+            className="flex items-center justify-between pb-2.5 mb-3 border-b"
+            style={{ borderColor: "#e2e8f0" }}
+          >
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                className={`text-xs font-mono transition-colors pb-0.5 cursor-pointer ${
-                  activeTab === "json"
-                    ? "text-indigo-600 font-bold border-b-2 border-indigo-600"
-                    : "text-slate-500 hover:text-slate-800 font-medium"
-                }`}
+                className="text-xs font-mono transition-colors pb-0.5 cursor-pointer"
+                style={{
+                  color: activeTab === "json" ? "#4338ca" : "#64748b",
+                  fontWeight: activeTab === "json" ? 700 : 500,
+                  borderBottom: activeTab === "json" ? "2px solid #4338ca" : "2px solid transparent",
+                }}
                 onClick={() => setActiveTab("json")}
               >
                 Runtime Trace JSON
               </button>
               <button
                 type="button"
-                className={`text-xs font-mono transition-colors pb-0.5 cursor-pointer ${
-                  activeTab === "cedar"
-                    ? "text-indigo-600 font-bold border-b-2 border-indigo-600"
-                    : "text-slate-500 hover:text-slate-800 font-medium"
-                }`}
+                className="text-xs font-mono transition-colors pb-0.5 cursor-pointer"
+                style={{
+                  color: activeTab === "cedar" ? "#4338ca" : "#64748b",
+                  fontWeight: activeTab === "cedar" ? 700 : 500,
+                  borderBottom: activeTab === "cedar" ? "2px solid #4338ca" : "2px solid transparent",
+                }}
                 onClick={() => setActiveTab("cedar")}
               >
                 Cedar Policy Rule
@@ -360,7 +465,12 @@ export function TerminalSimulator() {
             {activeTab === "json" && (
               <button
                 type="button"
-                className="text-[11px] font-mono text-slate-500 hover:text-slate-800 px-2 py-0.5 rounded border border-slate-200 bg-slate-50/50 hover:bg-slate-100 transition-colors cursor-pointer"
+                className="text-xs font-mono px-2.5 py-0.5 rounded border transition-colors cursor-pointer font-medium"
+                style={{
+                  color: "#334155",
+                  backgroundColor: "#f8fafc",
+                  borderColor: "#cbd5e1",
+                }}
                 onClick={handleCopyJson}
               >
                 {copied ? "Copied!" : "Copy JSON"}
@@ -368,143 +478,214 @@ export function TerminalSimulator() {
             )}
           </div>
 
-          <div className="font-mono text-[11px] leading-relaxed overflow-x-auto flex-1 max-h-[250px] scrollbar-thin">
+          <div className="font-mono text-xs leading-relaxed overflow-x-auto flex-1 max-h-[250px]">
             {activeTab === "json" ? (
-              <pre className="text-slate-800">
+              <pre style={{ margin: 0, color: "#1e293b" }}>
                 <code>
                   {`{\n`}
-                  <span className="text-indigo-600 font-medium">  "decision"</span>
-                  <span className="text-slate-400">: </span>
-                  <span className={`font-bold px-1.5 py-0.2 rounded ${
-                    scenario.status === "stopped" || activeIdx === 3
-                      ? "text-rose-700 bg-rose-50 border border-rose-200"
-                      : scenario.status === "permitted"
-                      ? "text-emerald-700 bg-emerald-50 border border-emerald-200"
-                      : "text-amber-800 bg-amber-50 border border-amber-200"
-                  }`}>
+                  <span style={{ color: "#3730a3", fontWeight: 600 }}>  "decision"</span>
+                  <span style={{ color: "#475569" }}>: </span>
+                  <span
+                    className="font-bold px-2 py-0.5 rounded border"
+                    style={{
+                      backgroundColor:
+                        scenario.status === "stopped" || activeIdx === 3
+                          ? "#fee2e2"
+                          : scenario.status === "permitted"
+                          ? "#dcfce7"
+                          : "#fef3c7",
+                      color:
+                        scenario.status === "stopped" || activeIdx === 3
+                          ? "#991b1b"
+                          : scenario.status === "permitted"
+                          ? "#166534"
+                          : "#92400e",
+                      borderColor:
+                        scenario.status === "stopped" || activeIdx === 3
+                          ? "#fca5a5"
+                          : scenario.status === "permitted"
+                          ? "#86efac"
+                          : "#fcd34d",
+                    }}
+                  >
                     "{activeIdx === 3 ? "REVOKED" : scenario.status === "stopped" ? "DENY" : scenario.status === "permitted" ? "PERMIT" : "SUSPEND"}"
                   </span>
                   {`,\n`}
-                  <span className="text-indigo-600 font-medium">  "latencyMs"</span>
-                  <span className="text-slate-400">: </span>
-                  <span className="text-amber-700 font-bold">{scenario.latency.replace("ms", "")}</span>
+                  <span style={{ color: "#3730a3", fontWeight: 600 }}>  "latencyMs"</span>
+                  <span style={{ color: "#475569" }}>: </span>
+                  <span style={{ color: "#b45309", fontWeight: 700 }}>{scenario.latency.replace("ms", "")}</span>
                   {`,\n`}
-                  <span className="text-indigo-600 font-medium">  "permissionValidation"</span>
-                  <span className="text-slate-400">: </span>
-                  <span className={`font-bold px-1.5 py-0.2 rounded ${
-                    scenario.status === "stopped" || activeIdx === 3
-                      ? "text-rose-700 bg-rose-50 border border-rose-200"
-                      : scenario.status === "permitted"
-                      ? "text-emerald-700 bg-emerald-50 border border-emerald-200"
-                      : "text-amber-800 bg-amber-50 border border-amber-200"
-                  }`}>
+                  <span style={{ color: "#3730a3", fontWeight: 600 }}>  "permissionValidation"</span>
+                  <span style={{ color: "#475569" }}>: </span>
+                  <span
+                    className="font-bold px-2 py-0.5 rounded border"
+                    style={{
+                      backgroundColor:
+                        scenario.status === "stopped" || activeIdx === 3
+                          ? "#fee2e2"
+                          : scenario.status === "permitted"
+                          ? "#dcfce7"
+                          : "#fef3c7",
+                      color:
+                        scenario.status === "stopped" || activeIdx === 3
+                          ? "#991b1b"
+                          : scenario.status === "permitted"
+                          ? "#166534"
+                          : "#92400e",
+                      borderColor:
+                        scenario.status === "stopped" || activeIdx === 3
+                          ? "#fca5a5"
+                          : scenario.status === "permitted"
+                          ? "#86efac"
+                          : "#fcd34d",
+                    }}
+                  >
                     "{activeIdx === 3 ? "revoked" : scenario.status}"
                   </span>
                   {`,\n`}
-                  <span className="text-indigo-600 font-medium">  "interceptContext"</span>
-                  <span className="text-slate-400">{": {\n"}</span>
+                  <span style={{ color: "#3730a3", fontWeight: 600 }}>  "interceptContext"</span>
+                  <span style={{ color: "#475569" }}>{": {\n"}</span>
                   {activeIdx === 0 && (
                     <>
-                      <span className="text-indigo-600 font-medium">    "principal"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-emerald-700">"Agent::reporting-worker-4"</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "principal"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span style={{ color: "#166534", fontWeight: 500 }}>"Agent::reporting-worker-4"</span>
                       {`,\n`}
-                      <span className="text-indigo-600 font-medium">    "tool"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-emerald-700">"db.execute_query"</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "tool"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span style={{ color: "#166534", fontWeight: 500 }}>"db.execute_query"</span>
                       {`,\n`}
-                      <span className="text-indigo-600 font-medium">    "blockedArgument"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-rose-700 font-bold bg-rose-50 border border-rose-200 px-1 rounded">"DROP TABLE customer_records"</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "blockedArgument"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span
+                        className="font-bold px-1.5 py-0.5 rounded border"
+                        style={{
+                          backgroundColor: "#fee2e2",
+                          color: "#991b1b",
+                          borderColor: "#fca5a5",
+                        }}
+                      >
+                        "DROP TABLE customer_records"
+                      </span>
                       {`,\n`}
-                      <span className="text-indigo-600 font-medium">    "signatureMatched"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-emerald-700">"SQL_INJECTION_DESTRUCTIVE"</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "signatureMatched"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span style={{ color: "#166534", fontWeight: 500 }}>"SQL_INJECTION_DESTRUCTIVE"</span>
                       {`,\n`}
-                      <span className="text-indigo-600 font-medium">    "auditHash"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-emerald-700">"0x8f2d...9a12"</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "auditHash"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span style={{ color: "#166534", fontWeight: 500 }}>"0x8f2d...9a12"</span>
                       {`\n`}
                     </>
                   )}
                   {activeIdx === 1 && (
                     <>
-                      <span className="text-indigo-600 font-medium">    "principal"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-emerald-700">"Agent::analytics-bot"</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "principal"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span style={{ color: "#166534", fontWeight: 500 }}>"Agent::analytics-bot"</span>
                       {`,\n`}
-                      <span className="text-indigo-600 font-medium">    "tool"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-emerald-700">"warehouse.read"</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "tool"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span style={{ color: "#166534", fontWeight: 500 }}>"warehouse.read"</span>
                       {`,\n`}
-                      <span className="text-indigo-600 font-medium">    "ephemeralLeaseId"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-emerald-700">"bao-lease-8902-dynamic"</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "ephemeralLeaseId"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span style={{ color: "#166534", fontWeight: 500 }}>"bao-lease-8902-dynamic"</span>
                       {`,\n`}
-                      <span className="text-indigo-600 font-medium">    "ttlSeconds"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-amber-700 font-bold">60</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "ttlSeconds"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span style={{ color: "#b45309", fontWeight: 700 }}>60</span>
                       {`,\n`}
-                      <span className="text-indigo-600 font-medium">    "zeroSecretsExposedToClient"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-1 rounded">true</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "zeroSecretsExposedToClient"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span
+                        className="font-bold px-1.5 py-0.5 rounded border"
+                        style={{
+                          backgroundColor: "#dcfce7",
+                          color: "#166534",
+                          borderColor: "#86efac",
+                        }}
+                      >
+                        true
+                      </span>
                       {`\n`}
                     </>
                   )}
                   {activeIdx === 2 && (
                     <>
-                      <span className="text-indigo-600 font-medium">    "tool"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-emerald-700">"crm.update_lead"</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "tool"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span style={{ color: "#166534", fontWeight: 500 }}>"crm.update_lead"</span>
                       {`,\n`}
-                      <span className="text-indigo-600 font-medium">    "reason"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-amber-800 font-bold bg-amber-50 border border-amber-200 px-1 rounded">"SCHEMA_HASH_DRIFT"</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "reason"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span
+                        className="font-bold px-1.5 py-0.5 rounded border"
+                        style={{
+                          backgroundColor: "#fef3c7",
+                          color: "#92400e",
+                          borderColor: "#fcd34d",
+                        }}
+                      >
+                        "SCHEMA_HASH_DRIFT"
+                      </span>
                       {`,\n`}
-                      <span className="text-indigo-600 font-medium">    "expectedHash"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-emerald-700">"sha256:3a7b4e..."</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "expectedHash"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span style={{ color: "#166534", fontWeight: 500 }}>"sha256:3a7b4e..."</span>
                       {`,\n`}
-                      <span className="text-indigo-600 font-medium">    "actionTaken"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-emerald-700">"QUARANTINE_PENDING_REVIEW"</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "actionTaken"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span style={{ color: "#166534", fontWeight: 500 }}>"QUARANTINE_PENDING_REVIEW"</span>
                       {`\n`}
                     </>
                   )}
                   {activeIdx === 3 && (
                     <>
-                      <span className="text-indigo-600 font-medium">    "principal"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-emerald-700">"Agent::reporting-worker-4"</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "principal"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span style={{ color: "#166534", fontWeight: 500 }}>"Agent::reporting-worker-4"</span>
                       {`,\n`}
-                      <span className="text-indigo-600 font-medium">    "action"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-rose-700 font-bold bg-rose-50 border border-rose-200 px-1 rounded">"EMERGENCY_KILL_SWITCH"</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "action"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span
+                        className="font-bold px-1.5 py-0.5 rounded border"
+                        style={{
+                          backgroundColor: "#fee2e2",
+                          color: "#991b1b",
+                          borderColor: "#fca5a5",
+                        }}
+                      >
+                        "EMERGENCY_KILL_SWITCH"
+                      </span>
                       {`,\n`}
-                      <span className="text-indigo-600 font-medium">    "delegationHopsSevered"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-amber-700 font-bold">3</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "delegationHopsSevered"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span style={{ color: "#b45309", fontWeight: 700 }}>3</span>
                       {`,\n`}
-                      <span className="text-indigo-600 font-medium">    "downstreamBlockedToolCalls"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-amber-700 font-bold">14</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "downstreamBlockedToolCalls"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span style={{ color: "#b45309", fontWeight: 700 }}>14</span>
                       {`,\n`}
-                      <span className="text-indigo-600 font-medium">    "openBaoLeasesRevoked"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-amber-700 font-bold">4</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "openBaoLeasesRevoked"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span style={{ color: "#b45309", fontWeight: 700 }}>4</span>
                       {`,\n`}
-                      <span className="text-indigo-600 font-medium">    "auditHash"</span>
-                      <span className="text-slate-400">: </span>
-                      <span className="text-emerald-700">"0x3e1a...7c89"</span>
+                      <span style={{ color: "#3730a3", fontWeight: 600 }}>    "auditHash"</span>
+                      <span style={{ color: "#475569" }}>: </span>
+                      <span style={{ color: "#166534", fontWeight: 500 }}>"0x3e1a...7c89"</span>
                       {`\n`}
                     </>
                   )}
-                  <span className="text-slate-400">{"  }\n"}</span>
+                  <span style={{ color: "#475569" }}>{"  }\n"}</span>
                   {`}`}
                 </code>
               </pre>
             ) : (
-              <pre className="text-slate-800 font-mono text-[11px] leading-relaxed whitespace-pre-wrap">
+              <pre
+                className="font-mono text-xs leading-relaxed whitespace-pre-wrap"
+                style={{ margin: 0, color: "#0f172a" }}
+              >
                 <code>{scenario.cedarPolicy}</code>
               </pre>
             )}

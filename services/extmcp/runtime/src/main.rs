@@ -358,6 +358,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let admin_addr: SocketAddr = std::env::var("AXIOM_ADMIN_ADDR").unwrap_or_else(|_| "127.0.0.1:8787".into()).parse()?;
     let (event_sender, _) = tokio::sync::broadcast::channel(512);
     let lineage_engine = Arc::new(std::sync::Mutex::new(admin::create_seeded_lineage_engine()));
+
+    // Automatic Embedded PostgreSQL 16 Lineage Migration Boot Hook
+    if let Ok(database_url) = std::env::var("DATABASE_URL") {
+        if !database_url.trim().is_empty() {
+            println!("Connecting to PostgreSQL 16 Lineage Database and executing migrations...");
+            match axiom_lineage_graph::PostgresLineageGraph::connect(&database_url).await {
+                Ok(postgres_graph) => {
+                    if let Err(migration_err) = postgres_graph.run_migrations().await {
+                        eprintln!("Warning: Failed to run PostgreSQL lineage migrations: {migration_err}");
+                    } else {
+                        println!("PostgreSQL 16 lineage schema migrations applied successfully (nhi_nodes, nhi_edges, simulate_revocation).");
+                    }
+                }
+                Err(conn_err) => {
+                    eprintln!("Warning: Could not connect to DATABASE_URL: {conn_err}. Falling back to in-memory lineage engine.");
+                }
+            }
+        }
+    }
+
     let admin_state = admin::AdminApiState {
         policies: policy_store,
         policy_file: Arc::new(policy_path),

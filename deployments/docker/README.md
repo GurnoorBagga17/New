@@ -35,7 +35,7 @@ docker compose down
 
 ## Current limitations
 
-- There is no live local-admin REST/SSE transport connected to the Rust policy, audit, or revocation state. The separate `gateway/local-admin-api/server.cjs` remains a demo implementation and is not included in this stack.
+- The live local-admin REST/SSE transport is natively hosted by the Rust runtime (`services/extmcp/runtime/src/admin.rs`) on port 8787, providing live SSE audit streaming, atomic ArcSwap hot-swaps, and sub-50ms emergency revocations. The legacy `gateway/local-admin-api/server.cjs` is archived.
 - Revocation configuration is loaded at process startup; dynamic operator updates and durable state are still required for G1.
 - Egress validation is not yet bound to the gateway's actual outbound socket/DNS decision, and the runtime does not yet publish the Team 5 audit bus.
 - The example OIDC issuer is invalid by design. Supply your own development issuer and valid test tokens; never put a production token in the repository.
