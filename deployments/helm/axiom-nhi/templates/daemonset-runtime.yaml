@@ -33,18 +33,22 @@ spec:
               value: "/etc/axiom/identity.json"
             - name: AXIOM_RESOURCE_MAP_CONFIG
               value: "/etc/axiom/resources.json"
-            - name: AXIOM_TOOL_VALIDATION_CONFIG
+            - name: AXIOM_VALIDATION_CONFIG
               value: "/etc/axiom/tool-validation.json"
             - name: AXIOM_REVOCATION_CONFIG
               value: "/etc/axiom/revocations.json"
             - name: AXIOM_POLICY_BUNDLE_PATH
               value: "/etc/axiom/policies.json"
+            - name: AXIOM_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "axiom-nhi.fullname" . }}-credentials
+                  key: admin-token
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: {{ include "axiom-nhi.fullname" . }}-credentials
                   key: database-url
-                  optional: true
             - name: OPENBAO_ADDR
               value: "http://{{ include "axiom-nhi.fullname" . }}-openbao:8200"
           ports:

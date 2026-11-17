@@ -1,6 +1,6 @@
 {
   "name": "@axiom/cedar-editor",
-  "version": "0.1.0-draft",
+  "version": "0.1.0",
   "private": true,
   "description": "Axiom NHI Cedar policy editor: locally bundled Monaco, Cedar DSL grammar, guided policy forms, and pluggable dry-run evaluators.",
   "license": "Apache-2.0",

@@ -17,13 +17,12 @@ ALTER TABLE nhi_edges FORCE ROW LEVEL SECURITY;
 
 -- 4. Multi-Tenant Isolation Policies
 -- If app.current_tenant is set, only rows matching current tenant are accessible.
--- If app.current_tenant is unset or empty, allows default access for backwards compatibility in dev.
+-- If app.current_tenant is unset or empty, access is denied (fail-closed by design).
 DROP POLICY IF EXISTS tenant_isolation_nodes ON nhi_nodes;
 CREATE POLICY tenant_isolation_nodes ON nhi_nodes
     FOR ALL
     USING (
         tenant_id = current_setting('app.current_tenant', true)
-        OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL
         OR current_setting('app.current_tenant', true) = 'system_admin'
     );
 
@@ -32,6 +31,5 @@ CREATE POLICY tenant_isolation_edges ON nhi_edges
     FOR ALL
     USING (
         tenant_id = current_setting('app.current_tenant', true)
-        OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL
         OR current_setting('app.current_tenant', true) = 'system_admin'
     );

@@ -192,3 +192,73 @@ Issues are categorized by severity:
 - **Production Blocker:** No
 - **Description:** While declarative CRDs and Helm manifests are implemented and verified, an active background controller pod running `kube-rs` to continuously reconcile `AxiomPolicyBundle` state into ExtMCP runtime instances is planned for the next orchestration release.
 - **Resolution:** Build the `axiom-operator` crate using `kube-rs` to manage bundle reconciliations automatically.
+
+---
+
+### Issue DEBT-14: Control Plane JWT Signature Verification & Operator Step-Up (C-01, H-02)
+- **Category:** Control Plane Security / Authentication
+- **Severity:** P0 (Critical)
+- **Status:** **REMEDIATED**
+- **Production Blocker:** No
+- **File Paths:** `services/extmcp/runtime/src/admin.rs`
+- **Description:** Previously, operator JWT claims were parsed by decoding the payload section without cryptographic signature verification, and the step-up check for destructive actions accepted any signature-shaped string.
+- **Remediation Implemented:**
+  - Replaced unverified base64 decode in `decode_operator_jwt` with strict cryptographic signature verification via `jsonwebtoken::decode` supporting HMAC-SHA256 (`AXIOM_JWT_SECRET`) and RS256 (`AXIOM_JWT_PUBLIC_KEY`), including expiration, issuer, and audience validation.
+  - Replaced shape-based check in `verify_step_up_signature` with real HMAC-SHA256 signature verification over canonical serialized payload hashes (`Sha256::digest(&payload_bytes)`), eliminating TOCTOU vulnerabilities.
+
+---
+
+### Issue DEBT-15: Console API Upstream Proxy Authentication & Error Handling (C-02, H-01)
+- **Category:** Web Security / API Proxy
+- **Severity:** P0 (Critical)
+- **Status:** **REMEDIATED**
+- **Production Blocker:** No
+- **File Paths:** `apps/web/middleware.ts`, `apps/web/app/api/console/*`, `apps/web/app/api/auth/oidc/callback/route.ts`
+- **Description:** Next.js middleware previously did not intercept `/api/console/*` requests, privileged console endpoints returned synthetic `{ status: "applied" }` responses when upstream services were down, and OIDC callback fabricated mock users on errors.
+- **Remediation Implemented:**
+  - Expanded Next.js middleware matcher to `["/console/:path*", "/api/console/:path*"]`, returning HTTP 401 for unauthenticated calls.
+  - Hardened all console API routes (`revocations`, `rotate`, `scorecard`, `simulate-revoke`, `events`) to require verified operator sessions, check RBAC roles (`security-admin`, `soc-operator`), and return fail-closed HTTP 502 errors when upstream services fail.
+  - Eliminated mock user generation in OIDC callback in non-dev mode; enforced strict 3-segment JWS validation, PKCE nonce/state matching, expiration, issuer, and audience checks.
+
+---
+
+### Issue DEBT-16: Fail-Closed Database Tenancy, RLS & Schema Migrations (H-06, H-07, M-03)
+- **Category:** Database Security / Tenancy
+- **Severity:** P1 (High)
+- **Status:** **REMEDIATED**
+- **Production Blocker:** No
+- **File Paths:** `services/extmcp/runtime/src/main.rs`, `services/extmcp/runtime/src/admin.rs`, `lineage-graph/migrations/0002_tenant_rls.sql`, `lineage-graph/migrations/0005_harden_rls_fail_closed.sql`
+- **Description:** Lineage graph and simulation queries did not pass tenant context, database migration errors in `main.rs` were logged as warnings without halting startup, and RLS policies evaluated to true when `app.current_tenant` was unset.
+- **Remediation Implemented:**
+  - Extracted `OperatorContext` in `admin.rs` and passed `Some(&ctx.tenant_id)` to all node listing and recursive CTE simulation queries; blocked in-memory fallback in production.
+  - Made PostgreSQL migration failures in `main.rs` fatal during production startup, terminating immediately if the database schema is not current.
+  - Removed `NULLIF(...) IS NULL` bypass from `0002_tenant_rls.sql` and added migration `0005_harden_rls_fail_closed.sql` so that unset tenant context strictly denies row access (fail-closed by design).
+
+---
+
+### Issue DEBT-17: Dynamic Broker Error Handling & Decision Audit Streaming (H-03, H-04, M-04, M-06)
+- **Category:** Secretless / Observability / Risk
+- **Severity:** P1 (High)
+- **Status:** **REMEDIATED**
+- **Production Blocker:** No
+- **File Paths:** `services/extmcp/runtime/src/admin.rs`, `services/extmcp/runtime/src/lib.rs`, `services/extmcp/runtime/src/main.rs`
+- **Description:** Secretless broker returned synthetic mock leases when OpenBao was unreachable, rotation errors were swallowed, OWASP scorecard was computed from static booleans, and authorization decisions were disconnected from the audit event stream.
+- **Remediation Implemented:**
+  - Enforced fail-closed `VAULT_UNAVAILABLE` error responses on dynamic leasing errors in production; removed synthetic fallback leases.
+  - Made rotation lease cleanup atomic (leases are retained until OpenBao revocation succeeds) and accurately reported rotation failure in SSE events and API responses.
+  - Dynamically calculated OWASP posture scores and control states from real tenant graph nodes in PostgreSQL.
+  - Connected `ExtMcpAdapter` and `AuditBus` to the SSE broadcast stream, emitting structured, redacted `mcp_authorization_decision` events.
+
+---
+
+### Issue DEBT-18: Packaging, Deployment Wiring & Version Metadata (H-05, F-01, F-03)
+- **Category:** Deployment / Packaging / Release
+- **Severity:** P1 (High)
+- **Status:** **REMEDIATED**
+- **Production Blocker:** No
+- **File Paths:** `deployments/helm/axiom-nhi/*`, `deployments/docker/*`, `Dockerfile`, `package.json`
+- **Description:** Helm runtime DaemonSet referenced non-existent config names, omitted `AXIOM_ADMIN_TOKEN`, and missed `_helpers.tpl`. Root Docker image omitted the Next.js web application. Package version carried a `-draft` suffix.
+- **Remediation Implemented:**
+  - Renamed Helm env var to `AXIOM_VALIDATION_CONFIG`, wired `AXIOM_ADMIN_TOKEN` secret, made `DATABASE_URL` mandatory, and added `_helpers.tpl` defining standard labels and helpers.
+  - Created `Dockerfile.web`, unified entrypoint script `entrypoint-unified.sh`, updated root `Dockerfile` to build the Next.js console, and added `axiom-web` to `docker-compose.yml`.
+  - Bumped version from `0.1.0-draft` to official release `0.1.0` across workspace root and all sub-packages.

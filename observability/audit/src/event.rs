@@ -341,11 +341,14 @@ impl KillSwitchAuditInput {
 }
 
 /// A record that can be delivered by the audit bus.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "record_type", content = "payload")]
 pub enum AuditRecord {
     /// A normal authorization decision event.
+    #[serde(rename = "decision")]
     Decision(AuditEvent),
     /// A kill-switch admin action event.
+    #[serde(rename = "kill_switch_action")]
     KillSwitchAction(KillSwitchAuditEvent),
 }
 

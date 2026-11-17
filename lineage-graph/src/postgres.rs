@@ -58,6 +58,8 @@ impl PostgresLineageGraph {
         sqlx::raw_sql(ddl3).execute(&self.pool).await?;
         let ddl4 = include_str!("../migrations/0004_integrations_and_sync_runs.sql");
         sqlx::raw_sql(ddl4).execute(&self.pool).await?;
+        let ddl5 = include_str!("../migrations/0005_harden_rls_fail_closed.sql");
+        sqlx::raw_sql(ddl5).execute(&self.pool).await?;
         Ok(())
     }
 

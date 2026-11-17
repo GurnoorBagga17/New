@@ -49,6 +49,23 @@ services:
       - "9001"
     restart: unless-stopped
 
+  axiom-web:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.web
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      AXIOM_ADMIN_ADDR: http://extmcp-service:8787
+      AXIOM_ADMIN_TOKEN: ${AXIOM_ADMIN_TOKEN:-axm_local_dev_token_for_browser_testing_32b}
+      DATABASE_URL: postgresql://axiom:axiom_password@postgres:5432/axiom_lineage
+    depends_on:
+      - extmcp-service
+      - postgres
+    restart: unless-stopped
+
   mcp-backend:
     image: node:24-alpine
     working_dir: /app

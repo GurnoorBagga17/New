@@ -29,22 +29,31 @@ COPY docs/architecture ./docs/architecture
 COPY packages ./packages
 COPY apps/gateway-ui ./apps/gateway-ui
 COPY apps/web ./apps/web
+ENV NEXT_STANDALONE=true
+ENV NODE_ENV=production
 RUN pnpm install --frozen-lockfile && \
     pnpm --filter @axiom/cedar-editor build && \
-    pnpm --filter @axiom/gateway-ui build
+    pnpm --filter @axiom/gateway-ui build && \
+    pnpm --filter @axiom/web build
 
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 RUN groupadd -g 65532 axiom && useradd -u 65532 -g 65532 -s /usr/sbin/nologin -M axiom
 COPY --from=rust-builder /build/target/release/extmcp-runtime /usr/local/bin/extmcp-runtime
 COPY --from=web-builder /web/apps/gateway-ui/dist /app/apps/gateway-ui/dist
+COPY --from=web-builder /web/apps/web/.next/standalone /app/web
+COPY --from=web-builder /web/apps/web/.next/static /app/web/apps/web/.next/static
+COPY --from=web-builder /web/apps/web/public /app/web/apps/web/public
 COPY gateway/mcp-interceptor /app/gateway/mcp-interceptor
+COPY deployments/docker/entrypoint-unified.sh /usr/local/bin/entrypoint-unified.sh
+RUN chmod +x /usr/local/bin/entrypoint-unified.sh
+
 ENV NODE_ENV=production
-ENV PORT=8080
+ENV PORT=3000
 ENV AXIOM_ADMIN_ADDR=127.0.0.1:8787
 ENV AXIOM_EXTMCP_ADDR=0.0.0.0:9001
 USER 65532:65532
-EXPOSE 8080 8787 9001
+EXPOSE 3000 8080 8787 9001
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:8787/healthz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
-CMD ["extmcp-runtime"]
+ENTRYPOINT ["/usr/local/bin/entrypoint-unified.sh"]

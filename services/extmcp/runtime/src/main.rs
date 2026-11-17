@@ -239,6 +239,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let env_mode = std::env::var("AXIOM_ENV").unwrap_or_else(|_| "development".to_owned());
     let allow_anonymous = std::env::var("AXIOM_ALLOW_ANONYMOUS_LOCAL").unwrap_or_default() == "1";
     let dev_mode = std::env::var("AXIOM_DEV_MODE").unwrap_or_default() == "1";
+    let runtime_mode = parse_mode()?;
 
     if env_mode == "production" {
         if allow_anonymous {
@@ -246,6 +247,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         if dev_mode {
             return Err("FATAL SECURITY VIOLATION: AXIOM_DEV_MODE=1 is strictly forbidden in AXIOM_ENV=production".into());
+        }
+        if runtime_mode == RuntimeMode::Observe
+            && std::env::var("AXIOM_ALLOW_OBSERVE_IN_PRODUCTION").as_deref() != Ok("1")
+        {
+            return Err("FATAL SECURITY VIOLATION: AXIOM_RUNTIME_MODE=observe is forbidden in production without explicit AXIOM_ALLOW_OBSERVE_IN_PRODUCTION=1 acknowledgment.".into());
         }
     }
 
@@ -351,6 +357,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         fs::write(&policy_path, serde_json::to_vec_pretty(&_policy_bundle)?)?;
     }
 
+    let (event_sender, _) = tokio::sync::broadcast::channel(512);
+
+    // M-06: Connect AuditBus events to the SSE event sender so that audit records stream to subscribers
+    let audit_sub = audit_bus.subscribe();
+    let audit_event_sender = event_sender.clone();
+    tokio::task::spawn_blocking(move || {
+        loop {
+            match audit_sub.next_timeout(std::time::Duration::from_millis(500)) {
+                axiom_audit::ReceiverOutcome::Record(record) => {
+                    if let Ok(val) = serde_json::to_value(&record) {
+                        let _ = audit_event_sender.send(val);
+                    }
+                }
+                axiom_audit::ReceiverOutcome::Timeout => {}
+                axiom_audit::ReceiverOutcome::Disconnected => break,
+            }
+        }
+    });
+
     // The identity verifier enforces the exact allow-list; startup rejects
     // resource-map and validator-profile drift before accepting traffic.
     let policy_store = Arc::new(PolicySnapshotStore::new(snapshot));
@@ -361,7 +386,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Arc::new(SharedRevocationChecker(revocation_store)),
         policy_engine,
     ));
-    let adapter = ExtMcpAdapter::new(pipeline, resources, parse_mode()?, true)?;
+    let adapter = ExtMcpAdapter::new(pipeline, resources, runtime_mode, true)?
+        .with_audit_events(event_sender.clone());
 
     println!("Axiom NHI ExtMCP gRPC runtime listening on {}", bind_addr);
     let is_dev_mode = std::env::var("AXIOM_DEV_MODE").as_deref() == Ok("1");
@@ -381,7 +407,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let actor = std::env::var("AXIOM_ADMIN_ACTOR").unwrap_or_else(|_| "local-operator".into());
     if actor.trim().is_empty() { return Err("AXIOM_ADMIN_ACTOR cannot be empty".into()); }
     let admin_addr: SocketAddr = std::env::var("AXIOM_ADMIN_ADDR").unwrap_or_else(|_| "127.0.0.1:8787".into()).parse()?;
-    let (event_sender, _) = tokio::sync::broadcast::channel(512);
     let lineage_engine = Arc::new(std::sync::Mutex::new(admin::create_seeded_lineage_engine()));
 
     // Automatic Embedded PostgreSQL 16 Lineage Migration Boot Hook & Connection Retain
@@ -392,9 +417,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             match axiom_lineage_graph::PostgresLineageGraph::connect(&database_url).await {
                 Ok(postgres_graph) => {
                     if let Err(migration_err) = postgres_graph.run_migrations().await {
-                        eprintln!("Warning: Failed to run PostgreSQL lineage migrations: {migration_err}");
+                        eprintln!("Error: Failed to run PostgreSQL lineage migrations: {migration_err}");
+                        if !is_dev_mode {
+                            return Err(format!("Fatal: Production mode failed to execute lineage migrations: {migration_err}").into());
+                        }
                     } else {
-                        println!("PostgreSQL 16 lineage schema migrations applied successfully (nhi_nodes, nhi_edges, simulate_revocation, tenant_rls).");
+                        println!("PostgreSQL 16 lineage schema migrations applied successfully (nhi_nodes, nhi_edges, simulate_revocation, tenant_rls, rls_fail_closed).");
                     }
                     postgres_lineage_opt = Some(Arc::new(postgres_graph));
                 }

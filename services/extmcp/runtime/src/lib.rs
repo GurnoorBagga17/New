@@ -40,6 +40,7 @@ pub struct ExtMcpAdapter<I, V, R> {
     resources: HashMap<String, String>,
     mode: RuntimeMode,
     enforce_revocation_in_observe: bool,
+    audit_events: Option<tokio::sync::broadcast::Sender<serde_json::Value>>,
 }
 
 impl<I, V, R> ExtMcpAdapter<I, V, R>
@@ -71,7 +72,17 @@ where
             resources,
             mode,
             enforce_revocation_in_observe,
+            audit_events: None,
         })
+    }
+
+    /// Connect a real-time broadcast channel for MCP authorization decision audit events (M-06).
+    pub fn with_audit_events(
+        mut self,
+        sender: tokio::sync::broadcast::Sender<serde_json::Value>,
+    ) -> Self {
+        self.audit_events = Some(sender);
+        self
     }
 
     /// Bind the adapter to a TCP address and serve the generated ExtMCP API.
@@ -207,6 +218,25 @@ where
             reason = %result.policy_response.reason,
             "extmcp authorization decision evaluated"
         );
+
+        if let Some(events) = &self.audit_events {
+            let _ = events.send(serde_json::json!({
+                "event_type": "mcp_authorization_decision",
+                "timestamp_rfc3339": chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                "request_id": runtime_request.request_id,
+                "trace_id": runtime_request.trace_id,
+                "mcp_method": runtime_request.mcp_method,
+                "target_server": runtime_request.target_server,
+                "tool_name": runtime_request.tool_name,
+                "decision": format!("{:?}", result.policy_response.decision),
+                "runtime_mode": format!("{:?}", self.mode),
+                "pipeline_latency_us": result.pipeline_latency_us,
+                "evaluation_latency_us": result.policy_response.evaluation_latency_us,
+                "policy_version": result.policy_response.policy_version,
+                "reason": result.policy_response.reason,
+            }));
+        }
+
         if result.policy_response.decision == Decision::Permit {
             return Ok(pass());
         }

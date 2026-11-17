@@ -1,6 +1,6 @@
 {
   "name": "axiom-nhi",
-  "version": "0.1.0-draft",
+  "version": "0.1.0",
   "private": true,
   "description": "Axiom NHI Phase 1 Runtime Security Gateway - Polyglot Monorepo",
   "license": "Apache-2.0",
