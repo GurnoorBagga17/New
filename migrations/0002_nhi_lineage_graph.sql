@@ -1,8 +1,15 @@
--- Axiom NHI Phase 2 — Postgres 16 Identity Inventory & Dependency Lineage Graph DDL
+-- Copyright 2026 Axiom NHI — Licensed under Apache-2.0
+-- Migration 0002: NHI Lineage Graph & Blast Radius Simulator
+-- Phase 2: Postgres 16 Identity Inventory & Dependency Lineage Graph DDL
 -- Strictly stores HMAC-SHA256 credential fingerprints (never plaintext secret values).
+
+-- =============================================================================
+-- NHI Nodes (Identities, Credentials, Workloads, Data Assets)
+-- =============================================================================
 
 CREATE TABLE IF NOT EXISTS nhi_nodes (
     entity_uid TEXT PRIMARY KEY,
+    tenant_id VARCHAR(64) NOT NULL DEFAULT 'org_default' REFERENCES tenants(tenant_id) ON DELETE CASCADE,
     entity_kind TEXT NOT NULL,
     source_connector TEXT NOT NULL,
     display_name TEXT NOT NULL,
@@ -14,15 +21,31 @@ CREATE TABLE IF NOT EXISTS nhi_nodes (
     blast_radius_score SMALLINT DEFAULT 0,
     owasp_nhi_flags TEXT[] DEFAULT '{}',
     owasp_mcp_flags TEXT[] DEFAULT '{}',
+    is_stale BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ,
     last_used_at TIMESTAMPTZ,
     metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Compound uniqueness (tenant_id, entity_uid) to prevent cross-tenant collision
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'uq_nhi_nodes_tenant_entity'
+    ) THEN
+        ALTER TABLE nhi_nodes ADD CONSTRAINT uq_nhi_nodes_tenant_entity UNIQUE (tenant_id, entity_uid);
+    END IF;
+END $$;
+
+-- =============================================================================
+-- NHI Edges (Lineage Dependencies and Access Grants)
+-- =============================================================================
+
 CREATE TABLE IF NOT EXISTS nhi_edges (
     source_uid TEXT NOT NULL REFERENCES nhi_nodes(entity_uid) ON DELETE CASCADE,
     target_uid TEXT NOT NULL REFERENCES nhi_nodes(entity_uid) ON DELETE CASCADE,
+    tenant_id VARCHAR(64) NOT NULL DEFAULT 'org_default' REFERENCES tenants(tenant_id) ON DELETE CASCADE,
     relation_type TEXT NOT NULL,
     observed_via TEXT NOT NULL,
     first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -31,10 +54,48 @@ CREATE TABLE IF NOT EXISTS nhi_edges (
     PRIMARY KEY (source_uid, target_uid, relation_type)
 );
 
+-- =============================================================================
+-- Indexes for Tenant Isolation & Graph Traversal
+-- =============================================================================
+
+CREATE INDEX IF NOT EXISTS idx_nhi_nodes_tenant ON nhi_nodes(tenant_id, entity_uid);
+CREATE INDEX IF NOT EXISTS idx_nhi_edges_tenant ON nhi_edges(tenant_id, source_uid, target_uid);
 CREATE INDEX IF NOT EXISTS idx_nhi_edges_target ON nhi_edges(target_uid);
 CREATE INDEX IF NOT EXISTS idx_nhi_nodes_unowned ON nhi_nodes(owner_email) WHERE owner_email IS NULL;
+CREATE INDEX IF NOT EXISTS idx_nhi_nodes_stale ON nhi_nodes(tenant_id, is_stale);
 
--- Recursive CTE Pre-Revocation Blast-Radius & Sibling Simulator
+-- =============================================================================
+-- Row-Level Security (RLS) Policies (Strict Fail-Closed)
+-- =============================================================================
+
+ALTER TABLE nhi_nodes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE nhi_nodes FORCE ROW LEVEL SECURITY;
+ALTER TABLE nhi_edges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE nhi_edges FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation_nodes ON nhi_nodes;
+CREATE POLICY tenant_isolation_nodes ON nhi_nodes
+    FOR ALL
+    USING (
+        tenant_id = current_setting('app.current_tenant', true)
+        OR tenant_id = current_setting('app.current_tenant_id', true)
+        OR current_setting('app.current_tenant', true) = 'system_admin'
+    );
+
+DROP POLICY IF EXISTS tenant_isolation_edges ON nhi_edges;
+CREATE POLICY tenant_isolation_edges ON nhi_edges
+    FOR ALL
+    USING (
+        tenant_id = current_setting('app.current_tenant', true)
+        OR tenant_id = current_setting('app.current_tenant_id', true)
+        OR current_setting('app.current_tenant', true) = 'system_admin'
+    );
+
+-- =============================================================================
+-- Recursive CTE Views & Blast Radius Simulation
+-- =============================================================================
+
+-- View: Shared Credential Sibling Workloads
 CREATE OR REPLACE VIEW v_shared_credential_siblings AS
 SELECT
     e1.target_uid AS credential_uid,

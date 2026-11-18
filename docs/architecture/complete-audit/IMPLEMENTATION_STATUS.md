@@ -1,5 +1,7 @@
 # Axiom NHI — Master Implementation Status Matrix
 
+> **⚠️ Note on Verification Authority:** For audited, reproducible runtime verification and gap status across both Rust crates and the Web/SaaS tier, see [`docs/VERIFIED-STATUS-2026-11-18.md`](../../VERIFIED-STATUS-2026-11-18.md).
+
 **Document:** `docs/architecture/complete-audit/IMPLEMENTATION_STATUS.md`  
 **Classification:** Feature-by-Feature Engineering Reality & Verification Scorecard  
 **Status Definitions:**

@@ -31,12 +31,12 @@ services:
       AXIOM_RESOURCE_MAP_CONFIG: /etc/axiom/resources.json
       AXIOM_REVOCATION_CONFIG: /etc/axiom/revocations.json
       AXIOM_ADMIN_ADDR: 0.0.0.0:8787
-      AXIOM_ADMIN_TOKEN: ${AXIOM_ADMIN_TOKEN:-axm_local_dev_token_for_browser_testing_32b}
+      AXIOM_ADMIN_TOKEN: ${AXIOM_ADMIN_TOKEN:?AXIOM_ADMIN_TOKEN must be set (min 32 chars)}
       AXIOM_ADMIN_ACTOR: ${AXIOM_ADMIN_ACTOR:-local-operator}
       AXIOM_DATA_DIR: /var/lib/axiom
-      DATABASE_URL: postgresql://axiom:axiom_password@postgres:5432/axiom_lineage
+      DATABASE_URL: postgresql://axiom:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/axiom_lineage
       OPENBAO_ADDR: http://openbao:8200
-      OPENBAO_TOKEN: root
+      OPENBAO_TOKEN: ${OPENBAO_TOKEN:?OPENBAO_TOKEN must be set}
     depends_on:
       - postgres
       - openbao
@@ -59,8 +59,8 @@ services:
       NODE_ENV: production
       PORT: 3000
       AXIOM_ADMIN_ADDR: http://extmcp-service:8787
-      AXIOM_ADMIN_TOKEN: ${AXIOM_ADMIN_TOKEN:-axm_local_dev_token_for_browser_testing_32b}
-      DATABASE_URL: postgresql://axiom:axiom_password@postgres:5432/axiom_lineage
+      AXIOM_ADMIN_TOKEN: ${AXIOM_ADMIN_TOKEN:?AXIOM_ADMIN_TOKEN must be set (min 32 chars)}
+      DATABASE_URL: postgresql://axiom:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/axiom_lineage
     depends_on:
       - extmcp-service
       - postgres
@@ -81,12 +81,12 @@ services:
     container_name: axiom-postgres
     environment:
       POSTGRES_USER: axiom
-      POSTGRES_PASSWORD: axiom_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_DB: axiom_lineage
     ports:
       - "5432:5432"
     volumes:
-      - ../../lineage-graph/migrations:/docker-entrypoint-initdb.d:ro
+      - ../../migrations:/docker-entrypoint-initdb.d:ro
       - postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
 
@@ -94,7 +94,7 @@ services:
     image: openbao/openbao:latest
     container_name: axiom-openbao
     environment:
-      BAO_DEV_ROOT_TOKEN_ID: root
+      BAO_DEV_ROOT_TOKEN_ID: ${OPENBAO_TOKEN:?OPENBAO_TOKEN must be set}
       BAO_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
     ports:
       - "8200:8200"

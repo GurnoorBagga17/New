@@ -1,7 +1,7 @@
 # Axiom NHI — Project Status Report
 
 **Last Updated:** November 2026  
-**Repository State:** All 18 Workspace Crates Compiling & Verified  
+**Repository State:** All 21 Workspace Crates Compiling & Verified  
 **License:** Apache-2.0 Open Core  
 
 > **⚠️ Superseded for verification claims.** This report is stale: the
@@ -17,7 +17,7 @@ Axiom NHI has completed its core architecture integration, aligning the **Next.j
 
 ### Key Milestones Achieved
 
-* **✅ 18 of 18 Rust Crates Compiling Cleanly:** `cargo check --workspace` exits 0 with zero compiler errors across all core crates.
+* **✅ 21 of 21 Rust Crates Compiling Cleanly:** `cargo check --workspace` exits 0 with zero compiler errors across all workspace crates.
 * **✅ Control Plane & Supervisor Channel:** Implemented `services/control-plane`, `services/agent-supervisor`, and `services/agent-protocol` with bidirectional mTLS WebSocket frames, heartbeat reaping, live policy delivery, and disk ring buffer spooling.
 * **✅ ExtMCP Runtime Dynamic Watcher:** Implemented background `policy.cedar` hot-reload watcher and atomic spool chunk writer (`<data_dir>/spool/*.chunk`).
 * **✅ Pluggable Session Architecture:** Implemented `SessionAdapter` interface supporting both PostgreSQL RLS and local offline development fallback.
