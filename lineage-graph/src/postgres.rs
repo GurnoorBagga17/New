@@ -47,18 +47,19 @@ impl PostgresLineageGraph {
         &self.pool
     }
 
-    /// Runs the Phase 2 schema migrations and installs the recursive CTE simulation function
-    /// along with multi-tenant Row-Level Security (RLS) enforcement and operator auth/SCIM tables.
+    /// Runs the unified schema migrations and installs the recursive CTE simulation function
+    /// along with multi-tenant Row-Level Security (RLS) enforcement, operator auth/SCIM,
+    /// billing/entitlements, integrations, and SaaS agent tables.
     pub async fn run_migrations(&self) -> Result<(), LineageDbError> {
-        let ddl1 = include_str!("../migrations/0001_phase2_graph.sql");
+        let ddl1 = include_str!("../../migrations/0001_tenants_and_operators.sql");
         sqlx::raw_sql(ddl1).execute(&self.pool).await?;
-        let ddl2 = include_str!("../migrations/0002_tenant_rls.sql");
+        let ddl2 = include_str!("../../migrations/0002_nhi_lineage_graph.sql");
         sqlx::raw_sql(ddl2).execute(&self.pool).await?;
-        let ddl3 = include_str!("../migrations/0003_operator_auth_and_scim.sql");
+        let ddl3 = include_str!("../../migrations/0003_billing_and_entitlements.sql");
         sqlx::raw_sql(ddl3).execute(&self.pool).await?;
-        let ddl4 = include_str!("../migrations/0004_integrations_and_sync_runs.sql");
+        let ddl4 = include_str!("../../migrations/0004_integrations_and_connectors.sql");
         sqlx::raw_sql(ddl4).execute(&self.pool).await?;
-        let ddl5 = include_str!("../migrations/0005_harden_rls_fail_closed.sql");
+        let ddl5 = include_str!("../../migrations/0005_saas_agents.sql");
         sqlx::raw_sql(ddl5).execute(&self.pool).await?;
         Ok(())
     }

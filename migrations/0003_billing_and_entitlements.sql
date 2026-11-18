@@ -1,13 +1,13 @@
 -- Copyright 2026 Axiom NHI — Licensed under Apache-2.0
--- Migration 0002: Billing, Subscriptions, and Entitlements
+-- Migration 0003: Billing, Subscriptions, and Entitlements
 -- Phase 2: Billing and Provisioning Foundation
 
 -- =============================================================================
 -- Subscriptions
 -- =============================================================================
 
-CREATE TABLE subscriptions (
-    tenant_id TEXT PRIMARY KEY REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS subscriptions (
+    tenant_id VARCHAR(64) PRIMARY KEY REFERENCES tenants(tenant_id) ON DELETE CASCADE,
     stripe_customer_id TEXT NOT NULL,
     stripe_subscription_id TEXT UNIQUE,
     status TEXT NOT NULL CHECK (status IN (
@@ -21,9 +21,10 @@ CREATE TABLE subscriptions (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_subscriptions_status ON subscriptions(status);
-CREATE INDEX idx_subscriptions_period_end ON subscriptions(current_period_end) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_period_end ON subscriptions(current_period_end) WHERE status = 'active';
 
+DROP TRIGGER IF EXISTS update_subscriptions_updated_at ON subscriptions;
 CREATE TRIGGER update_subscriptions_updated_at BEFORE UPDATE ON subscriptions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -31,7 +32,7 @@ CREATE TRIGGER update_subscriptions_updated_at BEFORE UPDATE ON subscriptions
 -- Billing Webhook Events (Idempotency)
 -- =============================================================================
 
-CREATE TABLE billing_webhook_events (
+CREATE TABLE IF NOT EXISTS billing_webhook_events (
     event_id TEXT PRIMARY KEY, -- Stripe event ID
     event_type TEXT NOT NULL,
     raw_payload JSONB NOT NULL,
@@ -40,8 +41,8 @@ CREATE TABLE billing_webhook_events (
     processed_at TIMESTAMPTZ
 );
 
-CREATE INDEX idx_webhook_events_processed ON billing_webhook_events(processed, received_at);
-CREATE INDEX idx_webhook_events_type ON billing_webhook_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_webhook_events_processed ON billing_webhook_events(processed, received_at);
+CREATE INDEX IF NOT EXISTS idx_webhook_events_type ON billing_webhook_events(event_type);
 
 COMMENT ON TABLE billing_webhook_events IS 'Idempotent webhook event storage. Unique constraint on event_id prevents duplicate processing.';
 
@@ -49,9 +50,9 @@ COMMENT ON TABLE billing_webhook_events IS 'Idempotent webhook event storage. Un
 -- Tenant Entitlements (Server-Authoritative Feature Flags)
 -- =============================================================================
 
-CREATE TABLE tenant_entitlements (
+CREATE TABLE IF NOT EXISTS tenant_entitlements (
     entitlement_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id TEXT NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+    tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
     plan_id TEXT NOT NULL,
     status TEXT NOT NULL,
     features JSONB NOT NULL, -- e.g., {"connector.aws": true, "runtime.enforcement": true}
@@ -62,14 +63,32 @@ CREATE TABLE tenant_entitlements (
     CONSTRAINT unique_tenant_active_entitlement UNIQUE (tenant_id) WHERE superseded_at IS NULL
 );
 
-CREATE INDEX idx_entitlements_tenant_active ON tenant_entitlements(tenant_id) WHERE superseded_at IS NULL;
-CREATE INDEX idx_entitlements_version ON tenant_entitlements(tenant_id, version DESC);
+CREATE INDEX IF NOT EXISTS idx_entitlements_tenant_active ON tenant_entitlements(tenant_id) WHERE superseded_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_entitlements_version ON tenant_entitlements(tenant_id, version DESC);
 
--- Enable RLS on entitlements
+-- Enable RLS on entitlements and subscriptions
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscriptions FORCE ROW LEVEL SECURITY;
 ALTER TABLE tenant_entitlements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tenant_entitlements FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS subscription_isolation ON subscriptions;
+CREATE POLICY subscription_isolation ON subscriptions
+    FOR ALL
+    USING (
+        tenant_id = current_setting('app.current_tenant', true)
+        OR tenant_id = current_setting('app.current_tenant_id', true)
+        OR current_setting('app.current_tenant', true) = 'system_admin'
+    );
+
+DROP POLICY IF EXISTS entitlement_isolation ON tenant_entitlements;
 CREATE POLICY entitlement_isolation ON tenant_entitlements
-    USING (tenant_id = current_setting('app.current_tenant_id', TRUE)::TEXT);
+    FOR ALL
+    USING (
+        tenant_id = current_setting('app.current_tenant', true)
+        OR tenant_id = current_setting('app.current_tenant_id', true)
+        OR current_setting('app.current_tenant', true) = 'system_admin'
+    );
 
 -- =============================================================================
 -- Entitlement Helper Functions
@@ -106,7 +125,6 @@ BEGIN
         RETURN FALSE;
     END IF;
     
-    -- Check if feature exists and is true
     RETURN COALESCE((entitlement.features->>feature_key)::BOOLEAN, FALSE);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -138,9 +156,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Billing Audit Trail
 -- =============================================================================
 
-CREATE TABLE billing_audit_events (
+CREATE TABLE IF NOT EXISTS billing_audit_events (
     event_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id TEXT NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+    tenant_id VARCHAR(64) NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
     event_type TEXT NOT NULL,
     old_plan_id TEXT,
     new_plan_id TEXT,
@@ -150,13 +168,19 @@ CREATE TABLE billing_audit_events (
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_billing_audit_tenant ON billing_audit_events(tenant_id, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_billing_audit_tenant ON billing_audit_events(tenant_id, timestamp DESC);
 
--- Enable RLS on billing audit
 ALTER TABLE billing_audit_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE billing_audit_events FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS billing_audit_isolation ON billing_audit_events;
 CREATE POLICY billing_audit_isolation ON billing_audit_events
-    USING (tenant_id = current_setting('app.current_tenant_id', TRUE)::TEXT);
+    FOR ALL
+    USING (
+        tenant_id = current_setting('app.current_tenant', true)
+        OR tenant_id = current_setting('app.current_tenant_id', true)
+        OR current_setting('app.current_tenant', true) = 'system_admin'
+    );
 
 -- =============================================================================
 -- Trigger: Audit Subscription Changes
@@ -183,16 +207,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS audit_subscription_changes ON subscriptions;
 CREATE TRIGGER audit_subscription_changes
     AFTER INSERT OR UPDATE ON subscriptions
     FOR EACH ROW EXECUTE FUNCTION audit_subscription_change();
-
--- =============================================================================
--- Comments
--- =============================================================================
-
-COMMENT ON TABLE subscriptions IS 'Tenant subscription state synchronized from billing provider (Stripe).';
-COMMENT ON TABLE tenant_entitlements IS 'Versioned feature flags and usage limits. Server-authoritative, never trusted from client.';
-COMMENT ON FUNCTION tenant_has_feature IS 'Authorization check: does tenant have feature X enabled?';
-COMMENT ON FUNCTION tenant_within_limit IS 'Usage check: is tenant within limit Y for resource?';
-

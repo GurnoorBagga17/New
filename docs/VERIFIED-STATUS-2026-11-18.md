@@ -170,39 +170,28 @@ These were checked with `git ls-files` / direct file reads, not taken from docs.
 | CSRF token was presence-only, never compared | High | **Fixed** (double-submit) |
 | Production build required runtime secrets | High | **Fixed** (§3.2) |
 | Webhook replay window | High | **Fixed in code**, untested against live Stripe |
-| Two conflicting database schemas | High | **Open** |
-| Dev credentials defaulted in compose files | High | **Open** |
+| Two conflicting database schemas | High | **Fixed and verified** (§5.1) |
+| Dev credentials defaulted in compose files | High | **Fixed and verified** (§5.2) |
 | CI does not run Python, Playwright, `cargo audit`, `npm audit` | Medium | **Open** |
 | Tenant-isolation test cannot run | Medium | **Open** |
 | Audit-log failures dropped | Medium | **Open** |
 
-### 5.1 Two conflicting migration sets
+### 5.1 Canonical unified database migrations (Resolved)
 
-- Root `migrations/` creates `tenants`, `operators`, billing/entitlements,
-  integrations, and SaaS agents.
-- `lineage-graph/migrations/` independently creates `tenants`, `operators`,
-  `operator_sessions`, plus the graph and RLS tables.
-- Root `docker-compose.yml` mounts `./migrations`.
-- `deployments/docker/docker-compose.yml` and `docker-compose.prod.yml` mount
-  `../../lineage-graph/migrations`.
+- Root `migrations/` now holds the single canonical, linear migration chain:
+  - `0001_tenants_and_operators.sql`: Multi-tenant foundation, SCIM, operators, sessions, audit events, and fail-closed RLS.
+  - `0002_nhi_lineage_graph.sql`: Identity inventory (`nhi_nodes`), dependency edges (`nhi_edges`), compound uniqueness, fail-closed RLS, recursive CTE sibling view, and blast-radius simulator (`simulate_revocation`).
+  - `0003_billing_and_entitlements.sql`: Stripe subscriptions, idempotent `billing_webhook_events`, versioned `tenant_entitlements`, and billing audit trail.
+  - `0004_integrations_and_connectors.sql`: Cloud integrations, sync runs, discovery jobs, cursors, and `nhi_nodes.integration_id` foreign key.
+  - `0005_saas_agents.sql`: Outbound agent enrollment tokens, agents, Ed25519-signed policy bundles, and metadata-only audit stream.
+- `lineage-graph/migrations/` was eliminated; `axiom-lineage-graph`'s embedded migration loader points directly to `../../migrations/`.
+- All Docker Compose configurations (`docker-compose.yml`, `deployments/docker/docker-compose.prod.yml`, and `deployments/docker/docker-compose.yml`) now mount `migrations/` into `/docker-entrypoint-initdb.d:ro`.
 
-Consequence: in the production-style compose files, the billing and entitlement
-tables from root `0002` are never created, while the webhook writes to
-`subscriptions` and `tenant_entitlements`. This needs one canonical migration
-chain before any deployment claim is credible.
+### 5.2 Zero default credentials in compose files (Resolved)
 
-### 5.2 Development credentials are baked in
-
-- `docker-compose.yml`: `POSTGRES_PASSWORD: axiom_dev_password`,
-  `OPENBAO_DEV_ROOT_TOKEN_ID: axiom-dev-root-token`.
-- `deployments/docker/docker-compose.yml`: default `AXIOM_ADMIN_TOKEN` value.
-- `apps/web/app/api/console/proxy.ts`: non-production fallback token.
-- `apps/web/app/api/auth/store.ts`: `axm_dev_stepup_sig` fallback under
-  `AXIOM_DEV_MODE=1` outside production.
-
-The production compose file correctly requires `AXIOM_ADMIN_TOKEN`, and
-`lib/startup-checks.ts` refuses to start with dev-like tokens in production —
-but the checked-in defaults should still be removed or generated per environment.
+- `docker-compose.yml`: Removed static `axiom_dev_password`, `axiom-dev-root-token`, and default passwords. Requires explicit environment variables with `${VAR:?error}` fail-fast syntax.
+- `deployments/docker/docker-compose.yml`: Removed fallback `axm_local_dev_token_for_browser_testing_32b` and `root` credentials; enforces required variables.
+- Created `deployments/docker/.env.example` and updated `.env.example` to provide clear, zero-secret setup templates.
 
 ### 5.3 CI coverage gaps
 

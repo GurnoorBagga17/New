@@ -91,7 +91,7 @@ class TestPhase1CedarAstAndRealMcpIntegration:
 
 class TestPhase2LineageDatabaseAndContracts:
     def test_sql_migration_schema_and_shared_credential_sibling_view(self):
-        sql_path = ROOT / "lineage-graph/migrations/0001_phase2_graph.sql"
+        sql_path = ROOT / "migrations/0002_nhi_lineage_graph.sql"
         ddl = sql_path.read_text(encoding="utf-8")
         # Execute the actual DDL tables and view in an in-memory SQLite engine
         conn = sqlite3.connect(":memory:")
