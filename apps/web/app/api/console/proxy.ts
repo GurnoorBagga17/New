@@ -6,10 +6,18 @@ const isProduction =
 
 export const ADMIN_API_URL = process.env.AXIOM_ADMIN_API_URL || "http://127.0.0.1:8787";
 
-export const ADMIN_TOKEN = (() => {
-  const token = process.env.AXIOM_ADMIN_TOKEN;
-  if (token && token.trim().length > 0) {
-    return token.trim();
+/**
+ * Resolve the control-plane admin token at request time.
+ *
+ * Deliberately lazy: throwing during module evaluation breaks `next build`,
+ * which collects route configuration without runtime secrets. Production
+ * deployments must set AXIOM_ADMIN_TOKEN; the dev fallback is only reachable
+ * outside production.
+ */
+export function getAdminToken(): string {
+  const token = process.env.AXIOM_ADMIN_TOKEN?.trim();
+  if (token) {
+    return token;
   }
   if (isProduction) {
     throw new Error(
@@ -17,12 +25,12 @@ export const ADMIN_TOKEN = (() => {
     );
   }
   return "axm_local_dev_token_for_browser_testing";
-})();
+}
 
 export function getAdminHeaders(extra: Record<string, string> = {}): HeadersInit {
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${ADMIN_TOKEN}`,
+    Authorization: `Bearer ${getAdminToken()}`,
     ...extra,
   };
 }

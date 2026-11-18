@@ -13,19 +13,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOperatorSession } from "../../auth/store";
 import Stripe from "stripe";
 
-// Initialize Stripe with secret key (MUST be set in production)
-const stripe = process.env.STRIPE_SECRET_KEY
-  ? new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2025-02-24.acacia" as any,
-    })
-  : null;
+// Lazily initialize Stripe so builds do not require runtime secrets.
+let stripeClient: Stripe | null = null;
 
-const isProduction = process.env.NODE_ENV === "production";
-
-if (!stripe && isProduction) {
-  throw new Error(
-    "Fatal: STRIPE_SECRET_KEY must be set in production mode for billing operations"
-  );
+function getStripe(): Stripe | null {
+  if (stripeClient) return stripeClient;
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey) return null;
+  stripeClient = new Stripe(secretKey, {
+    apiVersion: "2025-02-24.acacia" as any,
+  });
+  return stripeClient;
 }
 
 // Server-defined plan configurations
@@ -96,7 +94,11 @@ export async function POST(req: NextRequest) {
   }
 
   // 5. Verify Stripe is configured
+  const stripe = getStripe();
   if (!stripe) {
+    console.error(
+      "STRIPE_SECRET_KEY is not configured; billing checkout is unavailable"
+    );
     return NextResponse.json(
       {
         error: "Billing provider not configured. Contact support.",

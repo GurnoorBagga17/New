@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { csrfFetch } from "@/lib/csrf";
 
 interface ConnectedIntegration {
   id: string;
@@ -496,7 +497,7 @@ export default function IntegrationsPage() {
   const handleTestConnection = async (id: string) => {
     setFleetActionMsg({ id, text: "Verifying cross-account trust...", ok: true });
     try {
-      const res = await fetch(`/api/integrations/${encodeURIComponent(id)}/test`, { method: "POST" });
+      const res = await csrfFetch(`/api/integrations/${encodeURIComponent(id)}/test`, { method: "POST" });
       const data = await res.json();
       if (res.ok) {
         setFleetActionMsg({
@@ -520,7 +521,7 @@ export default function IntegrationsPage() {
       prev.map((item) => (item.id === id ? { ...item, status: "syncing" } : item))
     );
     try {
-      const res = await fetch(`/api/integrations/${encodeURIComponent(id)}/sync`, { method: "POST" });
+      const res = await csrfFetch(`/api/integrations/${encodeURIComponent(id)}/sync`, { method: "POST" });
       const data = await res.json();
       if (res.ok) {
         setFleetActionMsg({
@@ -548,7 +549,7 @@ export default function IntegrationsPage() {
       return;
     }
     try {
-      const res = await fetch(`/api/integrations/${encodeURIComponent(id)}`, { method: "DELETE" });
+      const res = await csrfFetch(`/api/integrations/${encodeURIComponent(id)}`, { method: "DELETE" });
       if (res.ok) {
         setConnectedIntegrations((prev) => prev.filter((item) => item.id !== id));
       }
@@ -563,7 +564,7 @@ export default function IntegrationsPage() {
     if (!newDisplayName || !newCredentialRef) return;
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/integrations", {
+      const res = await csrfFetch("/api/integrations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

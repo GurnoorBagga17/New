@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import ComplianceMatrix from "../components/ComplianceMatrix";
 import EnterpriseLicensingWidget from "../components/EnterpriseLicensingWidget";
 import RemediationTicketModal, { type FindingItem } from "../components/RemediationTicketModal";
+import { csrfFetch } from "@/lib/csrf";
 
 interface OperatorProfile {
   authenticated: boolean;
@@ -224,7 +225,7 @@ export default function ConsolePage() {
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await csrfFetch("/api/auth/logout", { method: "POST" });
     } finally {
       router.push("/sign-in");
     }
@@ -280,7 +281,7 @@ export default function ConsolePage() {
   const startZeroDowntimeRotation = async () => {
     setRotationStage(1);
     try {
-      await fetch("/api/console/rotate", {
+      await csrfFetch("/api/console/rotate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lease_id: "bao-lease-8902-dynamic" }),
@@ -293,7 +294,7 @@ export default function ConsolePage() {
 
   const handleSimulateRevoke = async () => {
     try {
-      const res = await fetch("/api/console/simulate-revoke", {
+      const res = await csrfFetch("/api/console/simulate-revoke", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ target_uid: "agent::reporting-worker-4" }),
@@ -310,7 +311,7 @@ export default function ConsolePage() {
 
   const handleTriggerKillSwitch = async () => {
     try {
-      await fetch("/api/console/revocations", {
+      await csrfFetch("/api/console/revocations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -27,6 +27,14 @@ export async function POST() {
       secure: process.env.NODE_ENV === "production",
     });
 
+    response.cookies.set("axiom_csrf", "", {
+      path: "/",
+      maxAge: 0,
+      httpOnly: false,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+
     return response;
   } catch (error) {
     console.error("POST /api/auth/logout error:", error);

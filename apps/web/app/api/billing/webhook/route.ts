@@ -33,17 +33,10 @@ if (process.env.DATABASE_URL) {
   });
 }
 
-const isProduction = process.env.NODE_ENV === "production";
-
-if ((!stripe || !STRIPE_WEBHOOK_SECRET || !dbPool) && isProduction) {
-  throw new Error(
-    "Fatal: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, and DATABASE_URL must be set in production"
-  );
-}
-
 /**
  * Webhook signature verification using Stripe's HMAC-SHA256 scheme.
- * This prevents event forgery and replay attacks.
+ * This prevents event forgery and replay attacks. Stripe recommends a
+ * 5-minute timestamp tolerance; older signatures are rejected.
  */
 function verifyStripeSignature(
   rawBody: string,
@@ -55,10 +48,20 @@ function verifyStripeSignature(
   try {
     // Stripe signature format: t=timestamp,v1=signature
     const parts = signature.split(",");
-    const timestamp = parts.find((p) => p.startsWith("t="))?.split("=")[1];
-    const sig = parts.find((p) => p.startsWith("v1="))?.split("=")[1];
+    const timestamp = parts.find((p) => p.startsWith("t="))?.slice(2);
+    const sig = parts.find((p) => p.startsWith("v1="))?.slice(3);
 
     if (!timestamp || !sig) return false;
+
+    const timestampSeconds = Number.parseInt(timestamp, 10);
+    if (!Number.isFinite(timestampSeconds)) return false;
+
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const toleranceSeconds = 300;
+    if (Math.abs(nowSeconds - timestampSeconds) > toleranceSeconds) {
+      console.error("Webhook signature timestamp outside tolerance window");
+      return false;
+    }
 
     // Construct signed payload: timestamp.rawBody
     const payload = `${timestamp}.${rawBody}`;
@@ -67,11 +70,12 @@ function verifyStripeSignature(
       .update(payload)
       .digest("hex");
 
+    const provided = Buffer.from(sig, "hex");
+    const expected = Buffer.from(expectedSig, "hex");
+    if (provided.length !== expected.length) return false;
+
     // Timing-safe comparison
-    return crypto.timingSafeEqual(
-      Buffer.from(sig, "hex"),
-      Buffer.from(expectedSig, "hex")
-    );
+    return crypto.timingSafeEqual(provided, expected);
   } catch {
     return false;
   }
@@ -264,6 +268,18 @@ function calculateEntitlements(planId: string, status: string) {
 }
 
 export async function POST(req: NextRequest) {
+  // Fail closed when billing infrastructure is not configured instead of
+  // silently acknowledging (and dropping) events.
+  if (!stripe || !dbPool) {
+    console.error(
+      "Billing webhook unavailable: STRIPE_SECRET_KEY or DATABASE_URL is not configured"
+    );
+    return NextResponse.json(
+      { error: "Billing webhook not configured" },
+      { status: 503 }
+    );
+  }
+
   // 1. Read raw body for signature verification
   const rawBody = await req.text();
   const signature = req.headers.get("stripe-signature");

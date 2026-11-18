@@ -231,6 +231,15 @@ export async function GET(req: NextRequest) {
     maxAge: 3600 * 8,
   });
 
+  // Double-submit CSRF token: readable by the browser, verified by proxy.ts
+  response.cookies.set("axiom_csrf", session.csrfToken, {
+    httpOnly: false,
+    secure: isProduction,
+    sameSite: "strict",
+    path: "/",
+    maxAge: 3600 * 8,
+  });
+
   // Clear single-use PKCE cookie
   response.cookies.delete("axiom_oidc_pkce");
 

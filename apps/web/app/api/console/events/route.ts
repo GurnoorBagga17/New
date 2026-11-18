@@ -1,6 +1,6 @@
 // Copyright 2026 Axiom NHI — Licensed under Apache-2.0
 import { NextRequest } from "next/server";
-import { ADMIN_API_URL, ADMIN_TOKEN } from "../proxy";
+import { ADMIN_API_URL, getAdminToken } from "../proxy";
 import { getOperatorSession } from "../../auth/store";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
 
   // Try upstream connection to live Rust ExtMCP SSE stream
   try {
+    const adminToken = getAdminToken();
     let streamUrl = `${ADMIN_API_URL}/v1/local/events/stream`;
 
     // Attempt to acquire a short-lived single-use SSE ticket nonce bound to the session
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
       const ticketRes = await fetch(`${ADMIN_API_URL}/v1/local/events/ticket`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${ADMIN_TOKEN}`,
+          Authorization: `Bearer ${adminToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest) {
     const upstream = await fetch(streamUrl, {
       headers: {
         Accept: "text/event-stream",
-        Authorization: `Bearer ${ADMIN_TOKEN}`,
+        Authorization: `Bearer ${adminToken}`,
       },
       signal: req.signal,
     });

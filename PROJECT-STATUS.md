@@ -4,6 +4,11 @@
 **Repository State:** All 18 Workspace Crates Compiling & Verified  
 **License:** Apache-2.0 Open Core  
 
+> **⚠️ Superseded for verification claims.** This report is stale: the
+> workspace now has 21 crates, and several claims here were not reproducible.
+> See [`docs/VERIFIED-STATUS-2026-11-18.md`](docs/VERIFIED-STATUS-2026-11-18.md)
+> for the audited status and the list of fixes made.
+
 ---
 
 ## 🎯 Executive Status Summary

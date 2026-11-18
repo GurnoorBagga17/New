@@ -26,7 +26,7 @@ export async function GET() {
 
     const user = getUserById(session.userId);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       authenticated: true,
       userId: session.userId,
       tenantId: session.tenantId,
@@ -36,6 +36,18 @@ export async function GET() {
       csrfToken: session.csrfToken,
       expiresAtUnix: session.expiresAtUnix,
     });
+
+    // Refresh the double-submit token for sessions created before the
+    // `axiom_csrf` cookie existed (and to keep it in sync on rotation).
+    response.cookies.set("axiom_csrf", session.csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
+      maxAge: 3600 * 8,
+    });
+
+    return response;
   } catch (error) {
     console.error("GET /api/auth/me error:", error);
     return NextResponse.json(

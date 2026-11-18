@@ -72,6 +72,14 @@ export async function POST(req: NextRequest) {
       path: "/",
       maxAge: 3600 * 8,
     });
+    // Double-submit CSRF token: readable by the browser, verified by proxy.ts
+    response.cookies.set("axiom_csrf", session.csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
+      maxAge: 3600 * 8,
+    });
     return response;
   } catch {
     return NextResponse.json({ error: "Invalid registration payload" }, { status: 400 });
